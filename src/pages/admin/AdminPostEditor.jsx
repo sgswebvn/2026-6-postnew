@@ -1,0 +1,625 @@
+import React, { useState, useEffect } from 'react';
+import { useBlog } from '../../context/BlogContext';
+import { 
+  Save, 
+  ArrowLeft, 
+  Eye, 
+  Sparkles, 
+  Heading2, 
+  Heading3, 
+  Bold, 
+  Italic, 
+  Quote, 
+  List, 
+  Table, 
+  Image, 
+  CheckCircle, 
+  Globe, 
+  DollarSign,
+  AlertCircle,
+  Wand2,
+  FileText
+} from 'lucide-react';
+import { Badge } from '../../components/common/Badge';
+
+const SAMPLE_COVERS = [
+  { name: 'Tài Chính & Đầu Tư', url: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?q=80&w=1200&auto=format&fit=crop' },
+  { name: 'AI & Công Nghệ Cao', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop' },
+  { name: 'Sức Khỏe & Giấc Ngủ', url: 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=1200&auto=format&fit=crop' },
+  { name: 'Không Gian Sống Hiện Đại', url: 'https://images.unsplash.com/photo-1593062096033-9a26b09da705?q=80&w=1200&auto=format&fit=crop' },
+  { name: 'Phân Tích Dữ Liệu Thị Trường', url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=1200&auto=format&fit=crop' },
+];
+
+export const AdminPostEditor = ({ postId }) => {
+  const { posts, categories, authors, savePost, navigate } = useBlog();
+
+  const existingPost = postId ? posts.find(p => p.id === postId) : null;
+
+  const [formData, setFormData] = useState({
+    title: '',
+    slug: '',
+    excerpt: '',
+    coverImage: SAMPLE_COVERS[0].url,
+    categoryId: 'cat-finance',
+    authorId: 'author-1',
+    factCheckerId: 'author-4',
+    readTime: '6 phút đọc',
+    status: 'published',
+    featured: false,
+    tagsString: 'Tài chính cá nhân, Đầu tư, Cổ phiếu Mỹ',
+    metaTitle: '',
+    metaDescription: '',
+    focusKeyword: '',
+    enableAds: true,
+    content: ''
+  });
+
+  const [activeTab, setActiveTab] = useState('write'); // 'write' or 'preview'
+
+  useEffect(() => {
+    if (existingPost) {
+      setFormData({
+        ...existingPost,
+        tagsString: existingPost.tags ? existingPost.tags.join(', ') : ''
+      });
+    }
+  }, [existingPost]);
+
+  const generateSlug = (text) => {
+    return text
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[đĐ]/g, 'd')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/[\s-]+/g, '-');
+  };
+
+  const handleTitleChange = (e) => {
+    const title = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      title,
+      slug: prev.slug || generateSlug(title),
+      metaTitle: prev.metaTitle || title
+    }));
+  };
+
+  const handleInsertAiOutline = () => {
+    const outlineSnippet = `
+<p>Trong bối cảnh kinh tế vĩ mô và công nghệ biến chuyển nhanh chóng, các nhà đầu tư và chuyên gia hàng đầu luôn tìm kiếm những chiến lược tối ưu hóa nguồn lực có tính toán bài bản.</p>
+
+<div class="my-6 p-5 bg-blue-50/80 dark:bg-blue-950/40 border-l-4 border-blue-600 rounded-r-lg">
+  <h4 class="font-bold text-blue-900 dark:text-blue-300 mb-2">Điểm Cốt Lõi Cần Nắm Vững (Key Takeaways)</h4>
+  <ul class="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-disc pl-5">
+    <li>Chiến lược phân bổ thanh khoản đa tầng giúp bảo vệ danh mục trước các biến động ngắn hạn.</li>
+    <li>Tận dụng các ưu đãi thuế suất và lãi suất thực để tối đa hóa tỷ suất sinh lời ròng.</li>
+    <li>Thiết lập quy trình tự động hóa nhằm giảm thiểu các quyết định mang tính cảm xúc.</li>
+  </ul>
+</div>
+
+<h2>1. Nền Tảng Lý Thuyết & Bối Cảnh Thực Tế</h2>
+<p>Mô tả chi tiết nguyên lý hoạt động, dữ liệu thống kê từ các cơ quan quản lý và các trường hợp điển hình đã được kiểm chứng.</p>
+
+<h2>2. Bảng So Sánh Hiệu Quả Giữa Các Phương Án</h2>
+<div class="overflow-x-auto my-6">
+  <table class="min-w-full text-left text-sm border border-neutral-200 dark:border-neutral-800 rounded-lg">
+    <thead class="bg-neutral-100 dark:bg-neutral-800 font-semibold">
+      <tr>
+        <th class="p-3 border-b">Giải Pháp</th>
+        <th class="p-3 border-b">Tính Thanh Khoản</th>
+        <th class="p-3 border-b">Lợi Thế Vượt Trội</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
+      <tr>
+        <td class="p-3 font-medium">Chiến Lược Tối Ưu A</td>
+        <td class="p-3">Tức thì (T+0)</td>
+        <td class="p-3 text-emerald-600">Linh hoạt, bảo toàn vốn</td>
+      </tr>
+      <tr>
+        <td class="p-3 font-medium">Chiến Lược Nâng Cao B</td>
+        <td class="p-3">Trung hạn (T+30)</td>
+        <td class="p-3 text-blue-600">Lợi tức thực cao hơn lạm phát</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<blockquote>
+  "Sự thành công bền vững trong quản trị tài chính và công nghệ không đến từ may mắn, mà là kết quả của tính kỷ luật và khả năng thực thi nhất quán."
+</blockquote>
+
+<h2>3. Lộ Trình Triển Khai Thực Tiễn</h2>
+<p>Hướng dẫn từng bước cụ thể để độc giả có thể áp dụng trực tiếp vào công việc và danh mục đầu tư của mình ngay hôm nay.</p>
+`;
+    setFormData(prev => ({
+      ...prev,
+      content: prev.content ? prev.content + outlineSnippet : outlineSnippet
+    }));
+  };
+
+  const handleInsertHtml = (tag) => {
+    let insertSnippet = '';
+    switch (tag) {
+      case 'h2':
+        insertSnippet = '\n<h2>Tiêu Đề Mục Chính (Heading 2)</h2>\n<p>Nội dung phân tích chuyên sâu...</p>\n';
+        break;
+      case 'h3':
+        insertSnippet = '\n<h3>Tiêu Đề Mục Phụ (Heading 3)</h3>\n';
+        break;
+      case 'bold':
+        insertSnippet = ' <strong>từ khóa quan trọng</strong> ';
+        break;
+      case 'italic':
+        insertSnippet = ' <em>ghi chú đặc biệt</em> ';
+        break;
+      case 'quote':
+        insertSnippet = '\n<blockquote>\n  "Trích dẫn câu nói nổi tiếng hoặc nhận định đắt giá từ chuyên gia."\n</blockquote>\n';
+        break;
+      case 'callout':
+        insertSnippet = '\n<div class="my-6 p-4 bg-blue-50 dark:bg-blue-950/40 border-l-4 border-blue-600 rounded-r-lg">\n  <h4 class="font-bold text-blue-900 dark:text-blue-200">Điểm Nhấn Chiến Lược</h4>\n  <p class="text-xs text-blue-800 dark:text-blue-300">Tóm tắt lợi ích quan trọng nhất cho độc giả...</p>\n</div>\n';
+        break;
+      case 'table':
+        insertSnippet = `
+<div class="overflow-x-auto my-6">
+  <table class="min-w-full text-left text-sm border border-neutral-200 dark:border-neutral-800 rounded-lg">
+    <thead class="bg-neutral-100 dark:bg-neutral-800 font-semibold">
+      <tr><th class="p-3">Hạng Mục</th><th class="p-3">Chỉ Số</th><th class="p-3">Đánh Giá</th></tr>
+    </thead>
+    <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
+      <tr><td class="p-3">Mô Hình A</td><td class="p-3">+15.4%</td><td class="p-3 text-emerald-600">Xuất Sắc</td></tr>
+    </tbody>
+  </table>
+</div>
+`;
+        break;
+      case 'list':
+        insertSnippet = '\n<ul>\n  <li>Ý phân tích quan trọng 1</li>\n  <li>Ý phân tích quan trọng 2</li>\n</ul>\n';
+        break;
+      default:
+        break;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      content: prev.content + insertSnippet
+    }));
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    if (!formData.title.trim() || !formData.content.trim()) {
+      alert('Vui lòng nhập đầy đủ tiêu đề và nội dung bài viết.');
+      return;
+    }
+
+    const tagsArray = formData.tagsString
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+
+    const postPayload = {
+      ...formData,
+      tags: tagsArray,
+      id: existingPost ? existingPost.id : undefined,
+      slug: formData.slug || generateSlug(formData.title),
+    };
+
+    savePost(postPayload);
+    navigate('#/admin/posts');
+  };
+
+  // SEO Score Calculations
+  const metaTitleLength = (formData.metaTitle || formData.title || '').length;
+  const metaDescLength = (formData.metaDescription || formData.excerpt || '').length;
+  const wordCount = (formData.content || '').replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length;
+
+  return (
+    <form onSubmit={handleSave} className="space-y-8 animate-fadeIn pb-16">
+      {/* Top Header & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-200 dark:border-neutral-800">
+        <div className="flex items-center space-x-3">
+          <button
+            type="button"
+            onClick={() => navigate('#/admin/posts')}
+            className="p-2 bg-white dark:bg-[#111622] hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-300"
+            title="Quay lại danh sách bài viết"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div>
+            <h1 className="font-serif text-2xl font-bold text-neutral-950 dark:text-neutral-50">
+              {existingPost ? 'Chỉnh Sửa Bài Viết Chuyên Sâu' : 'Soạn Thảo Bài Viết Mới'}
+            </h1>
+            <p className="text-xs text-neutral-500">
+              Trình soạn thảo chuẩn SEO Google, tối ưu độ dài từ khóa và tích hợp vị trí AdSense.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            className="px-3.5 py-2 bg-white dark:bg-[#111622] border border-neutral-200 dark:border-neutral-800 rounded-xl text-xs font-semibold text-neutral-800 dark:text-neutral-200"
+          >
+            <option value="published">Trạng thái: Đã Xuất Bản (Live)</option>
+            <option value="draft">Trạng thái: Bản Nháp (Draft)</option>
+          </select>
+
+          <button
+            type="submit"
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg active:scale-95 transition-all"
+          >
+            <Save className="w-4 h-4" />
+            <span>{existingPost ? 'Lưu Thay Đổi' : 'Xuất Bản Bài Viết'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Grid: 8 Cols Content + 4 Cols Metadata & SEO */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left 8 Cols: Title & Rich Content */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Headline & Basic Info */}
+          <div className="p-6 bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300 mb-1.5">
+                Tiêu Đề Bài Viết (Chuẩn Báo Chí Mỹ) *
+              </label>
+              <input
+                type="text"
+                placeholder="Ví dụ: Chiến Lược Tối Ưu Dòng Tiền Lãi Suất Cao Cho Nhà Đầu Tư Thông Minh"
+                value={formData.title}
+                onChange={handleTitleChange}
+                className="w-full px-4 py-3 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-base font-serif font-bold text-neutral-900 dark:text-neutral-50 focus:outline-none focus:border-blue-500"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-neutral-500 mb-1">
+                  Đường dẫn tĩnh (Slug URL)
+                </label>
+                <input
+                  type="text"
+                  value={formData.slug}
+                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                  className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-neutral-500 mb-1">
+                  Thời Gian Đọc Dự Tính
+                </label>
+                <input
+                  type="text"
+                  value={formData.readTime}
+                  onChange={(e) => setFormData({ ...formData, readTime: e.target.value })}
+                  placeholder="Ví dụ: 7 phút đọc"
+                  className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-neutral-500 mb-1">
+                Đoạn Tóm Tắt Mở Đầu (Lead Excerpt) *
+              </label>
+              <textarea
+                rows="2"
+                placeholder="Đoạn mở đầu súc tích 2-3 câu làm nổi bật giá trị bài viết cho người đọc..."
+                value={formData.excerpt}
+                onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
+                className="w-full px-3.5 py-2 text-xs bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl focus:outline-none focus:border-blue-500"
+                required
+              ></textarea>
+            </div>
+          </div>
+
+          {/* Rich Content Editor & Toolbar */}
+          <div className="bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm overflow-hidden space-y-0">
+            {/* Editor Tabs & Quick HTML Snippet Toolbar */}
+            <div className="p-3 bg-neutral-50 dark:bg-neutral-900/70 border-b border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-2">
+              {/* Tab Switcher */}
+              <div className="flex items-center space-x-1 bg-white dark:bg-neutral-800 p-1 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('write')}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${activeTab === 'write' ? 'bg-blue-600 text-white' : 'text-neutral-600 dark:text-neutral-400'}`}
+                >
+                  Trình Soạn Thảo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('preview')}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-1 ${activeTab === 'preview' ? 'bg-blue-600 text-white' : 'text-neutral-600 dark:text-neutral-400'}`}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Xem Trước</span>
+                </button>
+              </div>
+
+              {/* Formatting Quick Insert Tools */}
+              {activeTab === 'write' && (
+                <div className="flex flex-wrap items-center gap-1">
+                  <button type="button" onClick={() => handleInsertHtml('h2')} className="px-2 py-1 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-xs font-mono font-bold text-neutral-700 dark:text-neutral-300" title="Chèn Heading 2">H2</button>
+                  <button type="button" onClick={() => handleInsertHtml('h3')} className="px-2 py-1 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-xs font-mono font-bold text-neutral-700 dark:text-neutral-300" title="Chèn Heading 3">H3</button>
+                  <button type="button" onClick={() => handleInsertHtml('bold')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="In đậm"><Bold className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleInsertHtml('quote')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Trích dẫn"><Quote className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleInsertHtml('callout')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-blue-600 dark:text-blue-400" title="Hộp Takeaways"><Sparkles className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleInsertHtml('table')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Bảng dữ liệu"><Table className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleInsertHtml('list')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Danh sách"><List className="w-4 h-4" /></button>
+                  
+                  {/* AI Outline Assistant */}
+                  <button 
+                    type="button" 
+                    onClick={handleInsertAiOutline}
+                    className="px-2.5 py-1 bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 hover:bg-amber-200 rounded-lg text-xs font-mono font-bold flex items-center gap-1 border border-amber-300 dark:border-amber-800 transition-colors ml-1"
+                    title="Chèn khung dàn bài mẫu chuẩn báo chí Mỹ"
+                  >
+                    <Wand2 className="w-3.5 h-3.5" />
+                    <span>+ Dàn Ý Chuẩn Mỹ</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Word Count Indicator */}
+            <div className="px-6 py-1.5 bg-neutral-100/50 dark:bg-neutral-900/40 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-[11px] font-mono text-neutral-500">
+              <span>Định dạng hỗ trợ: HTML, Headings, Tables, Blockquotes</span>
+              <span className={wordCount >= 1000 ? 'text-emerald-600 font-bold' : 'text-amber-600'}>
+                {wordCount} từ {wordCount >= 1000 ? '✓ Đạt chuẩn 1,000+ từ cho AdSense' : '(Khuyến nghị 1,000+ từ)'}
+              </span>
+            </div>
+
+            {/* Main Editor or Live Preview */}
+            <div className="p-4 sm:p-6">
+              {activeTab === 'write' ? (
+                <textarea
+                  rows="16"
+                  placeholder="Nhập nội dung bài viết chi tiết..."
+                  value={formData.content}
+                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  className="w-full font-mono text-sm bg-transparent border-0 focus:outline-none text-neutral-900 dark:text-neutral-100 leading-relaxed resize-y"
+                  required
+                ></textarea>
+              ) : (
+                <div 
+                  className="editorial-prose min-h-[300px]"
+                  dangerouslySetInnerHTML={{ __html: formData.content || '<p class="text-neutral-400">Chưa có nội dung...</p>' }}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Google Search Live Snippet Preview & SEO Analyzer */}
+          <div className="p-6 bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-200 dark:border-neutral-800">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-blue-500" />
+                <h3 className="font-serif text-base font-bold text-neutral-900 dark:text-neutral-100">
+                  Xem Trước Kết Quả Google Tìm Kiếm (SERP Snippet Preview)
+                </h3>
+              </div>
+              <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                Chuẩn Schema Article ✓
+              </span>
+            </div>
+
+            {/* Google SERP Card Preview */}
+            <div className="p-4 bg-white dark:bg-[#1a1f2c] rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm space-y-1 font-sans">
+              <div className="flex items-center space-x-1 text-xs text-neutral-500">
+                <span>https://thehorizonpost.com</span>
+                <span>›</span>
+                <span className="text-neutral-700 dark:text-neutral-300 font-mono">post/{formData.slug || 'slug'}</span>
+              </div>
+              <h4 className="text-base font-medium text-[#1a0dab] dark:text-[#8ab4f8] hover:underline cursor-pointer line-clamp-1">
+                {formData.metaTitle || formData.title || 'Tiêu Đề SEO Hiển Thị Trên Google'} - The Horizon Post
+              </h4>
+              <p className="text-xs text-[#4d5156] dark:text-[#bdc1c6] line-clamp-2 leading-relaxed">
+                {formData.metaDescription || formData.excerpt || 'Đoạn mô tả ngắn gọn này sẽ xuất hiện bên dưới tiêu đề khi độc giả tìm kiếm bài viết trên Google máy tính và di động.'}
+              </p>
+            </div>
+
+            {/* SEO Inputs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1 font-semibold">
+                  <span className="text-neutral-600 dark:text-neutral-400">Tiêu Đề SEO (Meta Title)</span>
+                  <span className={`font-mono text-[11px] ${metaTitleLength > 60 ? 'text-amber-500 font-bold' : 'text-emerald-500'}`}>
+                    {metaTitleLength} / 60 ký tự
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Tiêu đề SEO tùy chỉnh"
+                  value={formData.metaTitle}
+                  onChange={(e) => setFormData({ ...formData, metaTitle: e.target.value })}
+                  className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1 font-semibold">
+                  <span className="text-neutral-600 dark:text-neutral-400">Từ Khóa Trọng Tâm (Focus Keyword)</span>
+                  <span className="font-mono text-[11px] text-blue-500">Mục Tiêu CPC Cao</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: treasury bills yield, high yield savings"
+                  value={formData.focusKeyword}
+                  onChange={(e) => setFormData({ ...formData, focusKeyword: e.target.value })}
+                  className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <div className="flex items-center justify-between text-xs mb-1 font-semibold">
+                  <span className="text-neutral-600 dark:text-neutral-400">Mô Tả SEO (Meta Description)</span>
+                  <span className={`font-mono text-[11px] ${metaDescLength > 160 ? 'text-amber-500 font-bold' : 'text-emerald-500'}`}>
+                    {metaDescLength} / 160 ký tự
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Mô tả súc tích tăng tỷ lệ click (CTR) trên Google Search..."
+                  value={formData.metaDescription}
+                  onChange={(e) => setFormData({ ...formData, metaDescription: e.target.value })}
+                  className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right 4 Cols: Publishing Settings & Ad Controls */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* AdSense Placement Controls for this Post */}
+          <div className="p-6 bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-xs uppercase font-mono pb-2 border-b border-neutral-200 dark:border-neutral-800">
+              <DollarSign className="w-4 h-4" />
+              <span>Kiểm Soát Quảng Cáo AdSense</span>
+            </div>
+
+            <div className="space-y-3">
+              <label className="flex items-center justify-between cursor-pointer p-2.5 bg-neutral-50 dark:bg-neutral-900/60 rounded-xl">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-bold block text-neutral-800 dark:text-neutral-200">
+                    Bật Quảng Cáo Trong Bài
+                  </span>
+                  <span className="text-[11px] text-neutral-500 block">
+                    Chèn banner sau đoạn 2 và đoạn 5
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={formData.enableAds}
+                  onChange={(e) => setFormData({ ...formData, enableAds: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer p-2.5 bg-neutral-50 dark:bg-neutral-900/60 rounded-xl">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-bold block text-neutral-800 dark:text-neutral-200">
+                    Đặt Làm Bài Viết Đinh (Featured Lead)
+                  </span>
+                  <span className="text-[11px] text-neutral-500 block">
+                    Hiển thị vị trí lớn nhất trên Trang chủ
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={formData.featured}
+                  onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Desk Category & Author Byline */}
+          <div className="p-6 bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
+            <h3 className="font-serif text-base font-bold text-neutral-900 dark:text-neutral-100">
+              Phân Loại & Tác Giả (E-E-A-T)
+            </h3>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">
+                Chuyên Mục Bài Viết
+              </label>
+              <select
+                value={formData.categoryId}
+                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs font-semibold"
+              >
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">
+                Tác Giả Biên Soạn
+              </label>
+              <select
+                value={formData.authorId}
+                onChange={(e) => setFormData({ ...formData, authorId: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs"
+              >
+                {authors.map(a => (
+                  <option key={a.id} value={a.id}>{a.name} ({a.role})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">
+                Thẻ Phân Loại (Tags - Cách nhau dấu phẩy)
+              </label>
+              <input
+                type="text"
+                placeholder="Tài chính, Đầu tư, Trái phiếu Mỹ"
+                value={formData.tagsString}
+                onChange={(e) => setFormData({ ...formData, tagsString: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs"
+              />
+            </div>
+          </div>
+
+          {/* Cover Image Selector */}
+          <div className="p-6 bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
+            <h3 className="font-serif text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5">
+              <Image className="w-4 h-4 text-blue-500" />
+              <span>Ảnh Bìa Bài Viết</span>
+            </h3>
+
+            {formData.coverImage && (
+              <img 
+                src={formData.coverImage} 
+                alt="Ảnh bìa xem trước"
+                className="w-full aspect-[16/9] object-cover rounded-xl border border-neutral-200 dark:border-neutral-700" 
+              />
+            )}
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-neutral-500 mb-1">
+                Đường dẫn ảnh (URL)
+              </label>
+              <input
+                type="text"
+                value={formData.coverImage}
+                onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-neutral-500 mb-1.5">
+                Chọn Nhanh Bộ Ảnh Mẫu Phong Cách Mỹ
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {SAMPLE_COVERS.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, coverImage: preset.url })}
+                    className="p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-[10px] font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-blue-50 dark:hover:bg-blue-950 text-left truncate"
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  );
+};
