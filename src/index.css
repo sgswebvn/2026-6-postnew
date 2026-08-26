@@ -1,6 +1,13 @@
 @import "tailwindcss";
 
 @layer base {
+  html, body {
+    max-width: 100vw;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -9,6 +16,11 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Outfit', 'Playfair Display', Georgia, sans-serif;
+  }
+
+  img, video, iframe {
+    max-width: 100%;
+    height: auto;
   }
 }
 
@@ -19,8 +31,8 @@
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -40,6 +52,11 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Responsive Table Touch Scrolling */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
 }
 
 /* US Editorial Prose Styling */
