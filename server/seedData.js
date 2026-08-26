@@ -177,7 +177,7 @@ const richContentGenerator = (topic, title, points, tableData) => `
 `;
 
 export const initialPosts = [
-  // 1. Finance (6 articles)
+  // 1. Personal Finance & Wealth (6 articles, each with unique image)
   {
     id: 'post-1',
     title: 'The 2026 Sovereign Liquidity Matrix: Navigating Yields, Short-Term Treasuries, and Real Asset Preservation',
@@ -216,7 +216,7 @@ export const initialPosts = [
     categoryId: 'cat-finance',
     authorId: 'author-1',
     factCheckerId: 'author-4',
-    coverImage: '/images/finance_wealth_growth_1787750475063.jpg',
+    coverImage: '/images/tax_loss_harvesting_quant_1787753220003.jpg',
     readTime: '7 min read',
     publishedAt: '2026-08-24T14:20:00Z',
     status: 'published',
@@ -246,7 +246,7 @@ export const initialPosts = [
     categoryId: 'cat-finance',
     authorId: 'author-1',
     factCheckerId: 'author-4',
-    coverImage: '/images/finance_wealth_growth_1787750475063.jpg',
+    coverImage: '/images/roth_ira_private_equity_1787753241668.jpg',
     readTime: '6 min read',
     publishedAt: '2026-08-23T09:40:00Z',
     status: 'published',
@@ -276,7 +276,7 @@ export const initialPosts = [
     categoryId: 'cat-finance',
     authorId: 'author-1',
     factCheckerId: 'author-4',
-    coverImage: '/images/finance_wealth_growth_1787750475063.jpg',
+    coverImage: '/images/real_estate_debt_wall_1787753276857.jpg',
     readTime: '7 min read',
     publishedAt: '2026-08-22T11:15:00Z',
     status: 'published',
@@ -306,7 +306,7 @@ export const initialPosts = [
     categoryId: 'cat-finance',
     authorId: 'author-1',
     factCheckerId: 'author-4',
-    coverImage: '/images/finance_wealth_growth_1787750475063.jpg',
+    coverImage: '/images/insured_cash_sweeps_1787753319556.jpg',
     readTime: '5 min read',
     publishedAt: '2026-08-21T16:00:00Z',
     status: 'published',
@@ -336,7 +336,7 @@ export const initialPosts = [
     categoryId: 'cat-finance',
     authorId: 'author-1',
     factCheckerId: 'author-4',
-    coverImage: '/images/finance_wealth_growth_1787750475063.jpg',
+    coverImage: '/images/cash_balance_pension_1787753360292.jpg',
     readTime: '6 min read',
     publishedAt: '2026-08-20T13:30:00Z',
     status: 'published',
@@ -359,7 +359,7 @@ export const initialPosts = [
     ])
   },
 
-  // 2. AI & Frontier Tech (5 articles)
+  // 2. AI & Frontier Tech (5 articles, each with unique image)
   {
     id: 'post-7',
     title: 'Autonomous Multi-Agent Orchestration: Designing Reflexive Verification Loops in Enterprise LLMs',
@@ -398,7 +398,7 @@ export const initialPosts = [
     categoryId: 'cat-tech',
     authorId: 'author-2',
     factCheckerId: 'author-4',
-    coverImage: '/images/ai_neural_computing_1787750494603.jpg',
+    coverImage: '/images/gaafet_2nm_silicon_1787753508130.jpg',
     readTime: '8 min read',
     publishedAt: '2026-08-24T10:15:00Z',
     status: 'published',
@@ -428,7 +428,7 @@ export const initialPosts = [
     categoryId: 'cat-tech',
     authorId: 'author-2',
     factCheckerId: 'author-4',
-    coverImage: '/images/ai_neural_computing_1787750494603.jpg',
+    coverImage: '/images/edge_ai_slm_microchip_1787753527455.jpg',
     readTime: '6 min read',
     publishedAt: '2026-08-23T15:00:00Z',
     status: 'published',
@@ -458,7 +458,7 @@ export const initialPosts = [
     categoryId: 'cat-tech',
     authorId: 'author-2',
     factCheckerId: 'author-4',
-    coverImage: '/images/ai_neural_computing_1787750494603.jpg',
+    coverImage: '/images/post_quantum_crypto_1787753787215.jpg',
     readTime: '7 min read',
     publishedAt: '2026-08-22T08:30:00Z',
     status: 'published',
@@ -488,7 +488,7 @@ export const initialPosts = [
     categoryId: 'cat-tech',
     authorId: 'author-2',
     factCheckerId: 'author-4',
-    coverImage: '/images/ai_neural_computing_1787750494603.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1200&auto=format&fit=crop',
     readTime: '6 min read',
     publishedAt: '2026-08-21T12:00:00Z',
     status: 'published',
@@ -511,7 +511,7 @@ export const initialPosts = [
     ])
   },
 
-  // 3. Longevity & Biohacking (5 articles)
+  // 3. Longevity & Biohacking (5 articles, each with unique image)
   {
     id: 'post-12',
     title: 'The Neurobiology of Deep Sleep: Biomarker Protocols for Cellular Longevity and Glymphatic Clearance',
@@ -550,7 +550,7 @@ export const initialPosts = [
     categoryId: 'cat-health',
     authorId: 'author-3',
     factCheckerId: 'author-4',
-    coverImage: '/images/longevity_cellular_lab_1787750531621.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?q=80&w=1200&auto=format&fit=crop',
     readTime: '6 min read',
     publishedAt: '2026-08-24T07:45:00Z',
     status: 'published',
@@ -580,7 +580,7 @@ export const initialPosts = [
     categoryId: 'cat-health',
     authorId: 'author-3',
     factCheckerId: 'author-4',
-    coverImage: '/images/longevity_cellular_lab_1787750531621.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?q=80&w=1200&auto=format&fit=crop',
     readTime: '6 min read',
     publishedAt: '2026-08-23T11:00:00Z',
     status: 'published',
@@ -610,7 +610,7 @@ export const initialPosts = [
     categoryId: 'cat-health',
     authorId: 'author-3',
     factCheckerId: 'author-4',
-    coverImage: '/images/longevity_cellular_lab_1787750531621.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1200&auto=format&fit=crop',
     readTime: '7 min read',
     publishedAt: '2026-08-22T06:30:00Z',
     status: 'published',
@@ -640,7 +640,7 @@ export const initialPosts = [
     categoryId: 'cat-health',
     authorId: 'author-3',
     factCheckerId: 'author-4',
-    coverImage: '/images/longevity_cellular_lab_1787750531621.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=1200&auto=format&fit=crop',
     readTime: '5 min read',
     publishedAt: '2026-08-21T07:15:00Z',
     status: 'published',
@@ -663,7 +663,7 @@ export const initialPosts = [
     ])
   },
 
-  // 4. Smart Living & Architecture (4 articles)
+  // 4. Smart Living & Architecture (4 articles, each with unique image)
   {
     id: 'post-17',
     title: 'The High-Focus Ergonomic Sanctuary: Designing Distraction-Free Home Studios for Deep Intellectual Work',
@@ -702,7 +702,7 @@ export const initialPosts = [
     categoryId: 'cat-living',
     authorId: 'author-5',
     factCheckerId: 'author-4',
-    coverImage: '/images/smart_architecture_home_1787750552057.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=1200&auto=format&fit=crop',
     readTime: '7 min read',
     publishedAt: '2026-08-24T12:30:00Z',
     status: 'published',
@@ -732,7 +732,7 @@ export const initialPosts = [
     categoryId: 'cat-living',
     authorId: 'author-3',
     factCheckerId: 'author-4',
-    coverImage: '/images/smart_architecture_home_1787750552057.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?q=80&w=1200&auto=format&fit=crop',
     readTime: '5 min read',
     publishedAt: '2026-08-23T13:45:00Z',
     status: 'published',
@@ -762,7 +762,7 @@ export const initialPosts = [
     categoryId: 'cat-living',
     authorId: 'author-2',
     factCheckerId: 'author-4',
-    coverImage: '/images/smart_architecture_home_1787750552057.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=1200&auto=format&fit=crop',
     readTime: '5 min read',
     publishedAt: '2026-08-22T15:20:00Z',
     status: 'published',
@@ -785,7 +785,7 @@ export const initialPosts = [
     ])
   },
 
-  // 5. Venture & Global Economy (4 articles)
+  // 5. Venture & Global Economy (4 articles, each with unique image)
   {
     id: 'post-21',
     title: 'The Federal Reserve Balance Sheet Unwind: Reverse Repo Depletion and Global Dollar Liquidity',
@@ -824,7 +824,7 @@ export const initialPosts = [
     categoryId: 'cat-venture',
     authorId: 'author-2',
     factCheckerId: 'author-4',
-    coverImage: '/images/venture_capital_trading_1787750619298.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=1200&auto=format&fit=crop',
     readTime: '6 min read',
     publishedAt: '2026-08-24T16:45:00Z',
     status: 'published',
@@ -854,7 +854,7 @@ export const initialPosts = [
     categoryId: 'cat-venture',
     authorId: 'author-1',
     factCheckerId: 'author-4',
-    coverImage: '/images/venture_capital_trading_1787750619298.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop',
     readTime: '7 min read',
     publishedAt: '2026-08-23T14:15:00Z',
     status: 'published',
@@ -884,7 +884,7 @@ export const initialPosts = [
     categoryId: 'cat-venture',
     authorId: 'author-1',
     factCheckerId: 'author-4',
-    coverImage: '/images/venture_capital_trading_1787750619298.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop',
     readTime: '6 min read',
     publishedAt: '2026-08-22T17:00:00Z',
     status: 'published',
@@ -907,7 +907,7 @@ export const initialPosts = [
     ])
   },
 
-  // 6. Cybersecurity & Privacy (3 articles)
+  // 6. Cybersecurity & Privacy (3 articles, each with unique image)
   {
     id: 'post-25',
     title: 'Zero Trust Architecture in Enterprise Clouds: Identity-Based Perimeters and Micro-Segmentation',
@@ -946,7 +946,7 @@ export const initialPosts = [
     categoryId: 'cat-cyber',
     authorId: 'author-2',
     factCheckerId: 'author-4',
-    coverImage: '/images/cybersecurity_vault_crypto_1787750572520.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=1200&auto=format&fit=crop',
     readTime: '6 min read',
     publishedAt: '2026-08-24T17:30:00Z',
     status: 'published',
@@ -976,7 +976,7 @@ export const initialPosts = [
     categoryId: 'cat-cyber',
     authorId: 'author-2',
     factCheckerId: 'author-4',
-    coverImage: '/images/cybersecurity_vault_crypto_1787750572520.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?q=80&w=1200&auto=format&fit=crop',
     readTime: '5 min read',
     publishedAt: '2026-08-23T16:15:00Z',
     status: 'published',
@@ -999,7 +999,7 @@ export const initialPosts = [
     ])
   },
 
-  // 7. Clean Energy & Mobility (3 articles)
+  // 7. Clean Energy & Mobility (3 articles, each with unique image)
   {
     id: 'post-28',
     title: 'Solid-State Battery Chemistry: Silicon Anodes, 500 Wh/kg Energy Density, and the EV Inflection Point',
@@ -1038,7 +1038,7 @@ export const initialPosts = [
     categoryId: 'cat-energy',
     authorId: 'author-5',
     factCheckerId: 'author-4',
-    coverImage: '/images/clean_energy_grid_1787750598117.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?q=80&w=1200&auto=format&fit=crop',
     readTime: '6 min read',
     publishedAt: '2026-08-24T18:00:00Z',
     status: 'published',
@@ -1068,7 +1068,7 @@ export const initialPosts = [
     categoryId: 'cat-energy',
     authorId: 'author-5',
     factCheckerId: 'author-4',
-    coverImage: '/images/clean_energy_grid_1787750598117.jpg',
+    coverImage: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?q=80&w=1200&auto=format&fit=crop',
     readTime: '8 min read',
     publishedAt: '2026-08-23T18:30:00Z',
     status: 'published',
