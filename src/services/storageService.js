@@ -299,6 +299,14 @@ export const storageService = {
     return posts;
   },
 
+  getReferralHits() {
+    try {
+      return JSON.parse(localStorage.getItem('horizon_staff_referrals_v2') || '{"QB": 18, "MINH": 12, "AN": 9, "LINH": 6}');
+    } catch {
+      return { "QB": 18, "MINH": 12, "AN": 9, "LINH": 6 };
+    }
+  },
+
   recordSeedingHit(refCode, path = '/') {
     if (!refCode) return;
     const cleanRef = refCode.toUpperCase().trim();

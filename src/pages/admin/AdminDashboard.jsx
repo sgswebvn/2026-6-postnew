@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { telemetryService } from '../../services/telemetryService';
+import { storageService } from '../../services/storageService';
 import { 
   FileText, 
   Eye, 
@@ -256,29 +257,45 @@ export const AdminDashboard = () => {
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-blue-400" />
               <h3 className="font-serif text-sm font-bold text-white">
-                Thành Tích Seeding CTV (Mã ?ref=...)
+                Thành Tích Seeding Tiếp Thị (Cập Nhật Thời Gian Thực)
               </h3>
             </div>
             <button 
               onClick={() => navigate('/admin/staff')}
               className="text-xs text-blue-400 hover:underline font-medium"
             >
-              Xem chi tiết →
+              Quản lý CTV →
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            {Object.entries(telemetryData?.staffReferrals || { "QB": 18, "MINH": 12, "AN": 9, "LINH": 6 }).map(([code, hits]) => {
-              const staff = staffList?.find(s => s.refCode === code);
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {staffList.filter(s => s.refCode).map(staff => {
+              const hits = (storageService.getReferralHits() || {})[staff.refCode] || 0;
               return (
-                <div key={code} className="p-3 bg-[#182234] border border-[#2a3a54] rounded-xl flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-bold text-purple-400 font-mono">?ref={code}</span>
-                    <p className="text-[10px] text-neutral-400 truncate max-w-[100px]">{staff?.name || 'Nhân sự Seeding'}</p>
+                <div key={staff.id} className="p-3 bg-[#182234] border border-[#2a3a54] hover:border-purple-800/80 rounded-xl flex items-center justify-between transition-colors">
+                  <div className="min-w-0 flex-1 mr-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-purple-400 font-mono">?ref={staff.refCode}</span>
+                      <span className="text-[11px] text-white font-semibold truncate">({staff.name})</span>
+                    </div>
+                    <p className="text-[10px] text-neutral-400 truncate">{staff.roleName || staff.role}</p>
                   </div>
-                  <span className="px-2 py-0.5 bg-[#0d131f] border border-[#2a3a54] rounded text-xs font-mono font-bold text-white">
-                    {hits} views
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-2 py-0.5 bg-[#0d131f] border border-purple-800/60 rounded text-xs font-mono font-bold text-purple-300">
+                      {hits} views
+                    </span>
+                    <button
+                      onClick={() => {
+                        storageService.recordSeedingHit(staff.refCode, '/');
+                        showToast(`🧪 Đã ghi nhận +1 click thật cho ?ref=${staff.refCode}!`);
+                        setTelemetryData(telemetryService.getAggregatedMetrics());
+                      }}
+                      title="Test click mô phỏng (+1 View thật)"
+                      className="p-1 bg-purple-950/60 hover:bg-purple-800 text-purple-200 border border-purple-800/50 rounded text-[10px] font-mono"
+                    >
+                      +1
+                    </button>
+                  </div>
                 </div>
               );
             })}
