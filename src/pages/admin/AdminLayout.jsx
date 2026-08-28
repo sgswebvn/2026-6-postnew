@@ -206,8 +206,19 @@ export const AdminLayout = ({ children, currentTab = 'dashboard' }) => {
             </span>
           </div>
 
-          {/* Right Action Tools: Staff Profile link and Logout */}
+          {/* Right Action Tools: Live Status Pill, Staff Profile link and Logout */}
           <div className="flex items-center space-x-2.5">
+            {/* Realtime System & Storage CDN Live Status Badge */}
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-[#111c2e] border border-emerald-800/60 rounded-xl text-[11px] font-mono text-emerald-300 shadow-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="font-bold">Trạng Thái: Trực Tuyến</span>
+              <span className="text-neutral-500">•</span>
+              <span className="text-cyan-300 text-[10px]">Cloud Supabase Ready</span>
+            </div>
+
             {currentUser && (
               <button
                 onClick={() => navigate('/admin/profile')}

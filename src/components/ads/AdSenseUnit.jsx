@@ -7,7 +7,7 @@ export const AdSenseUnit = ({
   customClass = '',
   customLabel = ''
 }) => {
-  const { settings } = useBlog();
+  const { settings, showToast } = useBlog();
   const adRef = useRef(null);
 
   const isEnabled = Boolean(settings?.adsense?.enabled);
@@ -128,7 +128,7 @@ export const AdSenseUnit = ({
             <div className="flex-shrink-0 self-end sm:self-center">
               <button 
                 type="button"
-                onClick={() => alert(`Mô phỏng lượt nhấp Google AdSense cho ${currentMock.brand}. Trong chế độ Live, lượt nhấp sẽ chuyển đến trang nhà tài trợ qua mạng lưới Google.`)}
+                onClick={() => showToast(`Mô phỏng tương tác Google AdSense cho ${currentMock.brand}. Trong chế độ Live, lượt nhấp sẽ chuyển đến trang nhà tài trợ qua mạng lưới Google.`, 'info')}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm flex items-center gap-1.5 transition-all"
               >
                 <span>{currentMock.cta}</span>

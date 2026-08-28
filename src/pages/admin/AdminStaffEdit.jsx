@@ -38,7 +38,7 @@ const PERMISSIONS_CONFIG = [
 ];
 
 export const AdminStaffEdit = ({ staffId }) => {
-  const { staffList, saveStaff, deleteStaff, navigate, showToast } = useBlog();
+  const { staffList, saveStaff, deleteStaff, navigate, showToast, showConfirm } = useBlog();
 
   const targetStaff = staffList.find(s => s.id === staffId || s.username === staffId) || null;
 
@@ -132,11 +132,17 @@ export const AdminStaffEdit = ({ staffId }) => {
   };
 
   const handleDelete = () => {
-    if (window.confirm(`Bạn có chắc muốn xóa nhân sự "${targetStaff?.name}" khỏi hệ thống?`)) {
-      deleteStaff(targetStaff.id);
-      showToast(`Đã xóa nhân viên "${targetStaff?.name}"`);
-      navigate('/admin/staff');
-    }
+    showConfirm({
+      title: 'Xóa Nhân Sự Khỏi Hệ Thống',
+      message: `Bạn có chắc muốn xóa nhân sự "${targetStaff?.name}" khỏi tòa soạn? Toàn bộ quyền hạn và liên kết của nhân viên này sẽ bị xóa.`,
+      confirmText: 'Xóa Nhân Sự',
+      variant: 'danger',
+      onConfirm: () => {
+        deleteStaff(targetStaff.id);
+        showToast(`Đã xóa nhân viên "${targetStaff?.name}"`, 'info');
+        navigate('/admin/staff');
+      }
+    });
   };
 
   const handleCopyLink = () => {

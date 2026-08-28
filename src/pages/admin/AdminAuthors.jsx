@@ -3,7 +3,7 @@ import { useBlog } from '../../context/BlogContext';
 import { Users, Plus, Edit2, Trash2, Check, ShieldCheck, CheckCircle } from 'lucide-react';
 
 export const AdminAuthors = () => {
-  const { authors, updateAuthors, posts } = useBlog();
+  const { authors, updateAuthors, showToast, showConfirm } = useBlog();
   const [editingId, setEditingId] = useState(null);
   const [newAuthor, setNewAuthor] = useState({
     name: '',
@@ -34,16 +34,24 @@ export const AdminAuthors = () => {
       twitter: '@author_handle',
       verified: true
     });
+    showToast(`Đã thêm tác giả "${created.name}" thành công!`, 'success');
   };
 
   const handleDelete = (id, name) => {
     if (authors.length <= 1) {
-      alert('Bạn phải giữ lại ít nhất 1 tác giả.');
+      showToast('Bạn phải giữ lại ít nhất 1 tác giả trong ban biên tập.', 'warning');
       return;
     }
-    if (window.confirm(`Xóa tác giả "${name}"?`)) {
-      updateAuthors(authors.filter(a => a.id !== id));
-    }
+    showConfirm({
+      title: 'Xóa Hồ Sơ Tác Giả',
+      message: `Bạn có chắc muốn xóa tác giả "${name}" khỏi ban biên tập?`,
+      confirmText: 'Xóa Tác Giả',
+      variant: 'danger',
+      onConfirm: () => {
+        updateAuthors(authors.filter(a => a.id !== id));
+        showToast(`Đã xóa tác giả "${name}"`, 'info');
+      }
+    });
   };
 
   return (

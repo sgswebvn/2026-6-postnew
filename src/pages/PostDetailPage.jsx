@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 
 export const PostDetailPage = ({ slug }) => {
-  const { posts, categories, authors, settings, navigate, toggleBookmark, bookmarks, incrementPostView } = useBlog();
+  const { posts, categories, authors, settings, navigate, toggleBookmark, bookmarks, incrementPostView, showToast } = useBlog();
   const [fontSize, setFontSize] = useState('base'); // 'sm' | 'base' | 'lg'
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [userReaction, setUserReaction] = useState(null);
@@ -128,7 +128,7 @@ export const PostDetailPage = ({ slug }) => {
 
   const handleToggleSpeech = () => {
     if (!('speechSynthesis' in window)) {
-      alert('Your browser does not support web speech synthesis.');
+      showToast('Trình duyệt của bạn chưa hỗ trợ tính năng đọc bài báo bằng giọng nói', 'warning');
       return;
     }
     if (isPlayingAudio) {

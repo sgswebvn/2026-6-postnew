@@ -3,6 +3,7 @@ import { BlogProvider, useBlog } from './context/BlogContext';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { Toast } from './components/common/Toast';
+import { CustomDialog } from './components/common/CustomDialog';
 import { SearchModal } from './components/common/SearchModal';
 import { StickyBottomAd } from './components/ads/StickyBottomAd';
 
@@ -220,6 +221,7 @@ const AppContent = () => {
       {renderRoute()}
       <SearchModal />
       <Toast />
+      <CustomDialog />
     </>
   );
 };

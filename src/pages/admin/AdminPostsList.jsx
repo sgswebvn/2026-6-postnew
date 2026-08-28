@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export const AdminPostsList = () => {
-  const { posts, categories, navigate, deletePost, savePost, showToast } = useBlog();
+  const { posts, categories, navigate, deletePost, savePost, showToast, showConfirm } = useBlog();
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -41,9 +41,15 @@ export const AdminPostsList = () => {
   const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
 
   const handleDelete = (id, title) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa bài viết "${title}" không? Hành động này không thể hoàn tác.`)) {
-      deletePost(id);
-    }
+    showConfirm({
+      title: 'Xóa Bài Viết Khỏi Tòa Soạn',
+      message: `Bạn có chắc chắn muốn xóa bài viết "${title}" không? Dữ liệu bài viết này sẽ bị gỡ bỏ hoàn toàn khỏi hệ thống.`,
+      confirmText: 'Xóa Bài Viết',
+      variant: 'danger',
+      onConfirm: () => {
+        deletePost(id);
+      }
+    });
   };
 
   const toggleStatus = (post) => {

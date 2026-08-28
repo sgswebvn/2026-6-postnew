@@ -38,7 +38,7 @@ const SAMPLE_COVERS = [
 ];
 
 export const AdminPostEditor = ({ postId }) => {
-  const { posts, categories, authors, savePost, addCategory, navigate, showToast } = useBlog();
+  const { posts, categories, authors, savePost, addCategory, navigate, showToast, showPrompt } = useBlog();
 
   const existingPost = postId ? posts.find(p => p.id === postId) : null;
 
@@ -217,23 +217,28 @@ export const AdminPostEditor = ({ postId }) => {
   };
 
   const handleInsertYouTube = () => {
-    const rawUrl = prompt('Nhập đường dẫn Video YouTube (ví dụ: https://www.youtube.com/watch?v=dQw4w9WgXcQ hoặc https://youtu.be/...):');
-    if (!rawUrl) return;
+    showPrompt({
+      title: 'Chèn Video YouTube Vào Bài Viết',
+      message: 'Nhập đường dẫn URL của Video YouTube để hệ thống tự động nhúng khung phát chuẩn 16:9 sắc nét.',
+      placeholder: 'https://www.youtube.com/watch?v=... hoặc https://youtu.be/...',
+      inputLabel: 'Đường dẫn YouTube URL:',
+      confirmText: 'Nhúng Video',
+      onConfirm: (rawUrl) => {
+        if (!rawUrl || !rawUrl.trim()) return;
+        let videoId = '';
+        const match1 = rawUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+        if (match1) {
+          videoId = match1[1];
+        } else if (rawUrl.trim().length === 11) {
+          videoId = rawUrl.trim();
+        }
 
-    let videoId = '';
-    const match1 = rawUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
-    if (match1) {
-      videoId = match1[1];
-    } else if (rawUrl.length === 11) {
-      videoId = rawUrl;
-    }
+        if (!videoId) {
+          showToast('Không tìm thấy Video ID hợp lệ từ liên kết YouTube vừa nhập', 'warning');
+          return;
+        }
 
-    if (!videoId) {
-      alert('Không tìm thấy Video ID hợp lệ từ liên kết YouTube.');
-      return;
-    }
-
-    const embedHtml = `
+        const embedHtml = `
 <div class="my-8 rounded-3xl overflow-hidden aspect-video shadow-xl border border-neutral-200 dark:border-neutral-800 bg-black">
   <iframe 
     class="w-full h-full" 
@@ -245,11 +250,13 @@ export const AdminPostEditor = ({ postId }) => {
   </iframe>
 </div>
 `;
-
-    setFormData(prev => ({
-      ...prev,
-      content: prev.content + embedHtml
-    }));
+        setFormData(prev => ({
+          ...prev,
+          content: prev.content + embedHtml
+        }));
+        showToast('Đã chèn khung video YouTube thành công!', 'success');
+      }
+    });
   };
 
   const coverFileInputRef = React.useRef(null);
@@ -378,7 +385,7 @@ export const AdminPostEditor = ({ postId }) => {
   const handleSave = (e) => {
     e.preventDefault();
     if (!formData.title.trim() || !formData.content.trim()) {
-      alert('Vui lòng nhập đầy đủ tiêu đề và nội dung bài viết.');
+      showToast('Vui lòng nhập đầy đủ tiêu đề và nội dung bài viết (*)', 'warning');
       return;
     }
 

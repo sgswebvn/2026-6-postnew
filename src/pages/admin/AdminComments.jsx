@@ -4,7 +4,7 @@ import { useBlog } from '../../context/BlogContext';
 import { MessageSquare, Trash2, CheckCircle2, ThumbsUp, ExternalLink, ShieldCheck } from 'lucide-react';
 
 export const AdminComments = () => {
-  const { posts, navigate, showToast } = useBlog();
+  const { posts, navigate, showToast, showConfirm } = useBlog();
   const [comments, setComments] = useState([]);
 
   useEffect(() => {
@@ -12,11 +12,17 @@ export const AdminComments = () => {
   }, []);
 
   const handleDelete = (id) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa bình luận này?')) {
-      const updated = storageService.deleteComment(id);
-      setComments(updated);
-      showToast('Đã xóa bình luận thành công');
-    }
+    showConfirm({
+      title: 'Xóa Bình Luận',
+      message: 'Bạn có chắc chắn muốn xóa bình luận này của độc giả khỏi bài viết?',
+      confirmText: 'Xóa Bình Luận',
+      variant: 'danger',
+      onConfirm: () => {
+        const updated = storageService.deleteComment(id);
+        setComments(updated);
+        showToast('Đã xóa bình luận thành công', 'info');
+      }
+    });
   };
 
   return (

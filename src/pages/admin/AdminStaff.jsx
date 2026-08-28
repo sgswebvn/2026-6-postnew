@@ -36,7 +36,7 @@ const AVATAR_PRESETS = [
 ];
 
 export const AdminStaff = () => {
-  const { staffList, saveStaff, deleteStaff, updateStaffSalary, activityLogs, clearActivityLogs, showToast, navigate } = useBlog();
+  const { staffList, saveStaff, deleteStaff, updateStaffSalary, activityLogs, clearActivityLogs, showToast, showConfirm, navigate } = useBlog();
   const [activeTab, setActiveTab] = useState('profiles'); // 'profiles' | 'permissions' | 'payroll' | 'activity'
   const [search, setSearch] = useState('');
   const [activityFilter, setActivityFilter] = useState('all');
@@ -423,9 +423,15 @@ export const AdminStaff = () => {
                         </button>
                         <button
                           onClick={() => {
-                            if (window.confirm(`Bạn có chắc muốn xóa nhân sự "${staff.name}"?`)) {
-                              deleteStaff(staff.id);
-                            }
+                            showConfirm({
+                              title: 'Xóa Nhân Sự Khỏi Tòa Soạn',
+                              message: `Bạn có chắc chắn muốn xóa nhân sự "${staff.name}"? Quyền truy cập CMS và liên kết của người này sẽ bị xóa bỏ.`,
+                              confirmText: 'Xóa Nhân Sự',
+                              variant: 'danger',
+                              onConfirm: () => {
+                                deleteStaff(staff.id);
+                              }
+                            });
                           }}
                           className="p-1.5 hover:bg-[#202d44] rounded text-rose-400 hover:text-rose-300"
                           title="Xóa nhân sự"

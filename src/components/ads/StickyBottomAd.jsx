@@ -3,7 +3,7 @@ import { useBlog } from '../../context/BlogContext';
 import { X, Sparkles, ExternalLink } from 'lucide-react';
 
 export const StickyBottomAd = () => {
-  const { settings } = useBlog();
+  const { settings, showToast } = useBlog();
   const [dismissed, setDismissed] = useState(false);
   const [hasScrolledEnough, setHasScrolledEnough] = useState(false);
 
@@ -56,7 +56,7 @@ export const StickyBottomAd = () => {
 
           <div className="flex-shrink-0 flex items-center gap-2">
             <button
-              onClick={() => alert('Simulated Google AdSense anchor click')}
+              onClick={() => showToast('Mô phỏng tương tác quảng cáo chân trang AdSense Anchor', 'info')}
               className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-semibold rounded-md shadow flex items-center gap-1"
             >
               <span>Apply</span>

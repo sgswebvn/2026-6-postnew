@@ -1,8 +1,10 @@
 import React from 'react';
 import { Sparkles, ExternalLink, ShieldCheck, ArrowRight, Star } from 'lucide-react';
 import { telemetryService } from '../../services/telemetryService';
+import { useBlog } from '../../context/BlogContext';
 
 export const AffiliateShowcaseBox = ({ categorySlug = 'personal-finance' }) => {
+  const { showToast } = useBlog();
   const affiliateOffers = {
     'personal-finance': {
       tag: 'EDITOR’S TOP YIELD PICK',
@@ -56,7 +58,7 @@ export const AffiliateShowcaseBox = ({ categorySlug = 'personal-finance' }) => {
       title: offer.title,
       category: categorySlug
     });
-    alert(`[Affiliate Partner Demo] Đã ghi nhận tương tác chuyển hướng tới đối tác: ${offer.partner}.\nTrong môi trường Live, liên kết sẽ dẫn trực tiếp tới cổng đăng ký của đối tác với Affiliate Tag theo dõi hoa hồng.`);
+    showToast(`Mô phỏng tương tác Affiliate Partner: ${offer.partner}. Trong chế độ Live, liên kết sẽ dẫn trực tiếp tới đối tác với Affiliate Tag theo dõi hoa hồng.`, 'info');
   };
 
   return (

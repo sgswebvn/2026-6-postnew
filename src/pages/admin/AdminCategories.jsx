@@ -4,7 +4,7 @@ import { Badge } from '../../components/common/Badge';
 import { FolderTree, Plus, Edit2, Trash2, Check, Sparkles } from 'lucide-react';
 
 export const AdminCategories = () => {
-  const { categories, updateCategories, posts } = useBlog();
+  const { categories, updateCategories, posts, showToast, showConfirm } = useBlog();
   const [editingId, setEditingId] = useState(null);
   const [newCat, setNewCat] = useState({ name: '', slug: '', description: '', color: 'blue' });
   const [editForm, setEditForm] = useState({ name: '', slug: '', description: '', color: 'blue' });
@@ -43,6 +43,7 @@ export const AdminCategories = () => {
 
     updateCategories([...categories, created]);
     setNewCat({ name: '', slug: '', description: '', color: 'blue' });
+    showToast(`Đã tạo chuyên mục "${created.name}" thành công!`, 'success');
   };
 
   const handleStartEdit = (cat) => {
@@ -54,17 +55,25 @@ export const AdminCategories = () => {
     const updated = categories.map(c => c.id === id ? { ...c, ...editForm } : c);
     updateCategories(updated);
     setEditingId(null);
+    showToast('Đã lưu thay đổi chuyên mục!', 'success');
   };
 
   const handleDelete = (id, name) => {
     if (categories.length <= 1) {
-      alert('Bạn phải giữ ít nhất 1 chuyên mục trong hệ thống.');
+      showToast('Bạn phải giữ ít nhất 1 chuyên mục trong hệ thống.', 'warning');
       return;
     }
-    if (window.confirm(`Bạn có chắc muốn xóa chuyên mục "${name}"?`)) {
-      const filtered = categories.filter(c => c.id !== id);
-      updateCategories(filtered);
-    }
+    showConfirm({
+      title: 'Xóa Chuyên Mục',
+      message: `Bạn có chắc muốn xóa chuyên mục "${name}"? Các bài viết thuộc chuyên mục này có thể cần được phân loại lại.`,
+      confirmText: 'Xóa Chuyên Mục',
+      variant: 'danger',
+      onConfirm: () => {
+        const filtered = categories.filter(c => c.id !== id);
+        updateCategories(filtered);
+        showToast(`Đã xóa chuyên mục "${name}"`, 'info');
+      }
+    });
   };
 
   return (

@@ -40,7 +40,7 @@ const PERMISSIONS_CONFIG = [
 ];
 
 export const AdminStaffEditor = ({ staffId }) => {
-  const { staffList, saveStaff, deleteStaff, navigate, showToast } = useBlog();
+  const { staffList, saveStaff, deleteStaff, navigate, showToast, showConfirm } = useBlog();
 
   const isEditing = Boolean(staffId);
   const existingStaff = isEditing ? staffList.find(s => s.id === staffId) : null;
@@ -147,11 +147,17 @@ export const AdminStaffEditor = ({ staffId }) => {
   };
 
   const handleDelete = () => {
-    if (window.confirm(`Bạn có chắc muốn xóa nhân sự "${existingStaff.name}" khỏi hệ thống?`)) {
-      deleteStaff(existingStaff.id);
-      showToast(`Đã xóa nhân viên "${existingStaff.name}"`);
-      navigate('/admin/staff');
-    }
+    showConfirm({
+      title: 'Xóa Nhân Sự Khỏi Tòa Soạn',
+      message: `Bạn có chắc muốn xóa nhân sự "${existingStaff?.name}" khỏi hệ thống? Toàn bộ quyền hạn và liên kết seeding của nhân viên này sẽ bị hủy bỏ.`,
+      confirmText: 'Xóa Nhân Sự',
+      variant: 'danger',
+      onConfirm: () => {
+        deleteStaff(existingStaff.id);
+        showToast(`Đã xóa nhân viên "${existingStaff.name}"`, 'info');
+        navigate('/admin/staff');
+      }
+    });
   };
 
   const handleCopyLink = () => {

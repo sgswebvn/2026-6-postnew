@@ -38,7 +38,8 @@ export const BlogProvider = ({ children }) => {
 
   const [currentRoute, setCurrentRoute] = useState(getInitialRoute);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const [dialog, setDialog] = useState(null);
   
   // Persist Admin Auth
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => {
@@ -153,11 +154,49 @@ export const BlogProvider = ({ children }) => {
     window.scrollTo(0, 0);
   };
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type, id: Date.now() });
+  const showToast = (message, type = 'success', title = '', duration = 4000) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const newToast = { id, message, type, title, timeStr, duration };
+    setToasts(prev => [newToast, ...prev].slice(0, 4));
+
     setTimeout(() => {
-      setToast(null);
-    }, 3500);
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, duration);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const showConfirm = ({ title, message, confirmText = 'Xác Nhận', cancelText = 'Hủy Bỏ', variant = 'danger', onConfirm }) => {
+    setDialog({
+      type: 'confirm',
+      title,
+      message,
+      confirmText,
+      cancelText,
+      variant,
+      onConfirm
+    });
+  };
+
+  const showPrompt = ({ title, message, inputLabel, placeholder, defaultValue = '', confirmText = 'Xác Nhận', cancelText = 'Hủy Bỏ', onConfirm }) => {
+    setDialog({
+      type: 'prompt',
+      title,
+      message,
+      inputLabel,
+      placeholder,
+      defaultValue,
+      confirmText,
+      cancelText,
+      onConfirm
+    });
+  };
+
+  const closeDialog = () => {
+    setDialog(null);
   };
 
   const hasPermission = (permissionKey) => {
@@ -370,8 +409,13 @@ export const BlogProvider = ({ children }) => {
         navigate,
         searchOpen,
         setSearchOpen,
-        toast,
+        toasts,
         showToast,
+        removeToast,
+        dialog,
+        showConfirm,
+        showPrompt,
+        closeDialog,
         isAdminAuthenticated,
         userRole,
         currentUser,

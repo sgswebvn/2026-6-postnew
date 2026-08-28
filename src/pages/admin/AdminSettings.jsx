@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export const AdminSettings = () => {
-  const { posts, categories, authors, settings, updateSettings, resetData, showToast } = useBlog();
+  const { posts, categories, authors, settings, updateSettings, resetData, showToast, showConfirm } = useBlog();
 
   const [formData, setFormData] = useState({
     siteName: settings?.siteName || 'THE HORI CLICK',
@@ -40,9 +40,15 @@ export const AdminSettings = () => {
   };
 
   const handleResetData = () => {
-    if (window.confirm('Khôi phục toàn bộ bài viết, chuyên mục, bình luận và cấu hình về bộ dữ liệu chuẩn ban đầu?')) {
-      resetData();
-    }
+    showConfirm({
+      title: 'Khôi Phục Dữ Liệu Ban Đầu',
+      message: 'Khôi phục toàn bộ bài viết, chuyên mục, bình luận và cấu hình về bộ dữ liệu mẫu chuẩn ban đầu?',
+      confirmText: 'Khôi Phục Ngay',
+      variant: 'danger',
+      onConfirm: () => {
+        resetData();
+      }
+    });
   };
 
   const handleExportBackup = () => {
@@ -62,7 +68,7 @@ export const AdminSettings = () => {
     a.download = `horizon-post-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast('Đã tải xuống file sao lưu JSON thành công!');
+    showToast('Đã tải xuống file sao lưu JSON thành công!', 'success');
   };
 
   const handleImportBackup = (e) => {
@@ -76,9 +82,9 @@ export const AdminSettings = () => {
         if (parsed.settings) {
           updateSettings(parsed.settings);
         }
-        showToast('Đã khôi phục dữ liệu từ file JSON thành công!');
+        showToast('Đã khôi phục dữ liệu từ file JSON thành công!', 'success');
       } catch (err) {
-        alert('File JSON không hợp lệ hoặc bị lỗi cấu trúc: ' + err.message);
+        showToast('File JSON không hợp lệ: ' + err.message, 'error');
       }
     };
     reader.readAsText(file);
