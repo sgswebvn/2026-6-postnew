@@ -63,6 +63,7 @@ export const AdminProfile = () => {
     name: currentStaff.name || '',
     email: currentStaff.email || '',
     phone: currentStaff.phone || '',
+    refCode: currentStaff.refCode || '',
     avatar: currentStaff.avatar || AVATAR_PRESETS[0]
   });
 
@@ -76,14 +77,14 @@ export const AdminProfile = () => {
 
   // Seeding referral stats
   const referralData = JSON.parse(localStorage.getItem('horizon_staff_referrals_v2') || '{}');
-  const userRefHits = (currentStaff.refCode && referralData[currentStaff.refCode]) || 0;
-  const seedingLink = `${window.location.origin}/?ref=${currentStaff.refCode || 'SEEK'}`;
+  const userRefHits = (profileForm.refCode && referralData[profileForm.refCode.toUpperCase()]) || 0;
+  const seedingLink = `${window.location.origin}/?ref=${(profileForm.refCode || 'SEEK').toUpperCase()}`;
 
   // Filter personal activity logs
   const myLogs = (activityLogs || []).filter(log => 
     log.staffId === currentStaff.id || 
     log.staffName === currentStaff.name ||
-    (currentStaff.refCode && log.refCode === currentStaff.refCode)
+    (profileForm.refCode && log.refCode === profileForm.refCode.toUpperCase())
   );
 
   const handleUpdateProfile = (e) => {
@@ -93,11 +94,14 @@ export const AdminProfile = () => {
       return;
     }
 
+    const cleanRefCode = (profileForm.refCode || '').toUpperCase().trim();
+
     const updated = {
       ...currentStaff,
       name: profileForm.name.trim(),
       email: profileForm.email.trim(),
       phone: profileForm.phone.trim(),
+      refCode: cleanRefCode,
       avatar: profileForm.avatar
     };
 
@@ -106,7 +110,7 @@ export const AdminProfile = () => {
     // Update local session
     sessionStorage.setItem('horizon_current_user', JSON.stringify(updated));
     localStorage.setItem('horizon_current_user', JSON.stringify(updated));
-    showToast('Đã cập nhật thông tin cá nhân thành công!', 'success');
+    showToast('Đã cập nhật thông tin cá nhân và mã Seeding thành công!', 'success');
   };
 
   const handleChangePassword = (e) => {
@@ -334,9 +338,23 @@ export const AdminProfile = () => {
               </label>
               <input
                 type="text"
+                placeholder="VD: 0912 345 678"
                 value={profileForm.phone}
                 onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
                 className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-neutral-300 mb-1.5">
+                Mã Tiếp Thị Seeding (?ref=...)
+              </label>
+              <input
+                type="text"
+                placeholder="VD: MINH, AN, QB, TECH..."
+                value={profileForm.refCode}
+                onChange={(e) => setProfileForm({ ...profileForm, refCode: e.target.value.toUpperCase().trim() })}
+                className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-purple-300 font-mono font-bold uppercase focus:outline-none focus:border-purple-500"
               />
             </div>
 
@@ -359,7 +377,7 @@ export const AdminProfile = () => {
               className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-blue-500/25 active:scale-95 transition-all"
             >
               <Save className="w-4 h-4" />
-              <span>Lưu Thay Đổi Hồ Sơ</span>
+              <span>Lưu Thay Đổi Hồ Sơ & Mã Seeding</span>
             </button>
           </div>
         </form>
@@ -433,35 +451,65 @@ export const AdminProfile = () => {
         <div className="p-6 bg-[#111726] rounded-3xl border border-[#1e293b] shadow-md space-y-6">
           <div>
             <h3 className="font-serif text-lg font-bold text-white mb-1">
-              Trung Tâm Tiếp Thị & Seeding Link Cá Nhân
+              Trung Tâm Tiếp Thị & Tùy Chỉnh Link Seeding Cá Nhân
             </h3>
             <p className="text-xs text-neutral-400">
-              Chia sẻ đường link chứa mã nhận diện của bạn lên mạng xã hội, diễn đàn để ghi nhận KPI lượt đọc tự động.
+              Bạn có thể tự đổi mã nhận diện Seeding (Ref Code) theo ý muốn và chia sẻ đường link lên mạng xã hội.
             </p>
           </div>
 
-          <div className="p-4 bg-[#182234] rounded-2xl border border-purple-800/60 space-y-3">
-            <span className="text-xs font-bold text-purple-300 uppercase font-mono block">
-              Đường Dẫn Seeding Trang Chủ:
-            </span>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                readOnly
-                value={seedingLink}
-                className="w-full px-3.5 py-2.5 bg-[#0d131f] border border-[#2a3a54] rounded-xl text-xs font-mono text-purple-300"
-              />
-              <button
-                onClick={handleCopyLink}
-                className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold font-mono flex items-center gap-1.5 flex-shrink-0 active:scale-95 transition-all"
-              >
-                <Copy className="w-4 h-4" />
-                <span>Sao Chép</span>
-              </button>
+          {/* Edit Custom Ref Code Box */}
+          <div className="p-5 bg-[#182234] rounded-2xl border border-purple-800/60 space-y-4">
+            <div className="flex items-center gap-2 text-purple-400 font-bold text-xs uppercase font-mono">
+              <TrendingUp className="w-4 h-4" />
+              <span>Tùy Chỉnh Mã Tiếp Thị Của Bạn:</span>
             </div>
-            <p className="text-[11px] text-neutral-400">
-              💡 <strong>Mẹo:</strong> Bạn cũng có thể gắn thêm <code className="text-purple-300 font-mono">?ref={currentStaff.refCode}</code> vào đuôi của bất kỳ bài viết nào để chia sẻ (Ví dụ: <code className="text-neutral-300 font-mono">https://www.thehori.click/post/bai-viet-slug?ref={currentStaff.refCode}</code>).
-            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+              <div className="sm:col-span-8">
+                <input
+                  type="text"
+                  placeholder="Nhập mã ref mới (VD: TECH2026, QB, MINH, AN...)"
+                  value={profileForm.refCode}
+                  onChange={(e) => setProfileForm({ ...profileForm, refCode: e.target.value.toUpperCase().trim() })}
+                  className="w-full px-3.5 py-2.5 bg-[#0d131f] border border-[#2a3a54] rounded-xl text-xs font-mono font-bold text-purple-300 uppercase focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div className="sm:col-span-4">
+                <button
+                  type="button"
+                  onClick={handleUpdateProfile}
+                  className="w-full py-2.5 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold font-mono shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Lưu Mã Ref Mới</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-[#2a3a54]/80 space-y-2">
+              <span className="text-xs font-bold text-purple-300 uppercase font-mono block">
+                Đường Dẫn Seeding Sau Khi Cập Nhật:
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={seedingLink}
+                  className="w-full px-3.5 py-2.5 bg-[#0d131f] border border-[#2a3a54] rounded-xl text-xs font-mono text-purple-300"
+                />
+                <button
+                  onClick={handleCopyLink}
+                  className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold font-mono flex items-center gap-1.5 flex-shrink-0 active:scale-95 transition-all"
+                >
+                  <Copy className="w-4 h-4" />
+                  <span>Sao Chép Link</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-neutral-400">
+                💡 <strong>Mẹo rải link bài viết:</strong> Gắn <code className="text-purple-300 font-mono">?ref={profileForm.refCode || 'SEEK'}</code> vào cuối link bài viết bất kỳ: <code className="text-neutral-300 font-mono">https://www.thehori.click/post/slug?ref={profileForm.refCode || 'SEEK'}</code>
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
