@@ -170,22 +170,26 @@ export const telemetryService = {
 
     // Return cleanup function when leaving the article page
     return () => {
-      clearInterval(dwellInterval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('scroll', handleScroll);
-      document.removeEventListener('copy', handleCopy);
+      try {
+        clearInterval(dwellInterval);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('scroll', handleScroll);
+        document.removeEventListener('copy', handleCopy);
 
-      // Final completion event
-      telemetryService.trackEvent('article_view_end', {
-        postSlug,
-        totalActiveDwellSeconds: activeDwellSeconds,
-        maxScrollDepth: Math.max(0, ...Array.from(reachedScrollMilestones))
-      });
+        // Final completion event
+        telemetryService.trackEvent('article_view_end', {
+          postSlug,
+          totalActiveDwellSeconds: activeDwellSeconds,
+          maxScrollDepth: Math.max(0, ...Array.from(reachedScrollMilestones))
+        });
 
-      // Update total session dwell
-      const currentSession = telemetryService.getSessionInfo();
-      currentSession.totalDwellSeconds = (currentSession.totalDwellSeconds || 0) + activeDwellSeconds;
-      localStorage.setItem(SESSION_KEY, JSON.stringify(currentSession));
+        // Update total session dwell
+        const currentSession = telemetryService.getSessionInfo();
+        if (currentSession) {
+          currentSession.totalDwellSeconds = (currentSession.totalDwellSeconds || 0) + activeDwellSeconds;
+          localStorage.setItem(SESSION_KEY, JSON.stringify(currentSession));
+        }
+      } catch {}
     };
   },
 

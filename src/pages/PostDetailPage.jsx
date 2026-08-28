@@ -44,16 +44,22 @@ export const PostDetailPage = ({ slug }) => {
 
   const post = posts.find(p => p.slug === slug);
   const isSaved = bookmarks.includes(slug);
+  const recordedSlugRef = React.useRef('');
 
+  // 1. Record single view increment & telemetry once per slug
   useEffect(() => {
-    let cleanupTelemetry = null;
-    if (slug && post) {
-      if (incrementPostView) incrementPostView(slug);
-      document.title = `${post.title} | ${settings?.siteName || 'THE HORI CLICK'}`;
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      cleanupTelemetry = telemetryService.initArticleTelemetry(slug, post.title);
+    if (!slug) return;
+
+    if (recordedSlugRef.current !== slug) {
+      recordedSlugRef.current = slug;
+      if (incrementPostView) {
+        incrementPostView(slug);
+      }
     }
-    // Cleanup speech synthesis and telemetry on unmount
+
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    const cleanupTelemetry = telemetryService.initArticleTelemetry(slug, post?.title || slug);
+
     return () => {
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
@@ -62,7 +68,14 @@ export const PostDetailPage = ({ slug }) => {
         cleanupTelemetry();
       }
     };
-  }, [slug, post, settings]);
+  }, [slug]);
+
+  // 2. Sync Document Title
+  useEffect(() => {
+    if (post?.title) {
+      document.title = `${post.title} | ${settings?.siteName || 'THE HORI CLICK'}`;
+    }
+  }, [post?.title, settings?.siteName]);
 
   if (!post) {
     return (

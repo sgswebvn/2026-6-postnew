@@ -127,7 +127,6 @@ export const AdminStaffEdit = ({ staffId }) => {
     };
 
     saveStaff(payload);
-    showToast(`Đã lưu thay đổi hồ sơ "${form.name}"!`, 'success');
     navigate('/admin/staff');
   };
 

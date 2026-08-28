@@ -81,9 +81,9 @@ export const AdminStaff = () => {
     paymentDate: new Date().toISOString().split('T')[0]
   });
 
-  const editorStaffList = staffList.filter(s => s.role !== 'admin');
+  const displayStaffList = staffList.filter(s => s.id !== 'staff-1');
 
-  const filteredStaff = editorStaffList.filter(s => 
+  const filteredStaff = displayStaffList.filter(s => 
     s.name.toLowerCase().includes(search.toLowerCase()) ||
     (s.username && s.username.toLowerCase().includes(search.toLowerCase())) ||
     s.email.toLowerCase().includes(search.toLowerCase()) ||

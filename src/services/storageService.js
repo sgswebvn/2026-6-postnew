@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api } from './api.js';
 import { initialPosts, initialCategories, initialAuthors, initialSettings, initialComments, initialSubscribers } from '../../server/seedData.js';
 
 const STORAGE_KEYS = {
@@ -455,11 +455,12 @@ export const storageService = {
 
   saveStaff(staffMember) {
     const list = this.getStaffList();
+    const existingIndex = list.findIndex(s => s.id === staffMember.id);
     let updated;
-    if (!staffMember.id || staffMember.id.startsWith('new-')) {
+    if (existingIndex === -1) {
       const newStaff = {
         ...staffMember,
-        id: `staff-${Date.now()}`,
+        id: staffMember.id || `staff-${Date.now()}`,
         joinDate: staffMember.joinDate || new Date().toISOString().split('T')[0],
         status: staffMember.status || 'active',
         permissions: staffMember.permissions || {

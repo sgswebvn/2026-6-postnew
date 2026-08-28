@@ -182,13 +182,13 @@ const AppContent = () => {
     if (cleanPath === '/' || cleanPath === '') {
       pageComponent = <HomePage />;
     } else if (cleanPath.startsWith('/post/')) {
-      const slug = cleanPath.replace('/post/', '');
+      const slug = cleanPath.replace('/post/', '').split('?')[0].split('#')[0];
       pageComponent = <PostDetailPage slug={slug} />;
     } else if (cleanPath.startsWith('/category/')) {
-      const catSlug = cleanPath.replace('/category/', '');
+      const catSlug = cleanPath.replace('/category/', '').split('?')[0].split('#')[0];
       pageComponent = <CategoryPage slug={catSlug} />;
     } else if (cleanPath.startsWith('/tag/')) {
-      const tag = cleanPath.replace('/tag/', '');
+      const tag = cleanPath.replace('/tag/', '').split('?')[0].split('#')[0];
       pageComponent = <TagPage tag={tag} />;
     } else if (cleanPath === '/about') {
       pageComponent = <AboutPage />;

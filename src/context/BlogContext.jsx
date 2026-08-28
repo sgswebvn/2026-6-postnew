@@ -344,11 +344,14 @@ export const BlogProvider = ({ children }) => {
   };
 
   // Staff & Payroll CRUD
-  const saveStaff = (staffData) => {
+  const saveStaff = (staffData, customToast = null) => {
+    const isNew = !staffList.some(s => s.id === staffData.id);
     const updated = storageService.saveStaff(staffData);
     setStaffList(updated);
     setActivityLogs(storageService.getActivityLogs());
-    showToast(staffData.id && !staffData.id.startsWith('new-') ? 'Cập nhật nhân viên thành công!' : 'Thêm nhân viên mới thành công!');
+    if (customToast !== false) {
+      showToast(customToast || (isNew ? `Đã thêm mới nhân sự "${staffData.name}" thành công!` : `Đã lưu cập nhật hồ sơ "${staffData.name}"!`), 'success');
+    }
     return updated;
   };
 

@@ -109,7 +109,6 @@ export const AdminStaffNew = () => {
     };
 
     saveStaff(payload);
-    showToast(`Đã thêm mới nhân viên "${form.name}" thành công!`, 'success');
     navigate('/admin/staff');
   };
 
