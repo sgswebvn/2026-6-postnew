@@ -36,7 +36,7 @@ const AVATAR_PRESETS = [
 ];
 
 export const AdminStaff = () => {
-  const { staffList, saveStaff, deleteStaff, updateStaffSalary, activityLogs, clearActivityLogs, showToast } = useBlog();
+  const { staffList, saveStaff, deleteStaff, updateStaffSalary, activityLogs, clearActivityLogs, showToast, navigate } = useBlog();
   const [activeTab, setActiveTab] = useState('profiles'); // 'profiles' | 'permissions' | 'payroll' | 'activity'
   const [search, setSearch] = useState('');
   const [activityFilter, setActivityFilter] = useState('all');
