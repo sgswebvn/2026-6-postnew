@@ -54,7 +54,7 @@ export const PrivacyPolicyPage = () => {
 
         <h2>6. Contacting the Data Protection Officer</h2>
         <p>
-          If you have questions or require more information regarding our Privacy Policy, contact us at <span className="font-mono text-blue-600">{settings?.contactEmail || 'privacy@thehorizonpost.com'}</span>.
+          If you have questions or require more information regarding our Privacy Policy, contact us at <span className="font-mono text-blue-600">{settings?.contactEmail || 'privacy@thehori.click'}</span>.
         </p>
       </div>
     </div>

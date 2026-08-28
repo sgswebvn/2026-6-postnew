@@ -113,15 +113,16 @@ export const PostDetailPage = ({ slug }) => {
     }],
     'publisher': {
       '@type': 'Organization',
-      'name': settings?.siteName || 'THE HORIZON POST',
+      'name': settings?.siteName || 'THE HORI CLICK',
+      'url': 'https://www.thehori.click',
       'logo': {
         '@type': 'ImageObject',
-        'url': 'https://thehorizonpost.com/favicon.svg'
+        'url': 'https://www.thehori.click/favicon.svg'
       }
     },
     'mainEntityOfPage': {
       '@type': 'WebPage',
-      '@id': `https://thehorizonpost.com/post/${post.slug}`
+      '@id': `https://www.thehori.click/post/${post.slug}`
     }
   };
 

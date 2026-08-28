@@ -1,103 +1,75 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <!-- Core Pages -->
+  <!-- Core Institutional Pages -->
   <url>
-    <loc>https://thehorizonpost.com/</loc>
+    <loc>https://www.thehori.click/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://thehorizonpost.com/#/about</loc>
+    <loc>https://www.thehori.click/about</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://thehorizonpost.com/#/contact</loc>
+    <loc>https://www.thehori.click/contact</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://thehorizonpost.com/#/privacy-policy</loc>
+    <loc>https://www.thehori.click/privacy-policy</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://thehorizonpost.com/#/terms</loc>
+    <loc>https://www.thehori.click/terms</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://thehorizonpost.com/#/disclaimer</loc>
+    <loc>https://www.thehori.click/disclaimer</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
 
-  <!-- Editorial Desks -->
+  <!-- 4 Core Editorial Desks -->
   <url>
-    <loc>https://thehorizonpost.com/#/category/personal-finance</loc>
+    <loc>https://www.thehori.click/category/money</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://thehorizonpost.com/#/category/ai-frontier-tech</loc>
+    <loc>https://www.thehori.click/category/tech</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://thehorizonpost.com/#/category/longevity-biohacking</loc>
+    <loc>https://www.thehori.click/category/health</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://thehorizonpost.com/#/category/smart-living-design</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://thehorizonpost.com/#/category/venture-economy</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://thehorizonpost.com/#/category/cybersecurity-privacy</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://thehorizonpost.com/#/category/clean-energy-mobility</loc>
+    <loc>https://www.thehori.click/category/home</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
 
-  <!-- 30 In-Depth Articles -->
-  <url><loc>https://thehorizonpost.com/#/post/2026-sovereign-liquidity-playbook-treasuries-yields</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/tax-loss-harvesting-volatile-equities-blueprint</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/self-directed-roth-ira-conversions-private-equity</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/commercial-real-estate-debt-maturity-private-credit</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/insured-cash-sweeps-fdic-protection-family-offices</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/defined-benefit-cash-balance-plans-tax-shield</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/autonomous-multi-agent-orchestration-enterprise-ai</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/2nm-silicon-gaafet-nanosheets-backside-power</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/small-language-models-edge-silicon-7b-reasoning</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/quantum-resistant-cryptography-nist-post-quantum</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/neuromorphic-computing-spiking-neural-networks</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/neurobiology-deep-sleep-biomarkers-longevity</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/cellular-autophagy-protocols-mitochondrial-density</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/continuous-glucose-monitoring-cognitive-flow</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/zone-2-cardiovascular-physiology-mitochondrial-endurance</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/cold-thermogenesis-brown-fat-norepinephrine</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/high-focus-ergonomic-sanctuary-workspace-design</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/passive-house-engineering-thermal-envelope-architecture</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/biophilic-interior-architecture-circadian-lighting</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/minimalist-materiality-sustainable-hardwoods-concrete</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/federal-reserve-balance-sheet-unwind-reverse-repo</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/series-a-valuations-lean-ai-startups-10m-arr</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/semiconductor-geopolitics-critical-minerals-packaging</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/private-equity-secondaries-nav-discount-arbitrage</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/zero-trust-architecture-enterprise-identity-perimeter</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/air-gapped-multi-signature-cold-storage-custody</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/autonomous-ai-spear-phishing-deepfake-biometrics</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/solid-state-battery-chemistry-silicon-anodes-ev</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/utility-grid-storage-sodium-ion-redox-flow</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
-  <url><loc>https://thehorizonpost.com/#/post/small-modular-reactors-smr-ai-data-centers</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <!-- Editorial Articles -->
+  <url><loc>https://www.thehori.click/post/where-americans-are-parking-cash-in-2026-t-bills-hysa-and-i-bonds</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/how-to-execute-tax-loss-harvesting-before-december-31-complete-guide</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/backdoor-roth-ira-rules-and-pitfalls-what-high-earners-need-to-know</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/commercial-real-estate-debt-refinancing-crisis-impact-on-regional-banks</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/how-multi-millionaires-protect-cash-using-fdic-sweep-programs-beyond-250k</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/cash-balance-pension-plans-the-ultimate-tax-shield-for-small-business-owners</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/best-ai-agents-for-enterprise-workflows-in-2026-tested-and-ranked</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/why-the-2nm-chip-race-between-tsmc-intel-and-samsung-matters-to-consumers</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/how-to-run-open-source-small-language-models-locally-on-your-mac-or-pc</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/quantum-computing-threat-to-passwords-how-nist-standards-protect-banking</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/neuromorphic-chips-explained-how-brain-inspired-silicon-cuts-ai-power-by-90-percent</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/5-science-backed-sleep-hacks-to-double-your-deep-rem-recovery-cycles</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/intermittent-fasting-protocols-that-actually-trigger-cellular-autophagy-in-2026</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/continuous-glucose-monitors-for-non-diabetics-worth-the-money-or-marketing-hype</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/zone-2-cardio-training-the-exact-heart-rate-formula-for-longevity-and-fat-burn</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/ice-baths-vs-cold-showers-what-human-trials-reveal-about-dopamine-and-recovery</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
+  <url><loc>https://www.thehori.click/post/how-to-design-an-ergonomic-home-office-that-eliminates-back-pain-and-boosts-focus</loc><changefreq>weekly</changefreq><priority>0.85</priority></url>
 </urlset>

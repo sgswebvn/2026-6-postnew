@@ -736,7 +736,7 @@ export const AdminStaff = () => {
                   <input
                     type="email"
                     required
-                    placeholder="VD: a.nv@thehorizonpost.com"
+                    placeholder="VD: a.nv@thehori.click"
                     value={staffForm.email}
                     onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
                     className="w-full px-3 py-2 bg-[#182234] border border-[#2a3a54] rounded-xl text-white focus:outline-none focus:border-blue-500"

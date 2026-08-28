@@ -1137,15 +1137,16 @@ export const initialSubscribers = [
 
 export const initialSettings = {
   key: 'global_settings',
-  siteName: 'THE HORIZON POST',
+  siteName: 'THE HORI CLICK',
+  siteUrl: 'https://www.thehori.click',
   tagline: 'Definitive Intelligence for Modern Wealth & Technology',
   edition: 'U.S. Edition',
   description: 'Delivering rigorous, independent reporting on personal finance architectures, frontier artificial intelligence, longevity science, and macroeconomic trends.',
-  contactEmail: 'editor@thehorizonpost.com',
+  contactEmail: 'contact@thehori.click',
   businessAddress: '742 Evergreen Terrace, Suite 400, Austin, TX 78701, United States',
   phone: '+1 (512) 890-4421',
-  gaTrackingId: 'G-HORIZON2026',
-  searchConsoleCode: 'google-site-verification=hz7890abcdef123456',
+  gaTrackingId: 'G-HORICLICK2026',
+  searchConsoleCode: 'google-site-verification=hori7890abcdef123456',
   adsense: {
     enabled: true,
     sandboxMode: true,

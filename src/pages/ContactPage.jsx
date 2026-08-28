@@ -53,7 +53,7 @@ export const ContactPage = () => {
                 <Mail className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
                 <div>
                   <strong className="text-neutral-900 dark:text-neutral-200 block text-sm">Editorial & Pitches</strong>
-                  <p className="font-mono text-blue-600 dark:text-blue-400">{settings?.contactEmail || 'editor@thehorizonpost.com'}</p>
+                  <p className="font-mono text-blue-600 dark:text-blue-400">{settings?.contactEmail || 'contact@thehori.click'}</p>
                 </div>
               </div>
 
@@ -71,9 +71,9 @@ export const ContactPage = () => {
                 Departmental Contacts
               </span>
               <div className="text-xs space-y-1 font-mono text-neutral-500">
-                <p>Corrections: <span className="text-neutral-300">corrections@thehorizonpost.com</span></p>
-                <p>Advertising & AdSense: <span className="text-neutral-300">ads@thehorizonpost.com</span></p>
-                <p>Syndication: <span className="text-neutral-300">press@thehorizonpost.com</span></p>
+                <p>Corrections: <span className="text-neutral-300">corrections@thehori.click</span></p>
+                <p>Advertising & AdSense: <span className="text-neutral-300">ads@thehori.click</span></p>
+                <p>Syndication: <span className="text-neutral-300">press@thehori.click</span></p>
               </div>
             </div>
           </div>

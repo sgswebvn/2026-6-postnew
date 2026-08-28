@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /api/
-Disallow: /#/admin
+Disallow: /admin
+Disallow: /admin/
 
-Sitemap: https://thehorizonpost.com/sitemap.xml
+Sitemap: https://www.thehori.click/sitemap.xml

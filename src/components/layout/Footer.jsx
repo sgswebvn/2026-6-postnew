@@ -88,9 +88,9 @@ export const Footer = () => {
               Newsroom Bureau
             </h3>
             <div className="text-xs text-neutral-400 space-y-2">
-              <p className="font-semibold text-neutral-200">The Horizon Post Bureau</p>
+              <p className="font-semibold text-neutral-200">{settings?.siteName || 'THE HORI CLICK'} Bureau</p>
               <p>{settings?.businessAddress || '742 Evergreen Terrace, Suite 400, Austin, TX 78701, United States'}</p>
-              <p className="font-mono text-neutral-300">{settings?.contactEmail || 'editor@thehorizonpost.com'}</p>
+              <p className="font-mono text-neutral-300">{settings?.contactEmail || 'contact@thehori.click'}</p>
               <p className="font-mono text-neutral-400">{settings?.phone || '+1 (512) 890-4421'}</p>
             </div>
           </div>

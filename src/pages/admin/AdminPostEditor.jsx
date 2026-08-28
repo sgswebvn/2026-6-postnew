@@ -42,9 +42,9 @@ export const AdminPostEditor = ({ postId }) => {
     slug: '',
     excerpt: '',
     coverImage: SAMPLE_COVERS[0].url,
-    categoryId: 'cat-finance',
-    authorId: 'author-1',
-    factCheckerId: 'author-4',
+    categoryId: categories[0]?.id || 'cat-money',
+    authorId: authors[0]?.id || 'author-1',
+    factCheckerId: authors[1]?.id || 'author-2',
     readTime: '6 phút đọc',
     status: 'published',
     featured: false,
@@ -511,13 +511,13 @@ export const AdminPostEditor = ({ postId }) => {
 
             {/* Google SERP Card Preview */}
             <div className="p-4 bg-white dark:bg-[#1a1f2c] rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm space-y-1 font-sans">
-              <div className="flex items-center space-x-1 text-xs text-neutral-500">
-                <span>https://thehorizonpost.com</span>
+              <div className="flex items-center space-x-1 text-xs text-neutral-400 font-mono">
+                <span>https://www.thehori.click</span>
                 <span>›</span>
-                <span className="text-neutral-700 dark:text-neutral-300 font-mono">post/{formData.slug || 'slug'}</span>
+                <span className="text-neutral-300 font-mono">post/{formData.slug || 'slug'}</span>
               </div>
-              <h4 className="text-base font-medium text-[#1a0dab] dark:text-[#8ab4f8] hover:underline cursor-pointer line-clamp-1">
-                {formData.metaTitle || formData.title || 'Tiêu Đề SEO Hiển Thị Trên Google'} - The Horizon Post
+              <h4 className="text-base font-medium text-[#8ab4f8] hover:underline cursor-pointer line-clamp-1">
+                {formData.metaTitle || formData.title || 'Tiêu Đề SEO Hiển Thị Trên Google'} - THE HORI CLICK
               </h4>
               <p className="text-xs text-[#4d5156] dark:text-[#bdc1c6] line-clamp-2 leading-relaxed">
                 {formData.metaDescription || formData.excerpt || 'Đoạn mô tả ngắn gọn này sẽ xuất hiện bên dưới tiêu đề khi độc giả tìm kiếm bài viết trên Google máy tính và di động.'}

@@ -100,7 +100,7 @@ export const AboutPage = () => {
         </p>
         <p>
           If you believe an article contains factual discrepancies, please contact our corrections desk directly at{' '}
-          <span className="font-mono text-blue-600 dark:text-blue-400 font-semibold">{settings?.contactEmail || 'corrections@thehorizonpost.com'}</span>.
+          <span className="font-mono text-blue-600 dark:text-blue-400 font-semibold">{settings?.contactEmail || 'corrections@thehori.click'}</span>.
         </p>
       </section>
     </div>

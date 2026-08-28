@@ -19,15 +19,15 @@ export const AdminSettings = () => {
   const { posts, categories, authors, settings, updateSettings, resetData, showToast } = useBlog();
 
   const [formData, setFormData] = useState({
-    siteName: settings?.siteName || 'THE HORIZON POST',
+    siteName: settings?.siteName || 'THE HORI CLICK',
     tagline: settings?.tagline || 'Definitive Intelligence for Modern Wealth & Technology',
     edition: settings?.edition || 'U.S. Edition',
     description: settings?.description || '',
-    contactEmail: settings?.contactEmail || 'editor@thehorizonpost.com',
+    contactEmail: settings?.contactEmail || 'contact@thehori.click',
     businessAddress: settings?.businessAddress || '742 Evergreen Terrace, Suite 400, Austin, TX 78701, United States',
     phone: settings?.phone || '+1 (512) 890-4421',
-    gaTrackingId: settings?.gaTrackingId || 'G-HORIZON2026',
-    searchConsoleCode: settings?.searchConsoleCode || 'google-site-verification=hz7890abcdef123456',
+    gaTrackingId: settings?.gaTrackingId || 'G-HORICLICK2026',
+    searchConsoleCode: settings?.searchConsoleCode || 'google-site-verification=hori7890abcdef123456',
   });
 
   const handleSave = (e) => {

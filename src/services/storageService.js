@@ -18,7 +18,7 @@ const initialStaffList = [
   {
     id: 'staff-1',
     name: 'Nguyễn Quốc Bảo',
-    email: 'bao.nq@thehorizonpost.com',
+    email: 'bao.nq@thehori.click',
     phone: '0908 123 456',
     refCode: 'QB',
     role: 'admin',
@@ -49,7 +49,7 @@ const initialStaffList = [
   {
     id: 'staff-2',
     name: 'Trần Quang Minh',
-    email: 'minh.tq@thehorizonpost.com',
+    email: 'minh.tq@thehori.click',
     phone: '0912 345 678',
     refCode: 'MINH',
     role: 'editor',
@@ -80,7 +80,7 @@ const initialStaffList = [
   {
     id: 'staff-3',
     name: 'Lê Thúy An',
-    email: 'an.lt@thehorizonpost.com',
+    email: 'an.lt@thehori.click',
     phone: '0938 987 654',
     refCode: 'AN',
     role: 'editor',
@@ -111,7 +111,7 @@ const initialStaffList = [
   {
     id: 'staff-4',
     name: 'Phạm Mai Linh',
-    email: 'linh.pm@thehorizonpost.com',
+    email: 'linh.pm@thehori.click',
     phone: '0977 456 123',
     refCode: 'LINH',
     role: 'editor',
