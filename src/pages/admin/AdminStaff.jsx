@@ -27,12 +27,12 @@ import {
 } from 'lucide-react';
 
 const AVATAR_PRESETS = [
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200',
-  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200',
-  'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=200',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200'
+  'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_30.jpg',
+  'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_31.jpg',
+  'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_32.jpg',
+  'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_33.jpg',
+  'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_34.jpg',
+  'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_35.jpg'
 ];
 
 export const AdminStaff = () => {
@@ -331,74 +331,92 @@ export const AdminStaff = () => {
                   <th className="p-3.5">Nhân Viên & Chức Danh</th>
                   <th className="p-3.5">Tài Khoản Đăng Nhập</th>
                   <th className="p-3.5">Mã Seeding Link</th>
+                  <th className="p-3.5">Lượt Đọc Seeding (KPI)</th>
                   <th className="p-3.5">Thông Tin Liên Hệ</th>
                   <th className="p-3.5">Trạng Thái</th>
                   <th className="p-3.5 text-right">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1e293b] font-sans">
-                {filteredStaff.map(staff => (
-                  <tr key={staff.id} className="hover:bg-[#182234]/70 transition-colors">
-                    <td className="p-3.5">
-                      <div className="flex items-center space-x-3">
-                        <img 
-                          src={staff.avatar} 
-                          alt={staff.name} 
-                          className="w-10 h-10 rounded-full object-cover border border-[#2a3a54] flex-shrink-0"
-                        />
-                        <div>
-                          <span className="font-bold text-white block text-sm">
-                            {staff.name}
-                          </span>
-                          <span className="text-[11px] text-neutral-400">
-                            {staff.roleName || staff.role}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
+                {filteredStaff.map(staff => {
+                  const refHits = staff.seedingHits || (staff.refCode ? storageService.getReferralHits()[staff.refCode] || 0 : 0);
+                  const bonusEarned = refHits * 500;
 
-                    <td className="p-3.5">
-                      <div className="space-y-0.5 font-mono text-xs">
-                        <div className="flex items-center gap-1 text-white font-bold">
-                          <span className="text-neutral-400 font-normal">User:</span>
-                          <span className="text-blue-400 bg-[#0d131f] px-1.5 py-0.5 rounded border border-[#2a3a54]">{staff.username || (staff.email ? staff.email.split('@')[0] : 'user')}</span>
+                  return (
+                    <tr key={staff.id} className="hover:bg-[#182234]/70 transition-colors">
+                      <td className="p-3.5">
+                        <div className="flex items-center space-x-3">
+                          <img 
+                            src={staff.avatar} 
+                            alt={staff.name} 
+                            className="w-10 h-10 rounded-full object-cover border border-[#2a3a54] flex-shrink-0"
+                          />
+                          <div>
+                            <span className="font-bold text-white block text-sm">
+                              {staff.name}
+                            </span>
+                            <span className="text-[11px] text-neutral-400">
+                              {staff.roleName || staff.role}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 text-[11px] text-neutral-400">
-                          <span>Pass:</span>
-                          <span className="text-neutral-300 font-mono bg-[#0d131f] px-1.5 py-0.5 rounded border border-[#2a3a54]">{staff.password || '123456'}</span>
-                        </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="p-3.5">
-                      {staff.refCode ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="px-2.5 py-1 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 font-mono font-bold text-xs">
-                            ?ref={staff.refCode}
+                      <td className="p-3.5">
+                        <div className="space-y-0.5 font-mono text-xs">
+                          <div className="flex items-center gap-1 text-white font-bold">
+                            <span className="text-neutral-400 font-normal">User:</span>
+                            <span className="text-blue-400 bg-[#0d131f] px-1.5 py-0.5 rounded border border-[#2a3a54]">{staff.username || (staff.email ? staff.email.split('@')[0] : 'user')}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-[11px] text-neutral-400">
+                            <span>Pass:</span>
+                            <span className="text-neutral-300 font-mono bg-[#0d131f] px-1.5 py-0.5 rounded border border-[#2a3a54]">{staff.password || '123456'}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="p-3.5">
+                        {staff.refCode ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-2.5 py-1 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 font-mono font-bold text-xs">
+                              ?ref={staff.refCode}
+                            </span>
+                            <button
+                              onClick={() => handleCopyStaffSeedingLink(staff.refCode)}
+                              className="p-1 hover:bg-[#202d44] rounded text-neutral-400 hover:text-purple-300"
+                              title="Sao chép link Seeding cá nhân"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-neutral-500 font-mono">Chưa gán</span>
+                        )}
+                      </td>
+
+                      <td className="p-3.5">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 font-mono">
+                            <span className="px-2 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-800/60 font-bold text-xs">
+                              +{refHits} Views
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-emerald-400/90 font-mono block">
+                            +{bonusEarned.toLocaleString()} đ KPI
                           </span>
-                          <button
-                            onClick={() => handleCopyStaffSeedingLink(staff.refCode)}
-                            className="p-1 hover:bg-[#202d44] rounded text-neutral-400 hover:text-purple-300"
-                            title="Sao chép link Seeding cá nhân"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
                         </div>
-                      ) : (
-                        <span className="text-neutral-500 font-mono">Chưa gán</span>
-                      )}
-                    </td>
+                      </td>
 
-                    <td className="p-3.5">
-                      <div className="space-y-0.5">
-                        <p className="text-neutral-300 font-mono flex items-center gap-1">
-                          <Mail className="w-3 h-3 text-neutral-400" /> {staff.email}
-                        </p>
-                        <p className="text-[11px] text-neutral-400 font-mono flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-neutral-400" /> {staff.phone || 'Chưa cập nhật'}
-                        </p>
-                      </div>
-                    </td>
+                      <td className="p-3.5">
+                        <div className="space-y-0.5">
+                          <p className="text-neutral-300 font-mono flex items-center gap-1">
+                            <Mail className="w-3 h-3 text-neutral-400" /> {staff.email}
+                          </p>
+                          <p className="text-[11px] text-neutral-400 font-mono flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-neutral-400" /> {staff.phone || 'Chưa cập nhật'}
+                          </p>
+                        </div>
+                      </td>
 
                     <td className="p-3.5">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
@@ -441,7 +459,8 @@ export const AdminStaff = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>

@@ -30,11 +30,11 @@ import { Badge } from '../../components/common/Badge';
 import { supabaseStorage } from '../../services/supabaseStorage';
 
 const SAMPLE_COVERS = [
-  { name: 'Tài Chính & Đầu Tư', url: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?q=80&w=1200&auto=format&fit=crop' },
-  { name: 'AI & Công Nghệ Cao', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop' },
-  { name: 'Sức Khỏe & Giấc Ngủ', url: 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=1200&auto=format&fit=crop' },
-  { name: 'Không Gian Sống Hiện Đại', url: 'https://images.unsplash.com/photo-1593062096033-9a26b09da705?q=80&w=1200&auto=format&fit=crop' },
-  { name: 'Phân Tích Dữ Liệu Thị Trường', url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=1200&auto=format&fit=crop' },
+  { name: 'Tài Chính & Đầu Tư', url: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_24.jpg' },
+  { name: 'AI & Công Nghệ Cao', url: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_25.jpg' },
+  { name: 'Sức Khỏe & Giấc Ngủ', url: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_26.jpg' },
+  { name: 'Không Gian Sống Hiện Đại', url: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_27.jpg' },
+  { name: 'Phân Tích Dữ Liệu Thị Trường', url: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_28.jpg' },
 ];
 
 export const AdminPostEditor = ({ postId }) => {

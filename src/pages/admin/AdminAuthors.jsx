@@ -8,7 +8,7 @@ export const AdminAuthors = () => {
   const [newAuthor, setNewAuthor] = useState({
     name: '',
     role: '',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop',
+    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_01.jpg',
     bio: '',
     twitter: '@author_handle',
     verified: true
@@ -29,7 +29,7 @@ export const AdminAuthors = () => {
     setNewAuthor({
       name: '',
       role: '',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop',
+      avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_01.jpg',
       bio: '',
       twitter: '@author_handle',
       verified: true

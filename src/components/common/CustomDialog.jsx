@@ -43,7 +43,7 @@ export const CustomDialog = () => {
               )}
             </div>
             <div>
-              <h3 className="font-serif text-lg font-bold text-white">
+              <h3 className="font-sans text-base sm:text-lg font-bold text-white tracking-tight">
                 {dialog.title || (isPrompt ? 'Nhập Thông Tin' : isDanger ? 'Xác Nhận Hành Động' : 'Thông Báo Hệ Thống')}
               </h3>
               <span className="text-[11px] font-mono text-neutral-400 uppercase tracking-wider">

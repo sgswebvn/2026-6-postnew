@@ -322,9 +322,31 @@ export const storageService = {
     referrals[cleanRef] = (referrals[cleanRef] || 0) + 1;
     localStorage.setItem(REFERRALS_KEY, JSON.stringify(referrals));
 
-    // 2. Find matching staff
+    // 2. Find matching staff and update direct referral hits & KPI bonus
     const staffList = this.getStaffList();
-    const matchedStaff = staffList.find(s => s.refCode === cleanRef);
+    let matchedStaff = null;
+    const updatedStaffList = staffList.map(s => {
+      if (s.refCode && s.refCode.toUpperCase() === cleanRef) {
+        matchedStaff = s;
+        const hits = (s.seedingHits || 0) + 1;
+        const currentBase = Number(s.salary?.baseSalary || 10000000);
+        const currentDeduction = Number(s.salary?.deduction || 0);
+        const currentKpi = (s.salary?.kpiBonus || 0) + 500;
+        return {
+          ...s,
+          seedingHits: hits,
+          salary: {
+            ...s.salary,
+            baseSalary: currentBase,
+            kpiBonus: currentKpi,
+            deduction: currentDeduction,
+            netSalary: Math.max(0, currentBase + currentKpi - currentDeduction)
+          }
+        };
+      }
+      return s;
+    });
+    localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(updatedStaffList));
 
     // 3. If on a post, increment post views
     let targetPost = null;
@@ -358,7 +380,7 @@ export const storageService = {
     return { 
       referrals, 
       posts: this.getPosts(), 
-      staffList, 
+      staffList: updatedStaffList, 
       activityLogs: this.getActivityLogs() 
     };
   },
