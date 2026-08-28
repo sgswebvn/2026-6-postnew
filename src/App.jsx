@@ -30,6 +30,8 @@ import { AdminSubscribers } from './pages/admin/AdminSubscribers';
 import { AdminAuthors } from './pages/admin/AdminAuthors';
 import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminStaff } from './pages/admin/AdminStaff';
+import { AdminProfile } from './pages/admin/AdminProfile';
+import { AdminStaffEditor } from './pages/admin/AdminStaffEditor';
 
 const AppContent = () => {
   const { currentRoute, isAdminAuthenticated, userRole, currentUser, hasPermission } = useBlog();
@@ -84,10 +86,32 @@ const AppContent = () => {
           </AdminLayout>
         );
       }
+      if (cleanPath === '/admin/profile') {
+        return (
+          <AdminLayout currentTab="profile">
+            <AdminProfile />
+          </AdminLayout>
+        );
+      }
       if (cleanPath === '/admin/categories') {
         return (
           <AdminLayout currentTab="categories">
             <AdminCategories />
+          </AdminLayout>
+        );
+      }
+      if (cleanPath === '/admin/staff/new') {
+        return (
+          <AdminLayout currentTab="staff">
+            <AdminStaffEditor />
+          </AdminLayout>
+        );
+      }
+      if (cleanPath.startsWith('/admin/staff/edit/')) {
+        const staffId = cleanPath.replace('/admin/staff/edit/', '');
+        return (
+          <AdminLayout currentTab="staff">
+            <AdminStaffEditor staffId={staffId} />
           </AdminLayout>
         );
       }

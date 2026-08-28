@@ -288,6 +288,7 @@ export const storageService = {
   },
 
   async incrementView(slug) {
+    if (!slug) return this.getPosts();
     const posts = this.getPosts();
     const target = posts.find(p => p.slug === slug);
     if (target) {
@@ -295,6 +296,63 @@ export const storageService = {
       localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
       api.incrementView(slug).catch(() => {});
     }
+    return posts;
+  },
+
+  recordSeedingHit(refCode, path = '/') {
+    if (!refCode) return;
+    const cleanRef = refCode.toUpperCase().trim();
+    
+    // 1. Update referrals map in localStorage
+    const REFERRALS_KEY = 'horizon_staff_referrals_v2';
+    let referrals = {};
+    try {
+      referrals = JSON.parse(localStorage.getItem(REFERRALS_KEY) || '{"QB": 18, "MINH": 12, "AN": 9, "LINH": 6}');
+    } catch {
+      referrals = { "QB": 18, "MINH": 12, "AN": 9, "LINH": 6 };
+    }
+    referrals[cleanRef] = (referrals[cleanRef] || 0) + 1;
+    localStorage.setItem(REFERRALS_KEY, JSON.stringify(referrals));
+
+    // 2. Find matching staff
+    const staffList = this.getStaffList();
+    const matchedStaff = staffList.find(s => s.refCode === cleanRef);
+
+    // 3. If on a post, increment post views
+    let targetPost = null;
+    let postSlug = '';
+    if (path.includes('/post/')) {
+      postSlug = path.split('/post/')[1]?.split('?')[0];
+    }
+    if (postSlug) {
+      const posts = this.getPosts();
+      targetPost = posts.find(p => p.slug === postSlug);
+      if (targetPost) {
+        targetPost.views = (targetPost.views || 0) + 1;
+        localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+        api.incrementView(postSlug).catch(() => {});
+      }
+    }
+
+    // 4. Record Activity Log
+    this.addActivityLog({
+      staffId: matchedStaff?.id || 'seeding-visitor',
+      staffName: matchedStaff?.name || `Mã Ref: ${cleanRef}`,
+      refCode: cleanRef,
+      action: 'seeding',
+      title: `Ghi nhận +1 lượt đọc Seeding (?ref=${cleanRef})`,
+      details: targetPost 
+        ? `Độc giả đọc bài "${targetPost.title.slice(0, 45)}..." qua link của ${matchedStaff?.name || cleanRef}` 
+        : `Độc giả truy cập trang ${path} qua link Seeding của ${matchedStaff?.name || cleanRef}`,
+      type: 'success'
+    });
+
+    return { 
+      referrals, 
+      posts: this.getPosts(), 
+      staffList, 
+      activityLogs: this.getActivityLogs() 
+    };
   },
 
   // Categories

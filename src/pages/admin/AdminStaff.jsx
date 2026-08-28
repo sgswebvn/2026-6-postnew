@@ -246,7 +246,7 @@ export const AdminStaff = () => {
         </div>
 
         <button
-          onClick={() => handleOpenStaffModal()}
+          onClick={() => navigate('/admin/staff/new')}
           className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-blue-500/20 transition-all active:scale-95 self-start sm:self-auto"
         >
           <PlusCircle className="w-4 h-4" />
@@ -413,9 +413,9 @@ export const AdminStaff = () => {
                     <td className="p-3.5 text-right">
                       <div className="flex items-center justify-end space-x-1.5">
                         <button
-                          onClick={() => handleOpenStaffModal(staff)}
+                          onClick={() => navigate(`/admin/staff/edit/${staff.id}`)}
                           className="p-1.5 hover:bg-[#202d44] rounded text-blue-400 hover:text-blue-300"
-                          title="Sửa thông tin"
+                          title="Sửa thông tin trên trang riêng"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>

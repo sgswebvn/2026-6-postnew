@@ -109,6 +109,25 @@ export const BlogProvider = ({ children }) => {
     };
   }, []);
 
+  // Automatic Seeding Referral Tracker on Route Change
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+      const refCode = urlParams.get('ref') || hashParams.get('ref') || urlParams.get('utm_source');
+      
+      if (refCode) {
+        const result = storageService.recordSeedingHit(refCode, currentRoute || window.location.pathname);
+        if (result) {
+          if (result.posts) setPosts([...result.posts]);
+          if (result.activityLogs) setActivityLogs([...result.activityLogs]);
+          if (result.staffList) setStaffList([...result.staffList]);
+        }
+      }
+    } catch {}
+  }, [currentRoute]);
+
   const refreshAllData = () => {
     setPosts(storageService.getPosts());
     setCategories(storageService.getCategories());
@@ -117,6 +136,11 @@ export const BlogProvider = ({ children }) => {
     setBookmarks(storageService.getBookmarks());
     setStaffList(storageService.getStaffList());
     setActivityLogs(storageService.getActivityLogs());
+  };
+
+  const incrementPostView = async (slug) => {
+    const updated = await storageService.incrementView(slug);
+    if (updated) setPosts([...updated]);
   };
 
   const navigate = (path) => {
@@ -369,6 +393,7 @@ export const BlogProvider = ({ children }) => {
         clearActivityLogs,
         resetData,
         refreshAllData,
+        incrementPostView,
       }}
     >
       {children}

@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 
 export const PostDetailPage = ({ slug }) => {
-  const { posts, categories, authors, settings, navigate, toggleBookmark, bookmarks } = useBlog();
+  const { posts, categories, authors, settings, navigate, toggleBookmark, bookmarks, incrementPostView } = useBlog();
   const [fontSize, setFontSize] = useState('base'); // 'sm' | 'base' | 'lg'
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [userReaction, setUserReaction] = useState(null);
@@ -48,8 +48,8 @@ export const PostDetailPage = ({ slug }) => {
   useEffect(() => {
     let cleanupTelemetry = null;
     if (slug && post) {
-      storageService.incrementView(slug);
-      document.title = `${post.title} | ${settings?.siteName || 'THE HORIZON POST'}`;
+      if (incrementPostView) incrementPostView(slug);
+      document.title = `${post.title} | ${settings?.siteName || 'THE HORI CLICK'}`;
       window.scrollTo({ top: 0, behavior: 'instant' });
       cleanupTelemetry = telemetryService.initArticleTelemetry(slug, post.title);
     }
