@@ -20,7 +20,8 @@ import {
   Wand2,
   FileText,
   Video,
-  Link as LinkIcon
+  Link as LinkIcon,
+  PlusCircle
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 
