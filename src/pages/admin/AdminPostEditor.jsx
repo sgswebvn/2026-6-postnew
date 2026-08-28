@@ -27,6 +27,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
+import { supabaseStorage } from '../../services/supabaseStorage';
 
 const SAMPLE_COVERS = [
   { name: 'Tài Chính & Đầu Tư', url: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?q=80&w=1200&auto=format&fit=crop' },
@@ -292,6 +293,19 @@ export const AdminPostEditor = ({ postId }) => {
     if (!file) return;
     try {
       setUploadingImage(true);
+      // 1. Upload directly to Supabase Storage bucket 'postnew'
+      try {
+        const res = await supabaseStorage.uploadImage(file);
+        if (res && res.url) {
+          setFormData(prev => ({ ...prev, coverImage: res.url }));
+          showToast('Đã tải ảnh lên Supabase Storage (postnew) thành công!', 'success');
+          return;
+        }
+      } catch (cloudErr) {
+        console.warn('Supabase cloud upload fallback to local compress:', cloudErr);
+      }
+
+      // 2. Fallback to client-side compressed WebP
       const compressed = await compressImage(file, 1400, 0.85);
       setFormData(prev => ({ ...prev, coverImage: compressed }));
       showToast('Đã tải lên và nén ảnh bìa thành công!', 'success');
@@ -307,20 +321,36 @@ export const AdminPostEditor = ({ postId }) => {
     if (!file) return;
     try {
       setUploadingImage(true);
-      const compressed = await compressImage(file, 1200, 0.82);
       const caption = imageCaption || file.name.replace(/\.[^/.]+$/, "");
+      let finalImgUrl = '';
+
+      // 1. Upload to Supabase Storage
+      try {
+        const res = await supabaseStorage.uploadImage(file);
+        if (res && res.url) {
+          finalImgUrl = res.url;
+        }
+      } catch (cloudErr) {
+        console.warn('Supabase cloud upload fallback to local compress:', cloudErr);
+      }
+
+      // 2. Fallback to client-side compressed WebP
+      if (!finalImgUrl) {
+        finalImgUrl = await compressImage(file, 1200, 0.82);
+      }
+
       const imageHtml = `
 <figure class="my-8 rounded-3xl overflow-hidden shadow-lg border border-neutral-200 dark:border-neutral-800">
-  <img src="${compressed}" alt="${caption}" class="w-full h-auto object-cover rounded-3xl" loading="lazy" />
+  <img src="${finalImgUrl}" alt="${caption}" class="w-full h-auto object-cover rounded-3xl" loading="lazy" />
   ${caption ? `<figcaption class="text-xs text-center text-neutral-500 dark:text-neutral-400 mt-2 font-mono">${caption}</figcaption>` : ''}
 </figure>
 `;
       setFormData(prev => ({ ...prev, content: prev.content + imageHtml }));
       setShowImageModal(false);
       setImageCaption('');
-      showToast('Đã nén và chèn ảnh thành công!', 'success');
+      showToast('Đã tải ảnh lên Supabase & chèn vào bài viết thành công!', 'success');
     } catch (err) {
-      showToast('Lỗi khi nén ảnh', 'error');
+      showToast('Lỗi khi tải hoặc nén ảnh', 'error');
     } finally {
       setUploadingImage(false);
     }

@@ -81,7 +81,9 @@ export const AdminStaff = () => {
     paymentDate: new Date().toISOString().split('T')[0]
   });
 
-  const filteredStaff = staffList.filter(s => 
+  const editorStaffList = staffList.filter(s => s.role !== 'admin');
+
+  const filteredStaff = editorStaffList.filter(s => 
     s.name.toLowerCase().includes(search.toLowerCase()) ||
     (s.username && s.username.toLowerCase().includes(search.toLowerCase())) ||
     s.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -616,7 +618,7 @@ export const AdminStaff = () => {
 
                         <td className="p-3.5 text-right">
                           <button
-                            onClick={() => handleOpenSalaryModal(staff)}
+                            onClick={() => navigate(`/admin/staff/salary/${staff.id}`)}
                             className="px-2.5 py-1 bg-[#182234] hover:bg-[#202d44] text-neutral-300 hover:text-white rounded-lg text-xs font-medium transition-colors border border-[#2a3a54]"
                           >
                             Nhập / Sửa Lương
