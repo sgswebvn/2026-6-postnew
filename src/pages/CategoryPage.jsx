@@ -18,7 +18,7 @@ export const CategoryPage = ({ slug }) => {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4 font-sans">
         <h2 className="font-serif text-3xl font-bold">Desk / Category Not Found</h2>
-        <button onClick={() => navigate('#/')} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold uppercase">
+        <button onClick={() => navigate('/')} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold uppercase">
           Back to Front Page
         </button>
       </div>
@@ -43,7 +43,7 @@ export const CategoryPage = ({ slug }) => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn font-sans">
       {/* Top Breadcrumb */}
       <div className="flex items-center space-x-2 text-xs text-neutral-500 font-mono mb-6">
-        <button onClick={() => navigate('#/')} className="hover:text-blue-600">Home</button>
+        <button onClick={() => navigate('/')} className="hover:text-blue-600">Home</button>
         <ChevronRight className="w-3.5 h-3.5" />
         <span className="text-neutral-400">Editorial Desks</span>
         <ChevronRight className="w-3.5 h-3.5" />

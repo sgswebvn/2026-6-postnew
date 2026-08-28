@@ -9,13 +9,13 @@
   }
 
   body {
-    font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+    font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', 'Playfair Display', Georgia, sans-serif;
+    font-family: 'Merriweather', 'Playfair Display', 'Be Vietnam Pro', Georgia, serif;
   }
 
   img, video, iframe {
@@ -24,9 +24,26 @@
   }
 }
 
-/* Admin Font Layer for Crisp Vietnamese Readability */
-.admin-view, .admin-view input, .admin-view textarea, .admin-view select, .admin-view button {
-  font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+/* Admin Font Layer: 100% Vietnamese Font Compatibility */
+.admin-view, 
+.admin-view *, 
+.admin-view h1, 
+.admin-view h2, 
+.admin-view h3, 
+.admin-view h4, 
+.admin-view h5, 
+.admin-view h6, 
+.admin-view input, 
+.admin-view textarea, 
+.admin-view select, 
+.admin-view button,
+.admin-view span,
+.admin-view p,
+.admin-view td,
+.admin-view th,
+.admin-view label,
+.admin-view div {
+  font-family: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
 /* Custom Scrollbar */

@@ -12,7 +12,7 @@ export const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 pb-12 border-b border-neutral-800">
           {/* Col 1 & 2: Brand Info & Mission */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="cursor-pointer" onClick={() => navigate('#/')}>
+            <div className="cursor-pointer" onClick={() => navigate('/')}>
               <h2 className="font-serif text-2xl font-bold tracking-tight text-white">
                 {settings?.siteName || 'THE HORIZON POST'}
               </h2>
@@ -38,7 +38,7 @@ export const Footer = () => {
               {categories.map(cat => (
                 <li key={cat.id}>
                   <button
-                    onClick={() => navigate(`#/category/${cat.slug}`)}
+                    onClick={() => navigate(`/category/${cat.slug}`)}
                     className="hover:text-white transition-colors"
                   >
                     {cat.name}
@@ -55,27 +55,27 @@ export const Footer = () => {
             </h3>
             <ul className="space-y-2 text-sm text-neutral-400">
               <li>
-                <button onClick={() => navigate('#/about')} className="hover:text-white transition-colors">
+                <button onClick={() => navigate('/about')} className="hover:text-white transition-colors">
                   Editorial Board & Standards
                 </button>
               </li>
               <li>
-                <button onClick={() => navigate('#/privacy-policy')} className="hover:text-white transition-colors">
+                <button onClick={() => navigate('/privacy-policy')} className="hover:text-white transition-colors">
                   Privacy Policy & Cookies
                 </button>
               </li>
               <li>
-                <button onClick={() => navigate('#/terms')} className="hover:text-white transition-colors">
+                <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">
                   Terms of Service
                 </button>
               </li>
               <li>
-                <button onClick={() => navigate('#/disclaimer')} className="hover:text-white transition-colors">
+                <button onClick={() => navigate('/disclaimer')} className="hover:text-white transition-colors">
                   Ad & Financial Disclosures
                 </button>
               </li>
               <li>
-                <button onClick={() => navigate('#/contact')} className="hover:text-white transition-colors">
+                <button onClick={() => navigate('/contact')} className="hover:text-white transition-colors">
                   Contact Newsroom
                 </button>
               </li>
@@ -108,12 +108,13 @@ export const Footer = () => {
 
         {/* Bottom Bar: Copyright */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-500 gap-4">
-          <p>© {new Date().getFullYear()} {settings?.siteName || 'The Horizon Post'} Media Group LLC. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {settings?.siteName || 'THE HORIZON POST'}. All rights reserved. Published & Operated by QB Global Holdings LLC.</p>
           <div className="flex items-center space-x-6">
-            <button onClick={() => navigate('#/privacy-policy')} className="hover:text-neutral-300">Privacy</button>
-            <button onClick={() => navigate('#/terms')} className="hover:text-neutral-300">Terms</button>
-            <button onClick={() => navigate('#/disclaimer')} className="hover:text-neutral-300">Disclosures</button>
-            <button onClick={() => navigate('#/contact')} className="hover:text-neutral-300">Contact</button>
+            <button onClick={() => navigate('/privacy-policy')} className="hover:text-neutral-300">Privacy</button>
+            <button onClick={() => navigate('/terms')} className="hover:text-neutral-300">Terms</button>
+            <button onClick={() => navigate('/disclaimer')} className="hover:text-neutral-300">Disclosures</button>
+            <button onClick={() => navigate('/contact')} className="hover:text-neutral-300">Contact</button>
+            <button onClick={() => navigate('/admin')} className="hover:text-neutral-200 text-neutral-500 font-mono text-[11px]">🔒 Quản Trị CMS</button>
           </div>
         </div>
       </div>

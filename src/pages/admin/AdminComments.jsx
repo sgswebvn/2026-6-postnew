@@ -80,7 +80,7 @@ export const AdminComments = () => {
                     <div className="pl-12 flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 font-mono">
                       <span>Thuộc bài:</span>
                       <button 
-                        onClick={() => navigate(`#/post/${post.slug}`)}
+                        onClick={() => navigate(`/post/${post.slug}`)}
                         className="hover:underline font-bold truncate max-w-md text-left"
                       >
                         {post.title}

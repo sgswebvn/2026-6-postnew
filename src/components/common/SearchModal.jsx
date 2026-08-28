@@ -36,7 +36,7 @@ export const SearchModal = () => {
 
   const handleSelectPost = (slug) => {
     setSearchOpen(false);
-    navigate(`#/post/${slug}`);
+    navigate(`/post/${slug}`);
   };
 
   return (

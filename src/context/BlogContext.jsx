@@ -12,25 +12,50 @@ export const useBlog = () => {
 };
 
 export const BlogProvider = ({ children }) => {
-  // Theme state: dark / light
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('horizon_theme');
-    if (saved) return saved === 'dark';
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-
   // Global Data State
   const [posts, setPosts] = useState(() => storageService.getPosts());
   const [categories, setCategories] = useState(() => storageService.getCategories());
   const [authors, setAuthors] = useState(() => storageService.getAuthors());
   const [settings, setSettings] = useState(() => storageService.getSettings());
   const [bookmarks, setBookmarks] = useState(() => storageService.getBookmarks());
-  const [currentRoute, setCurrentRoute] = useState(window.location.hash || '#/');
+  const [staffList, setStaffList] = useState(() => storageService.getStaffList());
+  const [activityLogs, setActivityLogs] = useState(() => storageService.getActivityLogs());
+
+  const getInitialRoute = () => {
+    if (typeof window === 'undefined') return '/';
+    // If user opened with legacy hash (e.g. #/post/slug or #/admin), automatically convert to clean URL
+    if (window.location.hash && window.location.hash.startsWith('#/')) {
+      const clean = window.location.hash.replace(/^#/, '');
+      window.history.replaceState(null, '', clean);
+      return clean;
+    }
+    if (window.location.hash && window.location.hash === '#admin') {
+      window.history.replaceState(null, '', '/admin');
+      return '/admin';
+    }
+    return window.location.pathname || '/';
+  };
+
+  const [currentRoute, setCurrentRoute] = useState(getInitialRoute);
   const [searchOpen, setSearchOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  
+  // Persist Admin Auth
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => {
-    return sessionStorage.getItem('horizon_admin_session') === 'true';
+    const sessionAuth = sessionStorage.getItem('horizon_admin_session');
+    const localAuth = localStorage.getItem('horizon_admin_session');
+    return sessionAuth === 'true' || localAuth === 'true';
   });
+  
+  const [userRole, setUserRole] = useState(() => {
+    return sessionStorage.getItem('horizon_user_role') || localStorage.getItem('horizon_user_role') || 'admin';
+  });
+
+  // Enforce Clean Editorial Light Theme (WSJ / Financial Times Standard)
+  useEffect(() => {
+    document.documentElement.classList.remove('dark');
+    localStorage.setItem('horizon_theme', 'light');
+  }, []);
 
   // Initialize data from MongoDB API & Local storage
   useEffect(() => {
@@ -46,28 +71,19 @@ export const BlogProvider = ({ children }) => {
       }
     });
 
-    // Listen to hash changes for routing
-    const handleHashChange = () => {
-      setCurrentRoute(window.location.hash || '#/');
+    // Listen to history popstate & hash changes for clean routing
+    const handleRouteChange = () => {
+      setCurrentRoute(getInitialRoute());
       window.scrollTo(0, 0);
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleRouteChange);
+    window.addEventListener('hashchange', handleRouteChange);
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+      window.removeEventListener('hashchange', handleRouteChange);
+    };
   }, []);
-
-  // Sync theme with DOM
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('horizon_theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('horizon_theme', 'light');
-    }
-  }, [darkMode]);
-
-  const toggleDarkMode = () => setDarkMode(prev => !prev);
 
   const refreshAllData = () => {
     setPosts(storageService.getPosts());
@@ -75,10 +91,18 @@ export const BlogProvider = ({ children }) => {
     setAuthors(storageService.getAuthors());
     setSettings(storageService.getSettings());
     setBookmarks(storageService.getBookmarks());
+    setStaffList(storageService.getStaffList());
+    setActivityLogs(storageService.getActivityLogs());
   };
 
   const navigate = (path) => {
-    window.location.hash = path.startsWith('#') ? path : `#${path}`;
+    if (!path) return;
+    let clean = path.startsWith('#') ? path.replace(/^#/, '') : path;
+    if (!clean.startsWith('/')) clean = `/${clean}`;
+
+    window.history.pushState(null, '', clean);
+    setCurrentRoute(clean);
+    window.scrollTo(0, 0);
   };
 
   const showToast = (message, type = 'success') => {
@@ -88,29 +112,53 @@ export const BlogProvider = ({ children }) => {
     }, 3500);
   };
 
-  const loginAdmin = (password) => {
-    if (password === 'admin123' || password === 'horizon2026') {
+  const loginAdmin = (password, customTarget = null) => {
+    const trimmed = (password || '').trim();
+    const destination = customTarget || (currentRoute && currentRoute.startsWith('/admin') ? currentRoute : '/admin');
+
+    if (trimmed === 'admin123' || trimmed === 'horizon2026' || trimmed === 'admin') {
       setIsAdminAuthenticated(true);
+      setUserRole('admin');
       sessionStorage.setItem('horizon_admin_session', 'true');
-      showToast('Đăng nhập Quản trị viên thành công!', 'success');
+      localStorage.setItem('horizon_admin_session', 'true');
+      sessionStorage.setItem('horizon_user_role', 'admin');
+      localStorage.setItem('horizon_user_role', 'admin');
+      showToast('Đăng nhập Quản trị viên (Admin) thành công!', 'success');
+      navigate(destination);
       return true;
     }
-    showToast('Mã bảo mật không đúng (Mặc định: admin123)', 'error');
+    if (trimmed === 'editor123' || trimmed === 'ctv2026' || trimmed === 'editor') {
+      setIsAdminAuthenticated(true);
+      setUserRole('editor');
+      sessionStorage.setItem('horizon_admin_session', 'true');
+      localStorage.setItem('horizon_admin_session', 'true');
+      sessionStorage.setItem('horizon_user_role', 'editor');
+      localStorage.setItem('horizon_user_role', 'editor');
+      showToast('Đăng nhập Biên tập viên (Editor / CTV) thành công!', 'success');
+      navigate(destination === '/admin' ? '/admin/posts' : destination);
+      return true;
+    }
+    showToast('Mã bảo mật không đúng (Admin: admin123 | Editor: editor123)', 'error');
     return false;
   };
 
   const logoutAdmin = () => {
     setIsAdminAuthenticated(false);
+    setUserRole('admin');
     sessionStorage.removeItem('horizon_admin_session');
+    localStorage.removeItem('horizon_admin_session');
+    sessionStorage.removeItem('horizon_user_role');
+    localStorage.removeItem('horizon_user_role');
     showToast('Đã đăng xuất khỏi trang Quản trị', 'info');
-    navigate('#/');
+    navigate('/');
   };
 
   // CRUD Operations
   const savePost = async (postData) => {
     const updated = await storageService.savePost(postData);
     setPosts(updated);
-    showToast(postData.id ? 'Cập nhật bài viết thành công!' : 'Đã xuất bản bài viết mới!');
+    setActivityLogs(storageService.getActivityLogs());
+    showToast(postData.id && !postData.id.startsWith('new-') ? 'Cập nhật bài viết thành công!' : 'Đã xuất bản bài viết mới!');
     return updated;
   };
 
@@ -135,11 +183,55 @@ export const BlogProvider = ({ children }) => {
     return newCategories;
   };
 
+  const addCategory = (categoryData) => {
+    const newCat = storageService.addCategory(categoryData);
+    setCategories(storageService.getCategories());
+    setActivityLogs(storageService.getActivityLogs());
+    showToast(`Đã tạo chuyên mục "${newCat.name}" thành công!`);
+    return newCat;
+  };
+
   const updateAuthors = (newAuthors) => {
     storageService.saveAuthors(newAuthors);
     setAuthors(newAuthors);
     showToast('Đã cập nhật danh sách tác giả!');
     return newAuthors;
+  };
+
+  // Staff & Payroll CRUD
+  const saveStaff = (staffData) => {
+    const updated = storageService.saveStaff(staffData);
+    setStaffList(updated);
+    setActivityLogs(storageService.getActivityLogs());
+    showToast(staffData.id && !staffData.id.startsWith('new-') ? 'Cập nhật nhân viên thành công!' : 'Thêm nhân viên mới thành công!');
+    return updated;
+  };
+
+  const deleteStaff = (id) => {
+    const updated = storageService.deleteStaff(id);
+    setStaffList(updated);
+    showToast('Đã xóa nhân sự khỏi danh sách', 'info');
+    return updated;
+  };
+
+  const updateStaffSalary = (id, salaryData) => {
+    const updated = storageService.updateStaffSalary(id, salaryData);
+    setStaffList(updated);
+    setActivityLogs(storageService.getActivityLogs());
+    showToast('Đã cập nhật phiếu lương nhân viên thành công!');
+    return updated;
+  };
+
+  const addActivityLog = (logItem) => {
+    const updated = storageService.addActivityLog(logItem);
+    setActivityLogs(updated);
+    return updated;
+  };
+
+  const clearActivityLogs = () => {
+    storageService.clearActivityLogs();
+    setActivityLogs([]);
+    showToast('Đã làm sạch lịch sử hoạt động', 'info');
   };
 
   const toggleBookmark = (slug) => {
@@ -162,8 +254,6 @@ export const BlogProvider = ({ children }) => {
   return (
     <BlogContext.Provider
       value={{
-        darkMode,
-        toggleDarkMode,
         posts,
         categories,
         authors,
@@ -177,13 +267,22 @@ export const BlogProvider = ({ children }) => {
         toast,
         showToast,
         isAdminAuthenticated,
+        userRole,
         loginAdmin,
         logoutAdmin,
         savePost,
         deletePost,
         updateSettings,
         updateCategories,
+        addCategory,
         updateAuthors,
+        staffList,
+        saveStaff,
+        deleteStaff,
+        updateStaffSalary,
+        activityLogs,
+        addActivityLog,
+        clearActivityLogs,
         resetData,
         refreshAllData,
       }}

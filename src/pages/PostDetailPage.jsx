@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useBlog } from '../context/BlogContext';
 import { storageService } from '../services/storageService';
+import { telemetryService } from '../services/telemetryService';
 import { Badge } from '../components/common/Badge';
 import { AdSenseUnit } from '../components/ads/AdSenseUnit';
 import { TableOfContents } from '../components/blog/TableOfContents';
@@ -10,6 +11,7 @@ import { CommentsSection } from '../components/blog/CommentsSection';
 import { ArticleCard } from '../components/blog/ArticleCard';
 import { NewsletterBox } from '../components/blog/NewsletterBox';
 import { ReadingProgressBar } from '../components/layout/ReadingProgressBar';
+import { AffiliateShowcaseBox } from '../components/blog/AffiliateShowcaseBox';
 import { 
   Clock, 
   Eye, 
@@ -44,15 +46,20 @@ export const PostDetailPage = ({ slug }) => {
   const isSaved = bookmarks.includes(slug);
 
   useEffect(() => {
+    let cleanupTelemetry = null;
     if (slug && post) {
       storageService.incrementView(slug);
       document.title = `${post.title} | ${settings?.siteName || 'THE HORIZON POST'}`;
       window.scrollTo({ top: 0, behavior: 'instant' });
+      cleanupTelemetry = telemetryService.initArticleTelemetry(slug, post.title);
     }
-    // Cleanup speech synthesis on unmount
+    // Cleanup speech synthesis and telemetry on unmount
     return () => {
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
+      }
+      if (cleanupTelemetry) {
+        cleanupTelemetry();
       }
     };
   }, [slug, post, settings]);
@@ -63,7 +70,7 @@ export const PostDetailPage = ({ slug }) => {
         <h2 className="font-serif text-3xl font-bold">Article Not Found</h2>
         <p className="text-neutral-500">The editorial piece you are seeking may have been renamed or archived.</p>
         <button
-          onClick={() => navigate('#/')}
+          onClick={() => navigate('/')}
           className="px-6 py-2.5 bg-blue-600 text-white text-xs font-bold uppercase rounded-xl"
         >
           Return to Front Page
@@ -114,7 +121,7 @@ export const PostDetailPage = ({ slug }) => {
     },
     'mainEntityOfPage': {
       '@type': 'WebPage',
-      '@id': `https://thehorizonpost.com/#/post/${post.slug}`
+      '@id': `https://thehorizonpost.com/post/${post.slug}`
     }
   };
 
@@ -126,15 +133,20 @@ export const PostDetailPage = ({ slug }) => {
     if (isPlayingAudio) {
       window.speechSynthesis.cancel();
       setIsPlayingAudio(false);
+      telemetryService.trackEvent('audio_playback_stopped', { slug: post?.slug });
     } else {
       const plainText = `${post.title}. By ${author?.name || 'our correspondent'}. ${post.excerpt}. ${post.content.replace(/<[^>]*>/g, ' ')}`;
       const utterance = new SpeechSynthesisUtterance(plainText);
       utterance.lang = 'en-US';
       utterance.rate = 1.0;
-      utterance.onend = () => setIsPlayingAudio(false);
+      utterance.onend = () => {
+        setIsPlayingAudio(false);
+        telemetryService.trackEvent('audio_playback_finished', { slug: post?.slug });
+      };
       utterance.onerror = () => setIsPlayingAudio(false);
       window.speechSynthesis.speak(utterance);
       setIsPlayingAudio(true);
+      telemetryService.trackEvent('audio_playback_started', { slug: post?.slug, title: post?.title });
     }
   };
 
@@ -145,6 +157,7 @@ export const PostDetailPage = ({ slug }) => {
       ...prev,
       [type]: (prev[type] || 0) + 1
     }));
+    telemetryService.trackEvent('reader_reaction_submitted', { slug: post?.slug, reactionType: type });
   };
 
   const fontSizeClasses = {
@@ -165,75 +178,70 @@ export const PostDetailPage = ({ slug }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn font-sans">
         {/* Top Breadcrumbs */}
         <div className="flex items-center space-x-2 text-xs text-neutral-500 font-mono mb-6 overflow-x-auto no-scrollbar">
-          <button onClick={() => navigate('#/')} className="hover:text-blue-600 transition-colors">Home</button>
+          <button onClick={() => navigate('/')} className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">Home</button>
           <ChevronRight className="w-3.5 h-3.5" />
-          <button onClick={() => navigate(`#/category/${category?.slug}`)} className="hover:text-blue-600 transition-colors">
+          <button onClick={() => navigate(`/category/${category?.slug}`)} className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">
             {category?.name || 'Category'}
           </button>
           <ChevronRight className="w-3.5 h-3.5" />
           <span className="text-neutral-400 truncate max-w-[200px] sm:max-w-md">{post.title}</span>
         </div>
 
-        {/* Top Header Leaderboard Ad */}
+        {/* Top Header Leaderboard Ad (Desktop only to protect mobile dwell time) */}
         {post.enableAds && (
-          <AdSenseUnit slotType="headerLeaderboard" customLabel="Sponsored Executive Leaderboard" />
+          <AdSenseUnit slotType="headerLeaderboard" customClass="hidden md:flex" customLabel="Sponsored Executive Leaderboard" />
         )}
 
         {/* Article Header */}
-        <header className="max-w-4xl mx-auto space-y-5 text-center sm:text-left mb-8">
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-            <Badge label={category?.name || 'Analysis'} color={category?.color || 'blue'} size="md" />
-            <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-md text-xs font-mono font-bold uppercase flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" /> E-E-A-T Verified
-            </span>
-            <span className="px-2.5 py-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 rounded-md text-xs font-mono flex items-center gap-1">
-              <FileText className="w-3 h-3 text-blue-500" /> {wordCount.toLocaleString()} words
+        <header className="max-w-4xl mx-auto space-y-4 text-left mb-8">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge label={category?.name || 'Article'} size="sm" />
+            <span className="text-xs text-neutral-500 font-mono">
+              {formattedDate} • {post.readTime}
             </span>
           </div>
 
-          <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-extrabold text-neutral-950 dark:text-neutral-50 leading-[1.18] tracking-tight">
+          <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-extrabold text-neutral-950 dark:text-neutral-50 leading-[1.2] tracking-tight">
             {post.title}
           </h1>
 
-          <p className="text-base sm:text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed font-sans">
+          <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-300 leading-relaxed font-sans">
             {post.excerpt}
           </p>
 
-          {/* Reading Toolbar: Audio, Font size, Bookmark */}
-          <div className="p-3 bg-neutral-100/70 dark:bg-neutral-900/60 rounded-2xl border border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+          {/* Reading Toolbar */}
+          <div className="p-2.5 bg-neutral-100/60 dark:bg-neutral-900/40 rounded-xl border border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-2.5 text-xs">
             {/* Audio Reader */}
             <button
               onClick={handleToggleSpeech}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-semibold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium transition-all ${
                 isPlayingAudio 
-                  ? 'bg-blue-600 text-white shadow' 
+                  ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-xs' 
                   : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200'
               }`}
             >
-              {isPlayingAudio ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4 text-blue-500" />}
-              <span>{isPlayingAudio ? 'Stop Audio' : '🎧 Listen to Article (Audio)'}</span>
+              {isPlayingAudio ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-neutral-600 dark:text-neutral-400" />}
+              <span>{isPlayingAudio ? 'Stop Audio' : 'Listen to Article'}</span>
             </button>
 
             {/* Font Size Adjuster */}
-            <div className="flex items-center space-x-1 bg-white dark:bg-neutral-800 p-1 rounded-xl border border-neutral-200 dark:border-neutral-700">
-              <span className="text-[11px] font-mono px-2 text-neutral-400 flex items-center gap-1">
-                <Type className="w-3.5 h-3.5" /> Font Size:
-              </span>
+            <div className="flex items-center space-x-1 bg-white dark:bg-neutral-800 p-0.5 rounded-lg border border-neutral-200 dark:border-neutral-700">
+              <span className="text-[11px] font-mono px-1.5 text-neutral-400">Text:</span>
               <button
                 onClick={() => setFontSize('sm')}
-                className={`px-2 py-0.5 rounded text-xs ${fontSize === 'sm' ? 'bg-blue-600 text-white font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
+                className={`px-1.5 py-0.5 rounded text-xs ${fontSize === 'sm' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
               >
                 A-
               </button>
               <button
                 onClick={() => setFontSize('base')}
-                className={`px-2 py-0.5 rounded text-xs ${fontSize === 'base' ? 'bg-blue-600 text-white font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
+                className={`px-1.5 py-0.5 rounded text-xs ${fontSize === 'base' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
               >
                 A
               </button>
               <button
                 onClick={() => setFontSize('lg')}
-                className={`px-2 py-0.5 rounded text-xs ${fontSize === 'lg' ? 'bg-blue-600 text-white font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
+                className={`px-1.5 py-0.5 rounded text-xs ${fontSize === 'lg' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
               >
                 A+
               </button>
@@ -242,14 +250,14 @@ export const PostDetailPage = ({ slug }) => {
             {/* Bookmark Action */}
             <button
               onClick={() => toggleBookmark(post.slug)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all ${
+              className={`flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all ${
                 isSaved
-                  ? 'bg-blue-600 text-white shadow'
+                  ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 shadow-xs'
                   : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200'
               }`}
             >
               <Bookmark className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
-              <span>{isSaved ? 'Saved in List' : 'Save for Later'}</span>
+              <span>{isSaved ? 'Saved' : 'Save'}</span>
             </button>
           </div>
 
@@ -313,6 +321,9 @@ export const PostDetailPage = ({ slug }) => {
             {post.enableAds && (
               <AdSenseUnit slotType="inArticleMid" customLabel="Strategic Market Insights" />
             )}
+
+            {/* Strategic High-Converting Affiliate Recommendation Box */}
+            <AffiliateShowcaseBox categorySlug={category?.slug || 'personal-finance'} />
 
             {/* Interactive Reader Reaction Section */}
             <div className="p-6 bg-white dark:bg-[#111622] rounded-3xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
@@ -382,8 +393,8 @@ export const PostDetailPage = ({ slug }) => {
                 {post.tags.map((tag, idx) => (
                   <button
                     key={idx}
-                    onClick={() => navigate(`#/tag/${encodeURIComponent(tag)}`)}
-                    className="px-3 py-1 bg-neutral-100 dark:bg-neutral-800 hover:bg-blue-50 dark:hover:bg-blue-950 text-neutral-700 dark:text-neutral-300 hover:text-blue-500 rounded-lg text-xs font-mono transition-colors"
+                    onClick={() => navigate(`/tag/${encodeURIComponent(tag)}`)}
+                    className="px-3 py-1 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 text-neutral-700 dark:text-neutral-300 rounded-lg text-xs font-mono transition-colors"
                   >
                     #{tag}
                   </button>
@@ -448,8 +459,8 @@ export const PostDetailPage = ({ slug }) => {
                 All data points, APY metrics, and technical benchmarks are corroborated with SEC filings, Federal Reserve releases, and peer-reviewed journals before publication.
               </p>
               <button 
-                onClick={() => navigate('#/about')}
-                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
+                onClick={() => navigate('/about')}
+                className="text-xs font-bold text-neutral-900 dark:text-neutral-100 hover:underline"
               >
                 Read our Editorial Guidelines →
               </button>

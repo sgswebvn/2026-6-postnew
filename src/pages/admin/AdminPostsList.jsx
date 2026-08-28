@@ -11,11 +11,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  FileText
+  FileText,
+  Copy
 } from 'lucide-react';
 
 export const AdminPostsList = () => {
-  const { posts, categories, navigate, deletePost, savePost } = useBlog();
+  const { posts, categories, navigate, deletePost, savePost, showToast } = useBlog();
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -79,7 +80,7 @@ export const AdminPostsList = () => {
         </div>
 
         <button
-          onClick={() => navigate('#/admin/posts/new')}
+          onClick={() => navigate('/admin/posts/new')}
           className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md transition-all active:scale-95 self-start sm:self-auto"
         >
           <PlusCircle className="w-4 h-4" />
@@ -100,13 +101,13 @@ export const AdminPostsList = () => {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div className="flex items-center gap-2 w-full md:w-auto">
           <select
             value={selectedCat}
             onChange={(e) => { setSelectedCat(e.target.value); setCurrentPage(1); }}
-            className="px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs text-neutral-700 dark:text-neutral-300 focus:outline-none"
+            className="px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs focus:outline-none focus:border-blue-500"
           >
-            <option value="all">Tất cả chuyên mục ({categories.length})</option>
+            <option value="all">Tất cả chuyên mục</option>
             {categories.map(cat => (
               <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
@@ -115,96 +116,82 @@ export const AdminPostsList = () => {
           <select
             value={selectedStatus}
             onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPage(1); }}
-            className="px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs text-neutral-700 dark:text-neutral-300 focus:outline-none"
+            className="px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs focus:outline-none focus:border-blue-500"
           >
             <option value="all">Tất cả trạng thái</option>
-            <option value="published">Đã Xuất Bản (Live)</option>
-            <option value="draft">Bản Nháp (Draft)</option>
-          </select>
-
-          <select
-            value={itemsPerPage}
-            onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-            className="px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs text-neutral-700 dark:text-neutral-300 focus:outline-none"
-            title="Số bài hiển thị mỗi trang"
-          >
-            <option value={10}>10 bài/trang</option>
-            <option value={15}>15 bài/trang</option>
-            <option value={20}>20 bài/trang</option>
-            <option value={30}>30 bài/trang</option>
+            <option value="published">Đã xuất bản (Published)</option>
+            <option value="draft">Bản nháp (Draft)</option>
           </select>
         </div>
       </div>
 
-      {/* Articles Table with STT Ordinal Column */}
+      {/* Posts Table */}
       <div className="bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-neutral-50 dark:bg-neutral-900/60 text-neutral-500 font-mono uppercase">
               <tr>
-                <th className="p-3.5 w-16 text-center">STT</th>
-                <th className="p-3.5">Tiêu Đề & Đường Dẫn (Slug)</th>
+                <th className="p-3.5 text-center w-12">STT</th>
+                <th className="p-3.5">Bài Viết & Tiêu Đề</th>
                 <th className="p-3.5">Chuyên Mục</th>
-                <th className="p-3.5">Lượt Xem Thật</th>
+                <th className="p-3.5">Lượt Xem</th>
                 <th className="p-3.5">Trạng Thái</th>
-                <th className="p-3.5">Quảng Cáo AdSense</th>
+                <th className="p-3.5">AdSense Ads</th>
                 <th className="p-3.5 text-right">Thao Tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800 font-sans">
               {paginatedPosts.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="p-12 text-center text-neutral-400">
-                    <FileText className="w-8 h-8 mx-auto opacity-30 mb-2" />
-                    <p className="font-semibold">Không tìm thấy bài viết nào phù hợp với bộ lọc.</p>
+                  <td colSpan={7} className="p-12 text-center text-neutral-400">
+                    <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <p>Không tìm thấy bài viết nào phù hợp với bộ lọc hiện tại.</p>
                   </td>
                 </tr>
               ) : (
                 paginatedPosts.map((post, idx) => {
-                  const absoluteSTT = startIndex + idx + 1;
                   const cat = categories.find(c => c.id === post.categoryId);
+                  const ordinalNumber = startIndex + idx + 1;
 
                   return (
-                    <tr key={post.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors">
-                      {/* STT Column */}
-                      <td className="p-3.5 text-center font-mono font-bold text-neutral-500 dark:text-neutral-400">
-                        <span className="w-7 h-7 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mx-auto text-xs">
-                          #{absoluteSTT}
-                        </span>
+                    <tr key={post.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-900/40 transition-colors">
+                      {/* Ordinal STT */}
+                      <td className="p-3.5 text-center font-mono font-bold text-neutral-500">
+                        {ordinalNumber}
                       </td>
 
-                      {/* Post Title & Image */}
+                      {/* Title & Slug */}
                       <td className="p-3.5">
                         <div className="flex items-center space-x-3">
-                          <img 
-                            src={post.coverImage} 
-                            alt={post.title} 
-                            className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-neutral-200 dark:border-neutral-700"
+                          <img
+                            src={post.coverImage}
+                            alt={post.title}
+                            className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border border-neutral-200 dark:border-neutral-700"
                           />
-                          <div className="space-y-0.5 max-w-sm sm:max-w-md">
-                            <span 
-                              onClick={() => navigate(`#/post/${post.slug}`)}
-                              className="font-bold text-neutral-900 dark:text-neutral-100 hover:text-blue-600 cursor-pointer line-clamp-1 text-sm"
+                          <div className="max-w-md">
+                            <h3 
+                              onClick={() => navigate(`/admin/posts/edit/${post.id}`)}
+                              className="font-bold text-neutral-900 dark:text-neutral-100 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer line-clamp-1 text-sm"
                             >
                               {post.title}
+                            </h3>
+                            <span className="text-[11px] font-mono text-neutral-400 block truncate">
+                              /post/{post.slug}
                             </span>
-                            <p className="text-[11px] text-neutral-400 font-mono">
-                              /{post.slug} • {post.readTime}
-                            </p>
                           </div>
                         </div>
                       </td>
 
-                      {/* Category Badge */}
+                      {/* Category */}
                       <td className="p-3.5">
-                        <Badge label={cat?.name || 'Chuyên mục'} color={cat?.color || 'blue'} size="xs" />
+                        <Badge label={cat?.name || 'Category'} color={cat?.color || 'blue'} size="xs" />
                       </td>
 
-                      {/* Real Views Counter */}
-                      <td className="p-3.5 font-mono text-neutral-600 dark:text-neutral-400 font-semibold">
+                      {/* Views Count */}
+                      <td className="p-3.5 font-mono text-neutral-600 dark:text-neutral-300">
                         <div className="flex items-center gap-1">
-                          <Eye className="w-3.5 h-3.5 text-blue-500" />
-                          <span>{(post.views || 0).toLocaleString()} lượt</span>
+                          <Eye className="w-3.5 h-3.5 text-neutral-400" />
+                          <span>{(post.views || 0).toLocaleString()}</span>
                         </div>
                       </td>
 
@@ -215,15 +202,14 @@ export const AdminPostsList = () => {
                           className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase transition-all ${
                             post.status === 'published'
                               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                              : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                              : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
                           }`}
-                          title="Bấm để đổi trạng thái Xuất bản / Bản nháp"
                         >
-                          {post.status === 'published' ? 'Đã Xuất Bản' : 'Bản Nháp'}
+                          {post.status}
                         </button>
                       </td>
 
-                      {/* AdSense Switch */}
+                      {/* Enable Ads Toggle */}
                       <td className="p-3.5">
                         <button
                           onClick={() => toggleAds(post)}
@@ -242,14 +228,25 @@ export const AdminPostsList = () => {
                       <td className="p-3.5 text-right">
                         <div className="flex items-center justify-end space-x-1.5">
                           <button
-                            onClick={() => navigate(`#/post/${post.slug}`)}
+                            onClick={() => {
+                              const postUrl = `${window.location.origin}/post/${post.slug}`;
+                              navigator.clipboard.writeText(postUrl);
+                              showToast('Đã sao chép liên kết bài viết vào clipboard!');
+                            }}
+                            className="p-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded text-emerald-600 dark:text-emerald-400"
+                            title="Sao chép link bài viết 1-Click (để rải link / seeding)"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/post/${post.slug}`)}
                             className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded text-neutral-500 hover:text-neutral-900"
                             title="Xem trên trang độc giả"
                           >
                             <ExternalLink className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => navigate(`#/admin/posts/edit/${post.id}`)}
+                            onClick={() => navigate(`/admin/posts/edit/${post.id}`)}
                             className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded text-blue-500 hover:text-blue-600"
                             title="Chỉnh sửa nội dung"
                           >

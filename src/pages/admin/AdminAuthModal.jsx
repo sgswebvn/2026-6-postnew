@@ -1,38 +1,43 @@
 import React, { useState } from 'react';
 import { useBlog } from '../../context/BlogContext';
-import { Lock, ShieldCheck, Key, ArrowRight, Sparkles } from 'lucide-react';
+import { Lock, ShieldCheck, Key, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
 
 export const AdminAuthModal = () => {
-  const { loginAdmin, navigate } = useBlog();
+  const { loginAdmin, navigate, currentRoute } = useBlog();
   const [passcode, setPasscode] = useState('');
+
+  const targetPath = currentRoute && currentRoute.startsWith('/admin') ? currentRoute : '/admin';
 
   const handleLogin = (e) => {
     e.preventDefault();
-    loginAdmin(passcode);
-  };
-
-  const handleDemoQuickLogin = () => {
-    loginAdmin('admin123');
+    loginAdmin(passcode, targetPath);
   };
 
   return (
     <div className="min-h-[75vh] flex items-center justify-center px-4 py-12 admin-view font-admin animate-fadeIn">
-      <div className="w-full max-w-md bg-white dark:bg-[#111622] rounded-3xl border border-neutral-200 dark:border-neutral-800 shadow-2xl p-8 space-y-6">
+      <div className="w-full max-w-md bg-white rounded-3xl border border-neutral-200 shadow-2xl p-8 space-y-6">
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
+          <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
             <Lock className="w-7 h-7" />
           </div>
-          <h2 className="font-serif text-2xl sm:text-3xl font-extrabold text-neutral-950 dark:text-neutral-50">
+          <h2 className="font-serif text-2xl sm:text-3xl font-extrabold text-neutral-950">
             Hệ Thống Quản Trị Blog
           </h2>
-          <p className="text-xs sm:text-sm text-neutral-500">
-            Nhập mã bảo mật để quản lý nội dung bài viết, tối ưu SEO và cấu hình Google AdSense.
+          <p className="text-xs text-neutral-500">
+            Nhập mã bảo mật để vào khu vực quản trị nội dung, nhân sự và bảng lương.
           </p>
+
+          {targetPath !== '/admin' && (
+            <div className="p-2 bg-blue-50 text-blue-700 rounded-xl text-[11px] font-mono flex items-center justify-center gap-1.5 mt-2">
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>Đang mở trang: <strong>{targetPath}</strong></span>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 mb-1.5">
               Mã bảo mật / Mật khẩu truy cập
             </label>
             <div className="relative">
@@ -41,7 +46,7 @@ export const AdminAuthModal = () => {
                 placeholder="Nhập mã truy cập (Mặc định: admin123)"
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full pl-10 pr-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 autoFocus
               />
               <Key className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
@@ -57,20 +62,33 @@ export const AdminAuthModal = () => {
           </button>
         </form>
 
-        <div className="pt-4 border-t border-neutral-100 dark:border-neutral-800 text-center space-y-3">
-          <button
-            type="button"
-            onClick={handleDemoQuickLogin}
-            className="w-full py-2.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 rounded-xl text-xs font-mono font-semibold transition-all flex items-center justify-center gap-1.5"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>⚡ Đăng nhập nhanh 1-Click (admin123)</span>
-          </button>
+        <div className="pt-4 border-t border-neutral-100 text-center space-y-2.5">
+          <span className="text-[11px] font-mono text-neutral-400 block uppercase font-semibold">Tùy chọn đăng nhập nhanh 1-Click:</span>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => loginAdmin('admin123', targetPath)}
+              className="py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-mono font-semibold transition-all flex items-center justify-center gap-1.5 border border-blue-200 shadow-2xs active:scale-95"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Admin (Toàn quyền)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => loginAdmin('editor123', targetPath)}
+              className="py-2.5 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-mono font-semibold transition-all flex items-center justify-center gap-1.5 border border-purple-200 shadow-2xs active:scale-95"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-purple-500" />
+              <span>Editor (Ẩn doanh thu)</span>
+            </button>
+          </div>
           
           <button
             type="button"
-            onClick={() => navigate('#/')}
-            className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+            onClick={() => navigate('/')}
+            className="text-xs text-neutral-400 hover:text-neutral-600 pt-2 block mx-auto"
           >
             ← Quay lại trang chủ độc giả
           </button>

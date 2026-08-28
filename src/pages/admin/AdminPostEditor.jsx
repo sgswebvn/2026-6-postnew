@@ -12,13 +12,15 @@ import {
   Quote, 
   List, 
   Table, 
-  Image, 
+  Image as ImageIcon, 
   CheckCircle, 
   Globe, 
   DollarSign,
   AlertCircle,
   Wand2,
-  FileText
+  FileText,
+  Video,
+  Link as LinkIcon
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 
@@ -31,7 +33,7 @@ const SAMPLE_COVERS = [
 ];
 
 export const AdminPostEditor = ({ postId }) => {
-  const { posts, categories, authors, savePost, navigate } = useBlog();
+  const { posts, categories, authors, savePost, addCategory, navigate, showToast } = useBlog();
 
   const existingPost = postId ? posts.find(p => p.id === postId) : null;
 
@@ -55,6 +57,27 @@ export const AdminPostEditor = ({ postId }) => {
   });
 
   const [activeTab, setActiveTab] = useState('write'); // 'write' or 'preview'
+  const [showCatModal, setShowCatModal] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatDesc, setNewCatDesc] = useState('');
+
+  const handleCreateCategory = (e) => {
+    e.preventDefault();
+    if (!newCatName.trim()) {
+      showToast('Vui lòng nhập tên chuyên mục', 'error');
+      return;
+    }
+    const created = addCategory({
+      name: newCatName.trim(),
+      slug: generateSlug(newCatName),
+      description: newCatDesc.trim(),
+      color: 'blue'
+    });
+    setFormData(prev => ({ ...prev, categoryId: created.id }));
+    setShowCatModal(false);
+    setNewCatName('');
+    setNewCatDesc('');
+  };
 
   useEffect(() => {
     if (existingPost) {
@@ -188,6 +211,60 @@ export const AdminPostEditor = ({ postId }) => {
     }));
   };
 
+  const handleInsertYouTube = () => {
+    const rawUrl = prompt('Nhập đường dẫn Video YouTube (ví dụ: https://www.youtube.com/watch?v=dQw4w9WgXcQ hoặc https://youtu.be/...):');
+    if (!rawUrl) return;
+
+    let videoId = '';
+    const match1 = rawUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+    if (match1) {
+      videoId = match1[1];
+    } else if (rawUrl.length === 11) {
+      videoId = rawUrl;
+    }
+
+    if (!videoId) {
+      alert('Không tìm thấy Video ID hợp lệ từ liên kết YouTube.');
+      return;
+    }
+
+    const embedHtml = `
+<div class="my-8 rounded-3xl overflow-hidden aspect-video shadow-xl border border-neutral-200 dark:border-neutral-800 bg-black">
+  <iframe 
+    class="w-full h-full" 
+    src="https://www.youtube.com/embed/${videoId}" 
+    title="YouTube video player" 
+    frameborder="0" 
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+    allowfullscreen>
+  </iframe>
+</div>
+`;
+
+    setFormData(prev => ({
+      ...prev,
+      content: prev.content + embedHtml
+    }));
+  };
+
+  const handleInsertImage = () => {
+    const imageUrl = prompt('Nhập đường dẫn hình ảnh (URL):', 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?q=80&w=1200');
+    if (!imageUrl) return;
+    const caption = prompt('Nhập chú thích ảnh (tùy chọn):', 'Biểu đồ phân tích dữ liệu thị trường') || '';
+
+    const imageHtml = `
+<figure class="my-8 rounded-3xl overflow-hidden shadow-lg border border-neutral-200 dark:border-neutral-800">
+  <img src="${imageUrl}" alt="${caption}" class="w-full h-auto object-cover rounded-3xl" />
+  ${caption ? `<figcaption class="text-xs text-center text-neutral-500 dark:text-neutral-400 mt-2 font-mono">${caption}</figcaption>` : ''}
+</figure>
+`;
+
+    setFormData(prev => ({
+      ...prev,
+      content: prev.content + imageHtml
+    }));
+  };
+
   const handleSave = (e) => {
     e.preventDefault();
     if (!formData.title.trim() || !formData.content.trim()) {
@@ -208,7 +285,7 @@ export const AdminPostEditor = ({ postId }) => {
     };
 
     savePost(postPayload);
-    navigate('#/admin/posts');
+    navigate('/admin/posts');
   };
 
   // SEO Score Calculations
@@ -223,7 +300,7 @@ export const AdminPostEditor = ({ postId }) => {
         <div className="flex items-center space-x-3">
           <button
             type="button"
-            onClick={() => navigate('#/admin/posts')}
+            onClick={() => navigate('/admin/posts')}
             className="p-2 bg-white dark:bg-[#111622] hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-300"
             title="Quay lại danh sách bài viết"
           >
@@ -355,6 +432,27 @@ export const AdminPostEditor = ({ postId }) => {
                   <button type="button" onClick={() => handleInsertHtml('table')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Bảng dữ liệu"><Table className="w-4 h-4" /></button>
                   <button type="button" onClick={() => handleInsertHtml('list')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Danh sách"><List className="w-4 h-4" /></button>
                   
+                  {/* YouTube & Image Inserters */}
+                  <button 
+                    type="button" 
+                    onClick={handleInsertYouTube}
+                    className="px-2 py-1 bg-red-50 dark:bg-red-950/60 hover:bg-red-100 text-red-700 dark:text-red-300 rounded-lg text-xs font-mono font-bold flex items-center gap-1 border border-red-200 dark:border-red-800 transition-colors"
+                    title="Nhúng Video YouTube vào bài viết"
+                  >
+                    <Video className="w-3.5 h-3.5 text-red-600" />
+                    <span>+ Video YT</span>
+                  </button>
+
+                  <button 
+                    type="button" 
+                    onClick={handleInsertImage}
+                    className="px-2 py-1 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-mono font-bold flex items-center gap-1 border border-emerald-200 dark:border-emerald-800 transition-colors"
+                    title="Chèn Hình ảnh & Chú thích"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>+ Ảnh</span>
+                  </button>
+
                   {/* AI Outline Assistant */}
                   <button 
                     type="button" 
@@ -530,9 +628,19 @@ export const AdminPostEditor = ({ postId }) => {
             </h3>
 
             <div>
-              <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">
-                Chuyên Mục Bài Viết
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold uppercase text-neutral-500">
+                  Chuyên Mục Bài Viết
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowCatModal(true)}
+                  className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>+ Tạo Chuyên Mục</span>
+                </button>
+              </div>
               <select
                 value={formData.categoryId}
                 onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
@@ -576,7 +684,7 @@ export const AdminPostEditor = ({ postId }) => {
           {/* Cover Image Selector */}
           <div className="p-6 bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
             <h3 className="font-serif text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5">
-              <Image className="w-4 h-4 text-blue-500" />
+              <ImageIcon className="w-4 h-4 text-blue-500" />
               <span>Ảnh Bìa Bài Viết</span>
             </h3>
 
@@ -620,6 +728,73 @@ export const AdminPostEditor = ({ postId }) => {
           </div>
         </div>
       </div>
+
+      {/* QUICK INLINE MODAL: CREATE CATEGORY */}
+      {showCatModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#111622] rounded-3xl border border-neutral-200 dark:border-neutral-800 shadow-2xl w-full max-w-md p-6 space-y-4 animate-fadeIn">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-200 dark:border-neutral-800">
+              <h3 className="font-serif text-base font-bold text-neutral-900 dark:text-neutral-100">
+                Tạo Chuyên Mục Mới Cho Bài Viết
+              </h3>
+              <button 
+                type="button"
+                onClick={() => setShowCatModal(false)}
+                className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-neutral-700 dark:text-neutral-300 mb-1">
+                  Tên Chuyên Mục *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="VD: Bất Động Sản Mỹ, Năng Lượng Xanh..."
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl focus:outline-none focus:border-blue-500"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-neutral-700 dark:text-neutral-300 mb-1">
+                  Mô Tả Ngắn Về Chuyên Mục
+                </label>
+                <textarea
+                  rows="2"
+                  placeholder="Định hướng nội dung của chuyên mục này..."
+                  value={newCatDesc}
+                  onChange={(e) => setNewCatDesc(e.target.value)}
+                  className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl focus:outline-none focus:border-blue-500"
+                ></textarea>
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-neutral-200 dark:border-neutral-800">
+                <button
+                  type="button"
+                  onClick={() => setShowCatModal(false)}
+                  className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 text-neutral-700 dark:text-neutral-300 rounded-xl font-semibold"
+                >
+                  Hủy Bỏ
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateCategory}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold"
+                >
+                  Lưu & Chọn Luôn
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 };

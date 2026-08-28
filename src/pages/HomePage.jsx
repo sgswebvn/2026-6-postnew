@@ -5,6 +5,8 @@ import { ArticleCard } from '../components/blog/ArticleCard';
 import { NewsletterBox } from '../components/blog/NewsletterBox';
 import { AdSenseUnit } from '../components/ads/AdSenseUnit';
 import { Badge } from '../components/common/Badge';
+import { ReturningReaderBanner } from '../components/blog/ReturningReaderBanner';
+import { telemetryService } from '../services/telemetryService';
 import { 
   TrendingUp, 
   Flame, 
@@ -23,6 +25,7 @@ export const HomePage = () => {
   const postsPerPage = 6;
 
   useEffect(() => {
+    telemetryService.trackEvent('home_page_view');
     const handleBookmarkFilter = () => {
       setFilterTab('bookmarks');
       setCurrentPage(1);
@@ -65,58 +68,40 @@ export const HomePage = () => {
       {/* Top Header Leaderboard Ad (728x90 / Responsive) */}
       <AdSenseUnit slotType="headerLeaderboard" customLabel="Sponsored Executive Leaderboard" />
 
+      {/* Returning Reader Smart Greeting */}
+      <ReturningReaderBanner />
+
       {/* Magazine Hero Section */}
       <HeroFeatured />
-
-      {/* Category Quick Filter Strip */}
-      <div className="my-8 pb-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between overflow-x-auto no-scrollbar gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 font-mono">Explore Desks:</span>
-          {categories.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => navigate(`#/category/${cat.slug}`)}
-              className="px-3.5 py-1.5 rounded-full bg-white dark:bg-[#111622] border border-neutral-200 dark:border-neutral-800 hover:border-blue-500 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:text-blue-600 transition-all shadow-sm flex-shrink-0"
-            >
-              {cat.name}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Main Grid: Articles Stream + Sticky Sidebar */}
       <div id="articles-feed-section" className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left 8 Cols: Latest Dispatches Stream */}
-        <div className="lg:col-span-8 space-y-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-neutral-200 dark:border-neutral-800">
-            <div className="flex items-center space-x-2">
-              <Layers className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <h2 className="font-serif text-2xl font-bold text-neutral-950 dark:text-neutral-50">
-                {filterTab === 'bookmarks' ? 'Your Saved Reading List' : 'Latest Investigative Reports'}
-              </h2>
-            </div>
+        <div className="lg:col-span-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-200 dark:border-neutral-800">
+            <h2 className="font-serif text-xl font-bold text-neutral-950 dark:text-neutral-50">
+              {filterTab === 'bookmarks' ? 'Saved Reading List' : 'Latest Dispatches'}
+            </h2>
 
-            {/* Filter Tabs */}
-            <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 p-1 rounded-xl border border-neutral-200 dark:border-neutral-700">
+            {/* Clean Minimal Filter Tabs */}
+            <div className="flex items-center space-x-1 bg-neutral-100 dark:bg-neutral-800/80 p-1 rounded-lg">
               <button
                 onClick={() => { setFilterTab('latest'); setCurrentPage(1); }}
-                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${filterTab === 'latest' ? 'bg-white dark:bg-neutral-900 text-blue-600 shadow-sm font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${filterTab === 'latest' ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-neutral-50 shadow-xs font-bold' : 'text-neutral-500 hover:text-neutral-900'}`}
               >
-                Latest ({published.length})
+                Latest
               </button>
               <button
                 onClick={() => { setFilterTab('trending'); setCurrentPage(1); }}
-                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 ${filterTab === 'trending' ? 'bg-white dark:bg-neutral-900 text-blue-600 shadow-sm font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${filterTab === 'trending' ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-neutral-50 shadow-xs font-bold' : 'text-neutral-500 hover:text-neutral-900'}`}
               >
-                <Flame className="w-3.5 h-3.5 text-rose-500" />
-                <span>Trending</span>
+                Trending
               </button>
               <button
                 onClick={() => { setFilterTab('bookmarks'); setCurrentPage(1); }}
-                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 ${filterTab === 'bookmarks' ? 'bg-white dark:bg-neutral-900 text-blue-600 shadow-sm font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${filterTab === 'bookmarks' ? 'bg-white dark:bg-neutral-900 text-neutral-950 dark:text-neutral-50 shadow-xs font-bold' : 'text-neutral-500 hover:text-neutral-900'}`}
               >
-                <Bookmark className="w-3.5 h-3.5 text-blue-500" />
-                <span>Saved ({bookmarks.length})</span>
+                Saved ({bookmarks.length})
               </button>
             </div>
           </div>
@@ -215,7 +200,7 @@ export const HomePage = () => {
               {categories.map(cat => (
                 <div
                   key={cat.id}
-                  onClick={() => navigate(`#/category/${cat.slug}`)}
+                  onClick={() => navigate(`/category/${cat.slug}`)}
                   className="group cursor-pointer p-2.5 rounded-2xl hover:bg-neutral-50 dark:hover:bg-neutral-800/60 transition-all flex items-center justify-between"
                 >
                   <div className="space-y-0.5">

@@ -35,17 +35,15 @@ app.get('/', (req, res) => {
 });
 
 // Start Server and Connect DB
-async function startServer() {
-  await connectDB();
-  
-  app.listen(PORT, () => {
-    console.log(`=======================================================`);
-    console.log(`🚀 [Server] The Horizon Post API running on port ${PORT}`);
-    console.log(`🔗 [Endpoint] http://localhost:${PORT}/api/status`);
-    console.log(`=======================================================`);
-  });
-}
+const server = app.listen(PORT, () => {
+  console.log(`=======================================================`);
+  console.log(`🚀 [Server] The Horizon Post API running on port ${PORT}`);
+  console.log(`🔗 [Endpoint] http://localhost:${PORT}/api/status`);
+  console.log(`=======================================================`);
+});
 
-startServer();
+connectDB().catch(err => {
+  console.warn('[MongoDB Atlas] Background connection notice:', err.message);
+});
 
 export default app;

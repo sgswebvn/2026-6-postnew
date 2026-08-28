@@ -1,12 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { X, Sparkles, ExternalLink } from 'lucide-react';
 
 export const StickyBottomAd = () => {
   const { settings } = useBlog();
   const [dismissed, setDismissed] = useState(false);
+  const [hasScrolledEnough, setHasScrolledEnough] = useState(false);
 
-  if (dismissed || !settings?.adsense?.enabled || !settings?.adsense?.slots?.mobileAnchor?.enabled) {
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollHeight <= 0) return;
+      const percent = (window.scrollY / scrollHeight) * 100;
+      if (percent >= 35) {
+        setHasScrolledEnough(true);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  if (dismissed || !hasScrolledEnough || !settings?.adsense?.enabled || !settings?.adsense?.slots?.mobileAnchor?.enabled) {
     return null;
   }
 
