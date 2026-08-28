@@ -46,6 +46,8 @@ export const AdminStaff = () => {
   const [editingStaff, setEditingStaff] = useState(null);
   const [staffForm, setStaffForm] = useState({
     name: '',
+    username: '',
+    password: '',
     email: '',
     phone: '',
     refCode: '',
@@ -53,7 +55,17 @@ export const AdminStaff = () => {
     roleName: 'Biên Tập Viên Nội Dung',
     joinDate: new Date().toISOString().split('T')[0],
     status: 'active',
-    avatar: AVATAR_PRESETS[0]
+    avatar: AVATAR_PRESETS[0],
+    permissions: {
+      canManagePosts: true,
+      canPublishPosts: false,
+      canManageCategories: false,
+      canViewRevenue: false,
+      canManageStaff: false,
+      canManagePayroll: false,
+      canManageComments: true,
+      canManageSettings: false
+    }
   });
 
   // Payroll Modal state
@@ -71,6 +83,7 @@ export const AdminStaff = () => {
 
   const filteredStaff = staffList.filter(s => 
     s.name.toLowerCase().includes(search.toLowerCase()) ||
+    (s.username && s.username.toLowerCase().includes(search.toLowerCase())) ||
     s.email.toLowerCase().includes(search.toLowerCase()) ||
     (s.refCode && s.refCode.toLowerCase().includes(search.toLowerCase())) ||
     (s.roleName && s.roleName.toLowerCase().includes(search.toLowerCase()))
@@ -87,6 +100,8 @@ export const AdminStaff = () => {
       setEditingStaff(staff);
       setStaffForm({
         name: staff.name,
+        username: staff.username || (staff.email ? staff.email.split('@')[0] : 'user'),
+        password: staff.password || '123456',
         email: staff.email,
         phone: staff.phone || '',
         refCode: staff.refCode || '',
@@ -94,12 +109,24 @@ export const AdminStaff = () => {
         roleName: staff.roleName || 'Biên Tập Viên',
         joinDate: staff.joinDate || new Date().toISOString().split('T')[0],
         status: staff.status || 'active',
-        avatar: staff.avatar || AVATAR_PRESETS[0]
+        avatar: staff.avatar || AVATAR_PRESETS[0],
+        permissions: staff.permissions || {
+          canManagePosts: true,
+          canPublishPosts: staff.role === 'admin',
+          canManageCategories: staff.role === 'admin',
+          canViewRevenue: staff.role === 'admin',
+          canManageStaff: staff.role === 'admin',
+          canManagePayroll: staff.role === 'admin',
+          canManageComments: true,
+          canManageSettings: staff.role === 'admin'
+        }
       });
     } else {
       setEditingStaff(null);
       setStaffForm({
         name: '',
+        username: '',
+        password: 'user123',
         email: '',
         phone: '',
         refCode: '',
@@ -107,7 +134,17 @@ export const AdminStaff = () => {
         roleName: 'Biên Tập Viên Nội Dung',
         joinDate: new Date().toISOString().split('T')[0],
         status: 'active',
-        avatar: AVATAR_PRESETS[0]
+        avatar: AVATAR_PRESETS[0],
+        permissions: {
+          canManagePosts: true,
+          canPublishPosts: false,
+          canManageCategories: false,
+          canViewRevenue: false,
+          canManageStaff: false,
+          canManagePayroll: false,
+          canManageComments: true,
+          canManageSettings: false
+        }
       });
     }
     setIsStaffModalOpen(true);
@@ -290,9 +327,9 @@ export const AdminStaff = () => {
               <thead className="bg-[#0d131f] text-neutral-400 font-mono uppercase">
                 <tr>
                   <th className="p-3.5">Nhân Viên & Chức Danh</th>
+                  <th className="p-3.5">Tài Khoản Đăng Nhập</th>
                   <th className="p-3.5">Mã Seeding Link</th>
                   <th className="p-3.5">Thông Tin Liên Hệ</th>
-                  <th className="p-3.5">Ngày Gia Nhập</th>
                   <th className="p-3.5">Trạng Thái</th>
                   <th className="p-3.5 text-right">Thao Tác</th>
                 </tr>
@@ -314,6 +351,19 @@ export const AdminStaff = () => {
                           <span className="text-[11px] text-neutral-400">
                             {staff.roleName || staff.role}
                           </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="p-3.5">
+                      <div className="space-y-0.5 font-mono text-xs">
+                        <div className="flex items-center gap-1 text-white font-bold">
+                          <span className="text-neutral-400 font-normal">User:</span>
+                          <span className="text-blue-400 bg-[#0d131f] px-1.5 py-0.5 rounded border border-[#2a3a54]">{staff.username || (staff.email ? staff.email.split('@')[0] : 'user')}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[11px] text-neutral-400">
+                          <span>Pass:</span>
+                          <span className="text-neutral-300 font-mono bg-[#0d131f] px-1.5 py-0.5 rounded border border-[#2a3a54]">{staff.password || '123456'}</span>
                         </div>
                       </div>
                     </td>
@@ -346,10 +396,6 @@ export const AdminStaff = () => {
                           <Phone className="w-3 h-3 text-neutral-400" /> {staff.phone || 'Chưa cập nhật'}
                         </p>
                       </div>
-                    </td>
-
-                    <td className="p-3.5 font-mono text-neutral-400">
-                      {staff.joinDate || 'N/A'}
                     </td>
 
                     <td className="p-3.5">
@@ -827,6 +873,85 @@ export const AdminStaff = () => {
                     <option value="writing">Đang viết bài</option>
                     <option value="inactive">Tạm nghỉ / Đã nghỉ</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Login Credentials Section (Admin cấp) */}
+              <div className="p-3 bg-[#182234] rounded-2xl border border-[#2a3a54] space-y-2.5">
+                <div className="flex items-center gap-1.5 text-blue-400 font-bold text-xs">
+                  <Briefcase className="w-3.5 h-3.5" />
+                  <span>Tài Khoản & Mật Khẩu Đăng Nhập CMS (Admin Cấp)</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-neutral-300 mb-1">
+                      Tên Đăng Nhập (Username) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="VD: minh, an, linh..."
+                      value={staffForm.username}
+                      onChange={(e) => setStaffForm({ ...staffForm, username: e.target.value.toLowerCase().trim() })}
+                      className="w-full px-3 py-2 bg-[#111726] border border-[#2a3a54] rounded-xl text-white font-mono focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-neutral-300 mb-1">
+                      Mật Khẩu Truy Cập *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="VD: 123456"
+                      value={staffForm.password}
+                      onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
+                      className="w-full px-3 py-2 bg-[#111726] border border-[#2a3a54] rounded-xl text-white font-mono focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Direct Granular Permissions Checklist */}
+              <div className="p-3 bg-[#182234] rounded-2xl border border-[#2a3a54] space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-purple-400 font-bold text-xs">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Cấp Quyền Chức Năng Cho Nhân Viên Này</span>
+                  </div>
+                  {staffForm.role === 'admin' && (
+                    <span className="text-[10px] font-mono text-emerald-400 font-bold">Admin có toàn quyền</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+                  {permissionsList.map(perm => {
+                    const isChecked = staffForm.role === 'admin' || Boolean(staffForm.permissions?.[perm.key]);
+                    return (
+                      <label 
+                        key={perm.key} 
+                        className={`flex items-center gap-2 p-2 rounded-xl border transition-all cursor-pointer ${
+                          isChecked 
+                            ? 'bg-purple-950/40 border-purple-800/60 text-purple-200' 
+                            : 'bg-[#111726] border-[#2a3a54] text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          disabled={staffForm.role === 'admin'}
+                          onChange={(e) => setStaffForm({
+                            ...staffForm,
+                            permissions: {
+                              ...(staffForm.permissions || {}),
+                              [perm.key]: e.target.checked
+                            }
+                          })}
+                          className="rounded border-[#2a3a54] text-blue-600 focus:ring-0"
+                        />
+                        <span className="truncate">{perm.label}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 

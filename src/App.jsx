@@ -32,7 +32,7 @@ import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminStaff } from './pages/admin/AdminStaff';
 
 const AppContent = () => {
-  const { currentRoute, isAdminAuthenticated, userRole } = useBlog();
+  const { currentRoute, isAdminAuthenticated, userRole, currentUser, hasPermission } = useBlog();
 
   // Router parser
   const renderRoute = () => {
@@ -47,26 +47,15 @@ const AppContent = () => {
         return <AdminAuthModal />;
       }
 
-      // If Editor role tries to access admin-only pages, redirect to posts list
-      if (userRole === 'editor') {
-        if (
-          cleanPath === '/admin' || 
-          cleanPath === '/admin/' || 
-          cleanPath === '/admin/adsense' || 
-          cleanPath === '/admin/categories' || 
-          cleanPath === '/admin/settings' || 
-          cleanPath === '/admin/subscribers' || 
-          cleanPath === '/admin/authors'
-        ) {
+      // Check permission for Dashboard
+      if (cleanPath === '/admin' || cleanPath === '/admin/') {
+        if (userRole !== 'admin' && !hasPermission('canViewRevenue')) {
           return (
             <AdminLayout currentTab="posts">
               <AdminPostsList />
             </AdminLayout>
           );
         }
-      }
-
-      if (cleanPath === '/admin' || cleanPath === '/admin/') {
         return (
           <AdminLayout currentTab="dashboard">
             <AdminDashboard />

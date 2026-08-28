@@ -112,43 +112,100 @@ export const BlogProvider = ({ children }) => {
     }, 3500);
   };
 
-  const loginAdmin = (password, customTarget = null) => {
-    const trimmed = (password || '').trim();
-    const destination = customTarget || (currentRoute && currentRoute.startsWith('/admin') ? currentRoute : '/admin');
+  const hasPermission = (permissionKey) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'admin') return true;
+    if (!permissionKey) return true;
+    return Boolean(currentUser.permissions && currentUser.permissions[permissionKey]);
+  };
 
-    if (trimmed === 'admin123' || trimmed === 'horizon2026' || trimmed === 'admin') {
+  const loginAdmin = (identifier, password, customTarget = null) => {
+    const inputId = (identifier || '').trim().toLowerCase();
+    const inputPass = (password || '').trim();
+
+    if (!inputId || !inputPass) {
+      showToast('Vui lòng nhập tên đăng nhập/email và mật khẩu', 'error');
+      return false;
+    }
+
+    const currentStaffs = storageService.getStaffList();
+    
+    // 1. Check match in staffList (by username or email)
+    const matchedStaff = currentStaffs.find(s => 
+      (s.username && s.username.toLowerCase() === inputId) ||
+      (s.email && s.email.toLowerCase() === inputId)
+    );
+
+    let authenticatedUser = null;
+
+    if (matchedStaff && (matchedStaff.password === inputPass || (matchedStaff.role === 'admin' && inputPass === 'admin123'))) {
+      authenticatedUser = matchedStaff;
+    } else if ((inputId === 'admin' || inputId === 'admin@thehori.click') && inputPass === 'admin123') {
+      authenticatedUser = currentStaffs.find(s => s.role === 'admin') || {
+        id: 'staff-1',
+        name: 'Nguyễn Quốc Bảo',
+        username: 'admin',
+        email: 'admin@thehori.click',
+        role: 'admin',
+        roleName: 'Quản Lý Tổng Biên Tập',
+        permissions: {
+          canManagePosts: true,
+          canPublishPosts: true,
+          canManageCategories: true,
+          canViewRevenue: true,
+          canManageStaff: true,
+          canManagePayroll: true,
+          canManageComments: true,
+          canManageSettings: true
+        }
+      };
+    }
+
+    if (authenticatedUser) {
       setIsAdminAuthenticated(true);
-      setUserRole('admin');
+      setUserRole(authenticatedUser.role || 'editor');
+      setCurrentUser(authenticatedUser);
+      
       sessionStorage.setItem('horizon_admin_session', 'true');
       localStorage.setItem('horizon_admin_session', 'true');
-      sessionStorage.setItem('horizon_user_role', 'admin');
-      localStorage.setItem('horizon_user_role', 'admin');
-      showToast('Đăng nhập Quản trị viên (Admin) thành công!', 'success');
+      sessionStorage.setItem('horizon_user_role', authenticatedUser.role || 'editor');
+      localStorage.setItem('horizon_user_role', authenticatedUser.role || 'editor');
+      sessionStorage.setItem('horizon_current_user', JSON.stringify(authenticatedUser));
+      localStorage.setItem('horizon_current_user', JSON.stringify(authenticatedUser));
+
+      // Record Activity Log
+      storageService.addActivityLog({
+        staffId: authenticatedUser.id,
+        staffName: authenticatedUser.name,
+        refCode: authenticatedUser.refCode || '',
+        action: 'login',
+        title: 'Đăng nhập hệ thống',
+        details: `Nhân viên ${authenticatedUser.name} (${authenticatedUser.roleName || authenticatedUser.role}) đã đăng nhập thành công.`,
+        type: 'info'
+      });
+      setActivityLogs(storageService.getActivityLogs());
+
+      showToast(`Chào mừng ${authenticatedUser.name} (${authenticatedUser.roleName || authenticatedUser.role})!`, 'success');
+      
+      const destination = customTarget || (currentRoute && currentRoute.startsWith('/admin') ? currentRoute : (authenticatedUser.role === 'admin' ? '/admin' : '/admin/posts'));
       navigate(destination);
       return true;
     }
-    if (trimmed === 'editor123' || trimmed === 'ctv2026' || trimmed === 'editor') {
-      setIsAdminAuthenticated(true);
-      setUserRole('editor');
-      sessionStorage.setItem('horizon_admin_session', 'true');
-      localStorage.setItem('horizon_admin_session', 'true');
-      sessionStorage.setItem('horizon_user_role', 'editor');
-      localStorage.setItem('horizon_user_role', 'editor');
-      showToast('Đăng nhập Biên tập viên (Editor / CTV) thành công!', 'success');
-      navigate(destination === '/admin' ? '/admin/posts' : destination);
-      return true;
-    }
-    showToast('Mã bảo mật không đúng (Admin: admin123 | Editor: editor123)', 'error');
+
+    showToast('Tài khoản hoặc mật khẩu không chính xác!', 'error');
     return false;
   };
 
   const logoutAdmin = () => {
     setIsAdminAuthenticated(false);
     setUserRole('admin');
+    setCurrentUser(null);
     sessionStorage.removeItem('horizon_admin_session');
     localStorage.removeItem('horizon_admin_session');
     sessionStorage.removeItem('horizon_user_role');
     localStorage.removeItem('horizon_user_role');
+    sessionStorage.removeItem('horizon_current_user');
+    localStorage.removeItem('horizon_current_user');
     showToast('Đã đăng xuất khỏi trang Quản trị', 'info');
     navigate('/');
   };
@@ -268,6 +325,8 @@ export const BlogProvider = ({ children }) => {
         showToast,
         isAdminAuthenticated,
         userRole,
+        currentUser,
+        hasPermission,
         loginAdmin,
         logoutAdmin,
         savePost,

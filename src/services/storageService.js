@@ -18,6 +18,8 @@ const initialStaffList = [
   {
     id: 'staff-1',
     name: 'Nguyễn Quốc Bảo',
+    username: 'admin',
+    password: 'admin123',
     email: 'bao.nq@thehori.click',
     phone: '0908 123 456',
     refCode: 'QB',
@@ -49,6 +51,8 @@ const initialStaffList = [
   {
     id: 'staff-2',
     name: 'Trần Quang Minh',
+    username: 'minh',
+    password: 'minh123',
     email: 'minh.tq@thehori.click',
     phone: '0912 345 678',
     refCode: 'MINH',
@@ -80,6 +84,8 @@ const initialStaffList = [
   {
     id: 'staff-3',
     name: 'Lê Thúy An',
+    username: 'an',
+    password: 'an123',
     email: 'an.lt@thehori.click',
     phone: '0938 987 654',
     refCode: 'AN',
@@ -111,6 +117,8 @@ const initialStaffList = [
   {
     id: 'staff-4',
     name: 'Phạm Mai Linh',
+    username: 'linh',
+    password: 'linh123',
     email: 'linh.pm@thehori.click',
     phone: '0977 456 123',
     refCode: 'LINH',
@@ -135,8 +143,8 @@ const initialStaffList = [
       deduction: 500000,
       netSalary: 10800000,
       payPeriod: '08/2026',
-      paymentStatus: 'pending',
-      paymentDate: ''
+      paymentStatus: 'paid',
+      paymentDate: '2026-08-05'
     }
   }
 ];
