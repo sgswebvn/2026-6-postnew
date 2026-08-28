@@ -51,6 +51,30 @@ export const BlogProvider = ({ children }) => {
     return sessionStorage.getItem('horizon_user_role') || localStorage.getItem('horizon_user_role') || 'admin';
   });
 
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const sessionUser = sessionStorage.getItem('horizon_current_user');
+      const localUser = localStorage.getItem('horizon_current_user');
+      if (sessionUser) return JSON.parse(sessionUser);
+      if (localUser) return JSON.parse(localUser);
+      const isAuth = sessionStorage.getItem('horizon_admin_session') === 'true' || localStorage.getItem('horizon_admin_session') === 'true';
+      if (isAuth) {
+        const staff = storageService.getStaffList().find(s => s.role === 'admin');
+        return staff || {
+          id: 'staff-1',
+          name: 'Nguyễn Quốc Bảo',
+          username: 'admin',
+          email: 'admin@thehori.click',
+          role: 'admin',
+          roleName: 'Quản Lý Tổng Biên Tập'
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
+
   // Enforce Clean Editorial Light Theme (WSJ / Financial Times Standard)
   useEffect(() => {
     document.documentElement.classList.remove('dark');
@@ -113,6 +137,7 @@ export const BlogProvider = ({ children }) => {
   };
 
   const hasPermission = (permissionKey) => {
+    if (userRole === 'admin') return true;
     if (!currentUser) return false;
     if (currentUser.role === 'admin') return true;
     if (!permissionKey) return true;
