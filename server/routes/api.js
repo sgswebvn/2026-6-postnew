@@ -104,19 +104,56 @@ router.post('/posts/:slug/view', async (req, res) => {
 
 router.post('/posts', async (req, res) => {
   try {
+    const rawTitle = req.body.title || 'Untitled Article';
+    const autoSlug = (req.body.slug || rawTitle)
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[đĐ]/g, 'd')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/[\s-]+/g, '-') || `post-${Date.now()}`;
+
     const newPostData = {
-      ...req.body,
       id: req.body.id || `post-${Date.now()}`,
+      title: rawTitle,
+      slug: autoSlug,
+      excerpt: req.body.excerpt || (req.body.content ? req.body.content.replace(/<[^>]*>/g, '').slice(0, 160) : ''),
+      content: req.body.content || '',
+      coverImage: req.body.coverImage || '',
+      categoryId: req.body.categoryId || 'personal-finance',
+      authorId: req.body.authorId || 'author-1',
+      factCheckerId: req.body.factCheckerId || '',
+      readTime: req.body.readTime || '5 min read',
+      status: req.body.status || 'published',
+      featured: Boolean(req.body.featured),
+      trendingRank: Number(req.body.trendingRank || 0),
+      views: Number(req.body.views || 0),
+      tags: Array.isArray(req.body.tags) ? req.body.tags : (typeof req.body.tags === 'string' ? req.body.tags.split(',').map(t => t.trim()).filter(Boolean) : []),
+      metaTitle: req.body.metaTitle || rawTitle,
+      metaDescription: req.body.metaDescription || req.body.excerpt || '',
+      focusKeyword: req.body.focusKeyword || '',
+      enableAds: req.body.enableAds !== false,
       publishedAt: req.body.publishedAt || new Date(),
-      views: req.body.views || 0,
+      updatedAt: new Date()
     };
 
     if (isMongooseReady()) {
-      const created = await Post.create(newPostData);
+      // Find and update if existing by id or slug, otherwise create new
+      const created = await Post.findOneAndUpdate(
+        { $or: [{ id: newPostData.id }, { slug: newPostData.slug }] },
+        newPostData,
+        { new: true, upsert: true }
+      );
       return res.status(201).json(created);
     }
 
-    memoryStore.posts.unshift(newPostData);
+    const existingIdx = memoryStore.posts.findIndex(p => p.id === newPostData.id || p.slug === newPostData.slug);
+    if (existingIdx !== -1) {
+      memoryStore.posts[existingIdx] = newPostData;
+    } else {
+      memoryStore.posts.unshift(newPostData);
+    }
     return res.status(201).json(newPostData);
   } catch (error) {
     return res.status(400).json({ error: error.message });
@@ -126,17 +163,29 @@ router.post('/posts', async (req, res) => {
 router.put('/posts/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    const updateData = {
+      ...req.body,
+      id,
+      updatedAt: new Date()
+    };
+
     if (isMongooseReady()) {
-      const updated = await Post.findOneAndUpdate({ id }, req.body, { new: true });
+      const updated = await Post.findOneAndUpdate(
+        { id },
+        updateData,
+        { new: true, upsert: true }
+      );
       if (updated) return res.json(updated);
     }
 
     const idx = memoryStore.posts.findIndex(p => p.id === id);
     if (idx !== -1) {
-      memoryStore.posts[idx] = { ...memoryStore.posts[idx], ...req.body, updatedAt: new Date() };
+      memoryStore.posts[idx] = { ...memoryStore.posts[idx], ...updateData };
       return res.json(memoryStore.posts[idx]);
+    } else {
+      memoryStore.posts.unshift(updateData);
+      return res.json(updateData);
     }
-    return res.status(404).json({ error: 'Article not found to update' });
   } catch (error) {
     return res.status(400).json({ error: error.message });
   }
@@ -208,16 +257,19 @@ router.post('/categories', async (req, res) => {
 router.put('/categories/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    const updateData = { ...req.body, id };
     if (isMongooseReady()) {
-      const updated = await Category.findOneAndUpdate({ id }, req.body, { new: true });
+      const updated = await Category.findOneAndUpdate({ id }, updateData, { new: true, upsert: true });
       if (updated) return res.json(updated);
     }
     const idx = memoryStore.categories.findIndex(c => c.id === id);
     if (idx !== -1) {
-      memoryStore.categories[idx] = { ...memoryStore.categories[idx], ...req.body };
+      memoryStore.categories[idx] = { ...memoryStore.categories[idx], ...updateData };
       return res.json(memoryStore.categories[idx]);
+    } else {
+      memoryStore.categories.push(updateData);
+      return res.json(updateData);
     }
-    return res.status(404).json({ error: 'Category not found' });
   } catch (error) {
     return res.status(400).json({ error: error.message });
   }
@@ -258,7 +310,11 @@ router.post('/authors', async (req, res) => {
       id: req.body.id || `author-${Date.now()}`
     };
     if (isMongooseReady()) {
-      const created = await Author.create(newAuthor);
+      const created = await Author.findOneAndUpdate(
+        { id: newAuthor.id },
+        newAuthor,
+        { new: true, upsert: true }
+      );
       return res.status(201).json(created);
     }
     memoryStore.authors.push(newAuthor);
@@ -271,16 +327,19 @@ router.post('/authors', async (req, res) => {
 router.put('/authors/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    const updateData = { ...req.body, id };
     if (isMongooseReady()) {
-      const updated = await Author.findOneAndUpdate({ id }, req.body, { new: true });
+      const updated = await Author.findOneAndUpdate({ id }, updateData, { new: true, upsert: true });
       if (updated) return res.json(updated);
     }
     const idx = memoryStore.authors.findIndex(a => a.id === id);
     if (idx !== -1) {
-      memoryStore.authors[idx] = { ...memoryStore.authors[idx], ...req.body };
+      memoryStore.authors[idx] = { ...memoryStore.authors[idx], ...updateData };
       return res.json(memoryStore.authors[idx]);
+    } else {
+      memoryStore.authors.push(updateData);
+      return res.json(updateData);
     }
-    return res.status(404).json({ error: 'Author not found' });
   } catch (error) {
     return res.status(400).json({ error: error.message });
   }

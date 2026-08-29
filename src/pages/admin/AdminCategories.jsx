@@ -4,7 +4,7 @@ import { Badge } from '../../components/common/Badge';
 import { FolderTree, Plus, Edit2, Trash2, Check, Sparkles } from 'lucide-react';
 
 export const AdminCategories = () => {
-  const { categories, updateCategories, posts, showToast, showConfirm } = useBlog();
+  const { categories, addCategory, updateCategories, deleteCategory, posts, showToast, showConfirm } = useBlog();
   const [editingId, setEditingId] = useState(null);
   const [newCat, setNewCat] = useState({ name: '', slug: '', description: '', color: 'blue' });
   const [editForm, setEditForm] = useState({ name: '', slug: '', description: '', color: 'blue' });
@@ -18,7 +18,7 @@ export const AdminCategories = () => {
     { key: 'neutral', label: 'Xám Trung Tính (Neutral)' }
   ];
 
-  const handleAdd = (e) => {
+  const handleAdd = async (e) => {
     e.preventDefault();
     if (!newCat.name.trim()) return;
 
@@ -41,9 +41,8 @@ export const AdminCategories = () => {
       postCount: 0
     };
 
-    updateCategories([...categories, created]);
+    await addCategory(created);
     setNewCat({ name: '', slug: '', description: '', color: 'blue' });
-    showToast(`Đã tạo chuyên mục "${created.name}" thành công!`, 'success');
   };
 
   const handleStartEdit = (cat) => {
@@ -51,11 +50,10 @@ export const AdminCategories = () => {
     setEditForm({ name: cat.name, slug: cat.slug, description: cat.description, color: cat.color });
   };
 
-  const handleSaveEdit = (id) => {
+  const handleSaveEdit = async (id) => {
     const updated = categories.map(c => c.id === id ? { ...c, ...editForm } : c);
-    updateCategories(updated);
+    await updateCategories(updated);
     setEditingId(null);
-    showToast('Đã lưu thay đổi chuyên mục!', 'success');
   };
 
   const handleDelete = (id, name) => {
@@ -68,10 +66,8 @@ export const AdminCategories = () => {
       message: `Bạn có chắc muốn xóa chuyên mục "${name}"? Các bài viết thuộc chuyên mục này có thể cần được phân loại lại.`,
       confirmText: 'Xóa Chuyên Mục',
       variant: 'danger',
-      onConfirm: () => {
-        const filtered = categories.filter(c => c.id !== id);
-        updateCategories(filtered);
-        showToast(`Đã xóa chuyên mục "${name}"`, 'info');
+      onConfirm: async () => {
+        await deleteCategory(id);
       }
     });
   };

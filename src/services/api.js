@@ -33,17 +33,44 @@ export const api = {
     }
   },
 
-  async savePost(postData) {
+  async createPost(postData) {
     try {
-      const isNew = !postData.id || postData.id.startsWith('new-');
-      const url = isNew ? `${API_BASE}/posts` : `${API_BASE}/posts/${postData.id}`;
-      const method = isNew ? 'POST' : 'PUT';
-      const res = await fetch(url, {
-        method,
+      const res = await fetch(`${API_BASE}/posts`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(postData)
       });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
       return await res.json();
+    } catch (e) {
+      console.error('[API Error] createPost failed:', e);
+      return postData;
+    }
+  },
+
+  async updatePost(id, postData) {
+    try {
+      const res = await fetch(`${API_BASE}/posts/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(postData)
+      });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.error('[API Error] updatePost failed:', e);
+      return postData;
+    }
+  },
+
+  async savePost(postData, isExplicitNew = false) {
+    try {
+      const isNew = isExplicitNew || !postData.id || postData.id.startsWith('new-');
+      if (isNew) {
+        return await this.createPost(postData);
+      } else {
+        return await this.updatePost(postData.id, postData);
+      }
     } catch (e) {
       console.error('[API Error] savePost failed:', e);
       return postData;
@@ -52,7 +79,7 @@ export const api = {
 
   async deletePost(id) {
     try {
-      const res = await fetch(`${API_BASE}/posts/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/posts/${encodeURIComponent(id)}`, { method: 'DELETE' });
       return await res.json();
     } catch (e) {
       console.error('[API Error] deletePost failed:', e);
@@ -62,7 +89,7 @@ export const api = {
 
   async incrementView(slug) {
     try {
-      const res = await fetch(`${API_BASE}/posts/${slug}/view`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/posts/${encodeURIComponent(slug)}/view`, { method: 'POST' });
       return await res.json();
     } catch {
       return { views: 1 };
@@ -80,13 +107,10 @@ export const api = {
     }
   },
 
-  async saveCategory(catData) {
+  async createCategory(catData) {
     try {
-      const isNew = !catData.id;
-      const url = isNew ? `${API_BASE}/categories` : `${API_BASE}/categories/${catData.id}`;
-      const method = isNew ? 'POST' : 'PUT';
-      const res = await fetch(url, {
-        method,
+      const res = await fetch(`${API_BASE}/categories`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(catData)
       });
@@ -96,9 +120,29 @@ export const api = {
     }
   },
 
+  async updateCategory(id, catData) {
+    try {
+      const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(catData)
+      });
+      return await res.json();
+    } catch {
+      return catData;
+    }
+  },
+
+  async saveCategory(catData) {
+    if (!catData.id || catData.id.startsWith('new-')) {
+      return await this.createCategory(catData);
+    }
+    return await this.updateCategory(catData.id, catData);
+  },
+
   async deleteCategory(id) {
     try {
-      const res = await fetch(`${API_BASE}/categories/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(id)}`, { method: 'DELETE' });
       return await res.json();
     } catch {
       return { success: false };
@@ -116,13 +160,10 @@ export const api = {
     }
   },
 
-  async saveAuthor(authorData) {
+  async createAuthor(authorData) {
     try {
-      const isNew = !authorData.id;
-      const url = isNew ? `${API_BASE}/authors` : `${API_BASE}/authors/${authorData.id}`;
-      const method = isNew ? 'POST' : 'PUT';
-      const res = await fetch(url, {
-        method,
+      const res = await fetch(`${API_BASE}/authors`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(authorData)
       });
@@ -132,9 +173,29 @@ export const api = {
     }
   },
 
+  async updateAuthor(id, authorData) {
+    try {
+      const res = await fetch(`${API_BASE}/authors/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authorData)
+      });
+      return await res.json();
+    } catch {
+      return authorData;
+    }
+  },
+
+  async saveAuthor(authorData) {
+    if (!authorData.id || authorData.id.startsWith('new-')) {
+      return await this.createAuthor(authorData);
+    }
+    return await this.updateAuthor(authorData.id, authorData);
+  },
+
   async deleteAuthor(id) {
     try {
-      const res = await fetch(`${API_BASE}/authors/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/authors/${encodeURIComponent(id)}`, { method: 'DELETE' });
       return await res.json();
     } catch {
       return { success: false };

@@ -65,20 +65,23 @@ export const AdminPostEditor = ({ postId }) => {
   const [showCatModal, setShowCatModal] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatDesc, setNewCatDesc] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCreateCategory = (e) => {
+  const handleCreateCategory = async (e) => {
     e.preventDefault();
     if (!newCatName.trim()) {
       showToast('Vui lòng nhập tên chuyên mục', 'error');
       return;
     }
-    const created = addCategory({
+    const created = await addCategory({
       name: newCatName.trim(),
       slug: generateSlug(newCatName),
       description: newCatDesc.trim(),
       color: 'blue'
     });
-    setFormData(prev => ({ ...prev, categoryId: created.id }));
+    if (created && created.id) {
+      setFormData(prev => ({ ...prev, categoryId: created.id }));
+    }
     setShowCatModal(false);
     setNewCatName('');
     setNewCatDesc('');
@@ -382,27 +385,35 @@ export const AdminPostEditor = ({ postId }) => {
     showToast('Đã chèn hình ảnh vào bài viết!', 'success');
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.title.trim() || !formData.content.trim()) {
       showToast('Vui lòng nhập đầy đủ tiêu đề và nội dung bài viết (*)', 'warning');
       return;
     }
 
-    const tagsArray = formData.tagsString
-      .split(',')
-      .map(t => t.trim())
-      .filter(Boolean);
+    try {
+      setIsSubmitting(true);
+      const tagsArray = formData.tagsString
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean);
 
-    const postPayload = {
-      ...formData,
-      tags: tagsArray,
-      id: existingPost ? existingPost.id : undefined,
-      slug: formData.slug || generateSlug(formData.title),
-    };
+      const postPayload = {
+        ...formData,
+        tags: tagsArray,
+        id: existingPost ? existingPost.id : undefined,
+        slug: formData.slug || generateSlug(formData.title),
+      };
 
-    savePost(postPayload);
-    navigate('/admin/posts');
+      await savePost(postPayload);
+      navigate('/admin/posts');
+    } catch (err) {
+      console.error('Error saving post:', err);
+      showToast('Lỗi khi lưu bài viết vào cơ sở dữ liệu: ' + err.message, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // SEO Score Calculations

@@ -76,21 +76,36 @@ export const storageService = {
       const newPost = {
         ...post,
         id: `post-${Date.now()}`,
-        publishedAt: new Date().toISOString(),
-        views: 0
+        publishedAt: post.publishedAt || new Date().toISOString(),
+        views: post.views || 0
       };
-      updated = [newPost, ...posts];
-      api.savePost(newPost).catch(() => {});
+      try {
+        const saved = await api.createPost(newPost);
+        if (saved && saved.id) {
+          Object.assign(newPost, saved);
+        }
+      } catch (err) {
+        console.warn('Backend createPost fallback:', err);
+      }
+      updated = [newPost, ...posts.filter(p => p.id !== newPost.id)];
       this.addActivityLog({
         staffName: post.authorName || 'Biên Tập Viên',
         action: 'publish_post',
         title: 'Xuất bản bài viết mới',
-        details: `Đã xuất bản: "${post.title}"`,
+        details: `Đã xuất bản: "${newPost.title}"`,
         type: 'success'
       });
     } else {
-      updated = posts.map(p => p.id === post.id ? { ...p, ...post, updatedAt: new Date().toISOString() } : p);
-      api.savePost(post).catch(() => {});
+      const updatedPost = { ...post, updatedAt: new Date().toISOString() };
+      try {
+        const saved = await api.updatePost(post.id, updatedPost);
+        if (saved && saved.id) {
+          Object.assign(updatedPost, saved);
+        }
+      } catch (err) {
+        console.warn('Backend updatePost fallback:', err);
+      }
+      updated = posts.map(p => p.id === post.id ? updatedPost : p);
       this.addActivityLog({
         staffName: post.authorName || 'Biên Tập Viên',
         action: 'edit_post',
@@ -105,9 +120,13 @@ export const storageService = {
   },
 
   async deletePost(id) {
+    try {
+      await api.deletePost(id);
+    } catch (err) {
+      console.warn('Backend deletePost fallback:', err);
+    }
     const posts = this.getPosts().filter(p => p.id !== id);
     localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
-    api.deletePost(id).catch(() => {});
     return posts;
   },
 
@@ -230,11 +249,14 @@ export const storageService = {
     }
   },
 
-  saveCategories(categories) {
+  async saveCategories(categories) {
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    for (const cat of categories) {
+      api.saveCategory(cat).catch(() => {});
+    }
   },
 
-  addCategory(category) {
+  async addCategory(category) {
     const categories = this.getCategories();
     const newCat = {
       id: category.id || `cat-${Date.now()}`,
@@ -243,8 +265,14 @@ export const storageService = {
       description: category.description || '',
       color: category.color || 'blue'
     };
-    const updated = [...categories, newCat];
-    this.saveCategories(updated);
+    try {
+      const saved = await api.createCategory(newCat);
+      if (saved && saved.id) Object.assign(newCat, saved);
+    } catch (err) {
+      console.warn('Backend createCategory fallback:', err);
+    }
+    const updated = [...categories.filter(c => c.id !== newCat.id), newCat];
+    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(updated));
     this.addActivityLog({
       staffName: 'Quản Trị Viên',
       action: 'category_create',
@@ -253,6 +281,17 @@ export const storageService = {
       type: 'success'
     });
     return newCat;
+  },
+
+  async deleteCategory(id) {
+    try {
+      await api.deleteCategory(id);
+    } catch (err) {
+      console.warn('Backend deleteCategory fallback:', err);
+    }
+    const categories = this.getCategories().filter(c => c.id !== id);
+    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    return categories;
   },
 
   // Authors
@@ -269,8 +308,44 @@ export const storageService = {
     }
   },
 
-  saveAuthors(authors) {
+  async saveAuthors(authors) {
     localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
+    for (const author of authors) {
+      api.saveAuthor(author).catch(() => {});
+    }
+  },
+
+  async addAuthor(author) {
+    const authors = this.getAuthors();
+    const newAuthor = {
+      id: author.id || `author-${Date.now()}`,
+      name: author.name,
+      slug: author.slug || author.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      role: author.role || 'Biên tập viên',
+      avatar: author.avatar || '',
+      bio: author.bio || '',
+      verified: true
+    };
+    try {
+      const saved = await api.createAuthor(newAuthor);
+      if (saved && saved.id) Object.assign(newAuthor, saved);
+    } catch (err) {
+      console.warn('Backend createAuthor fallback:', err);
+    }
+    const updated = [...authors.filter(a => a.id !== newAuthor.id), newAuthor];
+    localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(updated));
+    return newAuthor;
+  },
+
+  async deleteAuthor(id) {
+    try {
+      await api.deleteAuthor(id);
+    } catch (err) {
+      console.warn('Backend deleteAuthor fallback:', err);
+    }
+    const authors = this.getAuthors().filter(a => a.id !== id);
+    localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
+    return authors;
   },
 
   // Settings
@@ -287,9 +362,13 @@ export const storageService = {
     }
   },
 
-  saveSettings(settings) {
+  async saveSettings(settings) {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
-    api.updateSettings(settings).catch(() => {});
+    try {
+      await api.updateSettings(settings);
+    } catch (err) {
+      console.warn('Backend updateSettings fallback:', err);
+    }
   },
 
   // Staff & Payroll Management

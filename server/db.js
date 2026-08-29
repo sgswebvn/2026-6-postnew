@@ -39,10 +39,10 @@ export async function connectDB() {
   try {
     console.log(`[MongoDB] Connecting to database at: ${mongoUri.replace(/:\/\/.*@/, '://***@')} ...`);
     
-    // Set 3 second timeout so fallback engages quickly if local mongod is not started
+    // Set 15 second timeout for reliable Atlas DNS & TLS Handshake
     await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 3000,
-      connectTimeoutMS: 3000,
+      serverSelectionTimeoutMS: 15000,
+      connectTimeoutMS: 15000,
     });
 
     isConnected = true;

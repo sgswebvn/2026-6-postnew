@@ -294,33 +294,54 @@ export const BlogProvider = ({ children }) => {
     return updated;
   };
 
-  const updateSettings = (newSettings) => {
-    storageService.saveSettings(newSettings);
+  const updateSettings = async (newSettings) => {
+    await storageService.saveSettings(newSettings);
     setSettings(newSettings);
     showToast('Đã lưu cấu hình Website & AdSense thành công!');
     return newSettings;
   };
 
-  const updateCategories = (newCategories) => {
-    storageService.saveCategories(newCategories);
+  const updateCategories = async (newCategories) => {
+    await storageService.saveCategories(newCategories);
     setCategories(newCategories);
     showToast('Đã cập nhật danh sách chuyên mục!');
     return newCategories;
   };
 
-  const addCategory = (categoryData) => {
-    const newCat = storageService.addCategory(categoryData);
+  const addCategory = async (categoryData) => {
+    const newCat = await storageService.addCategory(categoryData);
     setCategories(storageService.getCategories());
     setActivityLogs(storageService.getActivityLogs());
     showToast(`Đã tạo chuyên mục "${newCat.name}" thành công!`);
     return newCat;
   };
 
-  const updateAuthors = (newAuthors) => {
-    storageService.saveAuthors(newAuthors);
+  const deleteCategory = async (id) => {
+    const updated = await storageService.deleteCategory(id);
+    setCategories(updated);
+    showToast('Đã xóa chuyên mục khỏi hệ thống', 'info');
+    return updated;
+  };
+
+  const updateAuthors = async (newAuthors) => {
+    await storageService.saveAuthors(newAuthors);
     setAuthors(newAuthors);
     showToast('Đã cập nhật danh sách tác giả!');
     return newAuthors;
+  };
+
+  const addAuthor = async (authorData) => {
+    const newAuthor = await storageService.addAuthor(authorData);
+    setAuthors(storageService.getAuthors());
+    showToast(`Đã thêm tác giả "${newAuthor.name}" thành công!`, 'success');
+    return newAuthor;
+  };
+
+  const deleteAuthor = async (id) => {
+    const updated = await storageService.deleteAuthor(id);
+    setAuthors(updated);
+    showToast('Đã xóa tác giả khỏi danh sách', 'info');
+    return updated;
   };
 
   // Staff & Payroll CRUD
@@ -410,7 +431,10 @@ export const BlogProvider = ({ children }) => {
         updateSettings,
         updateCategories,
         addCategory,
+        deleteCategory,
         updateAuthors,
+        addAuthor,
+        deleteAuthor,
         staffList,
         saveStaff,
         deleteStaff,
