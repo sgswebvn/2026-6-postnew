@@ -193,15 +193,26 @@ export const AdminPostEditor = ({ postId }) => {
   const [previewDevice, setPreviewDevice] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
   const visualEditorRef = React.useRef(null);
   const textareaRef = React.useRef(null);
+  const isContentMountedRef = React.useRef(false);
 
-  // Sync content into visual editor on boot or edit
+  // Sync content into visual editor on initial load or post change (without breaking active typing cursor)
   useEffect(() => {
-    if (visualEditorRef.current && activeTab === 'write') {
-      if (visualEditorRef.current.innerHTML !== (formData.content || '')) {
+    if (visualEditorRef.current && (!isContentMountedRef.current || (existingPost && !isContentMountedRef.current))) {
+      visualEditorRef.current.innerHTML = formData.content || '';
+      if (formData.content) {
+        isContentMountedRef.current = true;
+      }
+    }
+  }, [existingPost, formData.content]);
+
+  const switchTab = (newTab) => {
+    if (newTab === 'write' && activeTab === 'code') {
+      if (visualEditorRef.current) {
         visualEditorRef.current.innerHTML = formData.content || '';
       }
     }
-  }, [existingPost, activeTab]);
+    setActiveTab(newTab);
+  };
 
   const handleVisualInput = () => {
     if (visualEditorRef.current) {
@@ -624,24 +635,24 @@ export const AdminPostEditor = ({ postId }) => {
               <div className="flex items-center space-x-1 bg-white p-1 rounded-lg border border-neutral-200 shadow-xs">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('write')}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'write' ? 'bg-blue-600 text-white shadow-xs' : 'text-neutral-600 hover:text-neutral-900'}`}
+                  onClick={() => switchTab('write')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'write' ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-xs' : 'text-neutral-600 hover:text-neutral-900'}`}
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>Soạn Thảo Trực Quan (Word / Docs)</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('preview')}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'preview' ? 'bg-blue-600 text-white shadow-xs' : 'text-neutral-600 hover:text-neutral-900'}`}
+                  onClick={() => switchTab('preview')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'preview' ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-xs' : 'text-neutral-600 hover:text-neutral-900'}`}
                 >
                   <Eye className="w-3.5 h-3.5" />
                   <span>Xem Trước Giao Diện</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('code')}
-                  className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${activeTab === 'code' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
+                  onClick={() => switchTab('code')}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${activeTab === 'code' ? 'bg-neutral-100 text-neutral-800 border border-neutral-300' : 'text-neutral-500 hover:text-neutral-900'}`}
                   title="Xem mã HTML nguồn bài viết"
                 >
                   <span>&lt;/&gt; Mã HTML</span>
@@ -796,7 +807,6 @@ export const AdminPostEditor = ({ postId }) => {
                   contentEditable
                   onInput={handleVisualInput}
                   onPaste={handleVisualPaste}
-                  dangerouslySetInnerHTML={{ __html: formData.content || '' }}
                   className="editorial-prose min-h-[420px] p-4 sm:p-6 focus:outline-none text-neutral-900 leading-relaxed bg-white border border-neutral-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-inner"
                   style={{ minHeight: '420px' }}
                 />

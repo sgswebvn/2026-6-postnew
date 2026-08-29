@@ -39,7 +39,7 @@ select {
 }
 
 /* =========================================================
-   PURE FULL WHITE PROFESSIONAL ADMIN THEME (Full Trắng Hiện Đại)
+   PURE FULL WHITE PROFESSIONAL ADMIN THEME (Full Trắng Hiện Đại 100%)
    ========================================================= */
 .admin-view {
   background-color: #FFFFFF !important;
@@ -58,6 +58,8 @@ select {
 
 .admin-view .bg-\[\#111622\],
 .admin-view .dark\:bg-\[\#111622\],
+.admin-view .bg-\[\#111726\],
+.admin-view .dark\:bg-\[\#111726\],
 .admin-view .bg-\[\#0d1117\],
 .admin-view .dark\:bg-\[\#0d1117\],
 .admin-view .bg-\[\#0d131f\],
@@ -68,8 +70,13 @@ select {
 .admin-view .dark\:bg-\[\#151e30\],
 .admin-view .bg-\[\#182234\],
 .admin-view .dark\:bg-\[\#182234\],
+.admin-view .bg-\[\#202d44\],
+.admin-view .dark\:bg-\[\#202d44\],
 .admin-view .bg-\[\#111c2e\],
-.admin-view .dark\:bg-\[\#111c2e\] {
+.admin-view .dark\:bg-\[\#111c2e\],
+.admin-view .bg-\[\#090d16\],
+.admin-view .bg-\[\#0e1320\],
+.admin-view .bg-\[\#131b2e\] {
   background-color: #FFFFFF !important;
   border-color: #E5E7EB !important;
   color: #111827 !important;
@@ -112,7 +119,8 @@ select {
 .admin-view .dark\:border-neutral-700,
 .admin-view .border-\[\#1a2333\],
 .admin-view .border-\[\#1e293b\],
-.admin-view .border-\[\#2a3a54\] {
+.admin-view .border-\[\#2a3a54\],
+.admin-view .border-\[\#1f293d\] {
   border-color: #E5E7EB !important;
 }
 
