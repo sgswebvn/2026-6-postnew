@@ -94,6 +94,8 @@ export const BlogProvider = ({ children }) => {
         if (dbData.categories) setCategories(dbData.categories);
         if (dbData.authors) setAuthors(dbData.authors);
         if (dbData.settings) setSettings(dbData.settings);
+        if (dbData.staffList) setStaffList(dbData.staffList);
+        if (dbData.activityLogs) setActivityLogs(dbData.activityLogs);
       }
     });
 

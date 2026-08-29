@@ -56,11 +56,6 @@ export const storageService = {
     }
     try {
       const list = JSON.parse(raw);
-      // Optional cache bust for old images: if any image is old, force refresh from initialPosts
-      if (Array.isArray(list) && list.some(p => p.coverImage && p.coverImage.includes('/images/'))) {
-        localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(initialPosts));
-        return initialPosts;
-      }
       return Array.isArray(list) ? list : initialPosts;
     } catch {
       return initialPosts;

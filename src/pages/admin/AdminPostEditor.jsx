@@ -9,6 +9,17 @@ import {
   Heading3, 
   Bold, 
   Italic, 
+  Underline,
+  Type,
+  Palette,
+  Highlighter,
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  ListOrdered,
+  Monitor,
+  Smartphone,
+  Tablet as TabletIcon,
   Quote, 
   List, 
   Table, 
@@ -24,7 +35,14 @@ import {
   PlusCircle,
   Upload,
   X,
-  ExternalLink
+  ExternalLink,
+  Clock,
+  User,
+  Share2,
+  Layers,
+  ThumbsUp,
+  Lightbulb,
+  TrendingUp
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { supabaseStorage } from '../../services/supabaseStorage';
@@ -171,9 +189,11 @@ export const AdminPostEditor = ({ postId }) => {
     }));
   };
 
+  const [previewDevice, setPreviewDevice] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
+
   const textareaRef = React.useRef(null);
 
-  const handleInsertHtml = (tag) => {
+  const handleInsertHtml = (tag, param) => {
     const textarea = textareaRef.current;
     const content = formData.content || '';
     
@@ -190,11 +210,40 @@ export const AdminPostEditor = ({ postId }) => {
     let replacement = '';
 
     switch (tag) {
+      case 'fontSize':
+        const px = param || '18';
+        replacement = `<span style="font-size: ${px}px; line-height: 1.6;">${selectedText || `Văn bản cỡ ${px}px`}</span>`;
+        break;
+      case 'color':
+        const hex = param || '#2563eb';
+        replacement = `<span style="color: ${hex}; font-weight: 600;">${selectedText || 'văn bản màu sắc'}</span>`;
+        break;
+      case 'underline':
+        replacement = selectedText ? `<u>${selectedText}</u>` : '<u>chữ gạch chân</u>';
+        break;
+      case 'highlight':
+        replacement = `<mark style="background-color: #fef08a; padding: 2px 6px; border-radius: 4px; color: #1e293b;">${selectedText || 'văn bản highlight'} </mark>`;
+        break;
+      case 'alignLeft':
+        replacement = `\n<div style="text-align: left;">\n  <p>${selectedText || 'Đoạn văn căn lề trái'}</p>\n</div>\n`;
+        break;
+      case 'alignCenter':
+        replacement = `\n<div style="text-align: center;">\n  <p>${selectedText || 'Đoạn văn căn giữa'}</p>\n</div>\n`;
+        break;
+      case 'alignRight':
+        replacement = `\n<div style="text-align: right;">\n  <p>${selectedText || 'Đoạn văn căn lề phải'}</p>\n</div>\n`;
+        break;
+      case 'h1':
+        replacement = selectedText ? `\n<h1>${selectedText}</h1>\n` : '\n<h1>Tiêu Đề Lớn (Heading 1)</h1>\n';
+        break;
       case 'h2':
         replacement = selectedText ? `\n<h2>${selectedText}</h2>\n` : '\n<h2>Tiêu Đề Mục Chính (Heading 2)</h2>\n<p>Nội dung phân tích...</p>\n';
         break;
       case 'h3':
         replacement = selectedText ? `\n<h3>${selectedText}</h3>\n` : '\n<h3>Tiêu Đề Mục Phụ (Heading 3)</h3>\n';
+        break;
+      case 'h4':
+        replacement = selectedText ? `\n<h4>${selectedText}</h4>\n` : '\n<h4>Tiêu Đề Nhỏ (Heading 4)</h4>\n';
         break;
       case 'bold':
         replacement = selectedText ? `<strong>${selectedText}</strong>` : '<strong>từ khóa in đậm</strong>';
@@ -203,7 +252,7 @@ export const AdminPostEditor = ({ postId }) => {
         replacement = selectedText ? `<em>${selectedText}</em>` : '<em>chữ in nghiêng</em>';
         break;
       case 'quote':
-        replacement = selectedText ? `\n<blockquote>${selectedText}</blockquote>\n` : '\n<blockquote>\n  "Trích dẫn câu nói quan trọng hoặc nhận định từ chuyên gia."\n</blockquote>\n';
+        replacement = selectedText ? `\n<blockquote>\n  "${selectedText}"\n</blockquote>\n` : '\n<blockquote>\n  "Trích dẫn câu nói quan trọng hoặc nhận định từ chuyên gia."\n</blockquote>\n';
         break;
       case 'callout':
         replacement = `\n<div class="my-6 p-4 bg-blue-50 dark:bg-blue-950/40 border-l-4 border-blue-600 rounded-r-lg">\n  <h4 class="font-bold text-blue-900 dark:text-blue-200">Điểm Nhấn Chiến Lược</h4>\n  <p class="text-sm text-blue-800 dark:text-blue-300">${selectedText || 'Tóm tắt lợi ích quan trọng nhất cho độc giả...'}</p>\n</div>\n`;
@@ -230,6 +279,17 @@ export const AdminPostEditor = ({ postId }) => {
           replacement = '\n<ul>\n  <li>Ý phân tích quan trọng 1</li>\n  <li>Ý phân tích quan trọng 2</li>\n</ul>\n';
         }
         break;
+      case 'olist':
+        if (selectedText) {
+          const items = selectedText.split('\n').filter(Boolean).map(item => `  <li>${item}</li>`).join('\n');
+          replacement = `\n<ol>\n${items}\n</ol>\n`;
+        } else {
+          replacement = '\n<ol>\n  <li>Bước 1: Thực hiện thao tác ban đầu</li>\n  <li>Bước 2: Triển khai tối ưu tiếp theo</li>\n</ol>\n';
+        }
+        break;
+      case 'hr':
+        replacement = '\n<hr class="my-8 border-neutral-300 dark:border-neutral-700" />\n';
+        break;
       default:
         break;
     }
@@ -246,6 +306,35 @@ export const AdminPostEditor = ({ postId }) => {
         ...prev,
         content: prev.content ? prev.content + replacement : replacement
       }));
+    }
+  };
+
+  const handlePaste = (e) => {
+    const html = e.clipboardData?.getData('text/html');
+    if (html && html.includes('<')) {
+      const cleanHtml = html
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/class="mso[^"]*"/gi, '')
+        .replace(/style="mso-[^"]*"/gi, '')
+        .replace(/<o:p>[\s\S]*?<\/o:p>/gi, '')
+        .replace(/<\/?(html|body|meta|head|link)[^>]*>/gi, '')
+        .trim();
+
+      if (cleanHtml.length > 20) {
+        e.preventDefault();
+        const textarea = textareaRef.current;
+        if (textarea) {
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const current = formData.content || '';
+          const newContent = current.substring(0, start) + cleanHtml + current.substring(end);
+          setFormData(prev => ({ ...prev, content: newContent }));
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + cleanHtml.length;
+          }, 0);
+          showToast('Đã giữ nguyên định dạng Rich Text từ văn bản dán vào!', 'info');
+        }
+      }
     }
   };
 
@@ -573,14 +662,79 @@ export const AdminPostEditor = ({ postId }) => {
 
               {/* Formatting Quick Insert Tools */}
               {activeTab === 'write' && (
-                <div className="flex flex-wrap items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {/* Cỡ chữ Dropdown */}
+                  <div className="flex items-center gap-1 bg-white dark:bg-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                    <Type className="w-3.5 h-3.5 text-neutral-500" />
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleInsertHtml('fontSize', e.target.value);
+                          e.target.value = '';
+                        }
+                      }}
+                      defaultValue=""
+                      className="bg-transparent text-xs font-bold text-neutral-800 dark:text-neutral-200 focus:outline-none cursor-pointer"
+                      title="Chọn cỡ chữ cho đoạn văn bản bôi đen"
+                    >
+                      <option value="" disabled>Cỡ Chữ...</option>
+                      <option value="12">12px - Rất nhỏ (Chú thích)</option>
+                      <option value="14">14px - Nhỏ</option>
+                      <option value="16">16px - Tiêu chuẩn (Vừa)</option>
+                      <option value="18">18px - Lớn</option>
+                      <option value="20">20px - Rất lớn</option>
+                      <option value="24">24px - Tiêu đề phụ (24px)</option>
+                      <option value="28">28px - Tiêu đề mục (28px)</option>
+                      <option value="32">32px - Tiêu đề lớn (32px)</option>
+                      <option value="36">36px - Cực lớn (36px)</option>
+                    </select>
+                  </div>
+
+                  {/* Màu chữ Selector */}
+                  <div className="flex items-center gap-1 bg-white dark:bg-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                    <Palette className="w-3.5 h-3.5 text-neutral-500" />
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleInsertHtml('color', e.target.value);
+                          e.target.value = '';
+                        }
+                      }}
+                      defaultValue=""
+                      className="bg-transparent text-xs font-bold text-neutral-800 dark:text-neutral-200 focus:outline-none cursor-pointer"
+                      title="Chọn màu chữ"
+                    >
+                      <option value="" disabled>Màu Chữ...</option>
+                      <option value="#e11d48">🔴 Đỏ (Rose)</option>
+                      <option value="#2563eb">🔵 Xanh Dương</option>
+                      <option value="#059669">🟢 Xanh Lá</option>
+                      <option value="#d97706">🟠 Vàng Cam</option>
+                      <option value="#7c3aed">🟣 Tím (Indigo)</option>
+                      <option value="#0f172a">⚫ Đen Đậm</option>
+                    </select>
+                  </div>
+
+                  {/* Quick Headings */}
                   <button type="button" onClick={() => handleInsertHtml('h2')} className="px-2 py-1 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-xs font-mono font-bold text-neutral-700 dark:text-neutral-300" title="Chèn Heading 2">H2</button>
                   <button type="button" onClick={() => handleInsertHtml('h3')} className="px-2 py-1 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-xs font-mono font-bold text-neutral-700 dark:text-neutral-300" title="Chèn Heading 3">H3</button>
-                  <button type="button" onClick={() => handleInsertHtml('bold')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="In đậm"><Bold className="w-4 h-4" /></button>
+                  
+                  {/* Text Styles */}
+                  <button type="button" onClick={() => handleInsertHtml('bold')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300 font-bold" title="In đậm (Bold)"><Bold className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleInsertHtml('italic')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300 italic" title="In nghiêng"><Italic className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleInsertHtml('underline')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Gạch chân"><Underline className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleInsertHtml('highlight')} className="p-1.5 hover:bg-yellow-100 dark:hover:bg-yellow-950/60 rounded text-amber-600 font-bold" title="Tô vàng Highlight"><Highlighter className="w-4 h-4" /></button>
+
+                  {/* Alignments */}
+                  <button type="button" onClick={() => handleInsertHtml('alignLeft')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Căn trái"><AlignLeft className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleInsertHtml('alignCenter')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Căn giữa"><AlignCenter className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleInsertHtml('alignRight')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Căn phải"><AlignRight className="w-4 h-4" /></button>
+
+                  {/* Lists & Quotes */}
+                  <button type="button" onClick={() => handleInsertHtml('list')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Danh sách gạch đầu dòng"><List className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleInsertHtml('olist')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Danh sách số 1, 2, 3"><ListOrdered className="w-4 h-4" /></button>
                   <button type="button" onClick={() => handleInsertHtml('quote')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Trích dẫn"><Quote className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => handleInsertHtml('callout')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-blue-600 dark:text-blue-400" title="Hộp Takeaways"><Sparkles className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleInsertHtml('callout')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-blue-600 dark:text-blue-400" title="Hộp Điểm Nhấn"><Sparkles className="w-4 h-4" /></button>
                   <button type="button" onClick={() => handleInsertHtml('table')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Bảng dữ liệu"><Table className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => handleInsertHtml('list')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Danh sách"><List className="w-4 h-4" /></button>
                   
                   {/* YouTube & Image Inserters */}
                   <button 
@@ -611,46 +765,161 @@ export const AdminPostEditor = ({ postId }) => {
                     title="Chèn khung dàn bài mẫu chuẩn báo chí Mỹ"
                   >
                     <Wand2 className="w-3.5 h-3.5" />
-                    <span>+ Dàn Ý Chuẩn Mỹ</span>
+                    <span>+ Dàn Ý Mẫu</span>
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Word Count Indicator */}
-            <div className="px-6 py-1.5 bg-neutral-100/50 dark:bg-neutral-900/40 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-[11px] font-mono text-neutral-500">
-              <span>Định dạng hỗ trợ: HTML, Headings, Tables, Blockquotes</span>
+            {/* Word Count & Tip Indicator */}
+            <div className="px-6 py-2 bg-neutral-100/60 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-neutral-500">
+              <span className="flex items-center gap-1">
+                💡 <span className="text-neutral-600 dark:text-neutral-400 font-sans">Mẹo: Bôi đen chữ rồi bấm <b>Cỡ chữ</b>, <b>Màu chữ</b> hoặc <b>In đậm</b> để định dạng nhanh. Bạn có thể copy-paste trực tiếp từ Word / Google Docs.</span>
+              </span>
               <span className={wordCount >= 1000 ? 'text-emerald-600 font-bold' : 'text-amber-600'}>
                 {wordCount} từ {wordCount >= 1000 ? '✓ Đạt chuẩn 1,000+ từ cho AdSense' : '(Khuyến nghị 1,000+ từ)'}
               </span>
             </div>
 
-            {/* Main Editor or Live Preview */}
+            {/* Main Editor or High-End Live Preview */}
             <div className="p-4 sm:p-6">
               {activeTab === 'write' ? (
                 <textarea
                   ref={textareaRef}
+                  onPaste={handlePaste}
                   rows="16"
-                  placeholder="Nhập nội dung bài viết chi tiết... (Tô chọn chữ và bấm H2, H3 hoặc In Đậm trên thanh công cụ để định dạng tức thì)"
+                  placeholder="Nhập hoặc dán nội dung bài viết vào đây... (Tô chọn chữ và chọn Cỡ Chữ, Màu Sắc, In Đậm, Tiêu Đề trên thanh công cụ để định dạng tức thì)"
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="w-full font-mono text-sm bg-transparent border-0 focus:outline-none text-neutral-900 dark:text-neutral-100 leading-relaxed resize-y min-h-[350px]"
+                  className="w-full font-mono text-sm bg-transparent border-0 focus:outline-none text-neutral-900 dark:text-neutral-100 leading-relaxed resize-y min-h-[380px]"
                   required
                 ></textarea>
               ) : (
-                <div 
-                  className="editorial-prose min-h-[300px]"
-                  dangerouslySetInnerHTML={{ 
-                    __html: (formData.content && /<(p|div|h[1-6]|ul|ol|table|blockquote|figure)\b[^>]*>/i.test(formData.content))
-                      ? formData.content 
-                      : (formData.content || '')
-                          .split(/\n\s*\n/)
-                          .map(p => p.trim())
-                          .filter(Boolean)
-                          .map(p => `<p>${p.replace(/\n/g, '<br />')}</p>`)
-                          .join('\n') || '<p class="text-neutral-400">Chưa có nội dung...</p>'
-                  }}
-                />
+                <div className="space-y-6">
+                  {/* Device Preview Switcher Bar */}
+                  <div className="flex flex-wrap items-center justify-between p-2.5 bg-neutral-100 dark:bg-neutral-800/80 rounded-xl border border-neutral-200 dark:border-neutral-700 text-xs gap-2">
+                    <span className="font-semibold text-neutral-700 dark:text-neutral-200 flex items-center gap-1.5 ml-1">
+                      <Eye className="w-4 h-4 text-blue-500" />
+                      <span>Mô phỏng hiển thị trên các thiết bị:</span>
+                    </span>
+                    <div className="flex items-center space-x-1 bg-white dark:bg-neutral-900 p-1 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewDevice('desktop')}
+                        className={`px-3 py-1 rounded flex items-center gap-1 font-semibold transition-colors ${previewDevice === 'desktop' ? 'bg-blue-600 text-white shadow-xs' : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900'}`}
+                      >
+                        <Monitor className="w-3.5 h-3.5" />
+                        <span>Desktop</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewDevice('tablet')}
+                        className={`px-3 py-1 rounded flex items-center gap-1 font-semibold transition-colors ${previewDevice === 'tablet' ? 'bg-blue-600 text-white shadow-xs' : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900'}`}
+                      >
+                        <TabletIcon className="w-3.5 h-3.5" />
+                        <span>iPad / Tablet</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewDevice('mobile')}
+                        className={`px-3 py-1 rounded flex items-center gap-1 font-semibold transition-colors ${previewDevice === 'mobile' ? 'bg-blue-600 text-white shadow-xs' : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900'}`}
+                      >
+                        <Smartphone className="w-3.5 h-3.5" />
+                        <span>iPhone / Mobile</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Device Simulation Container */}
+                  <div className={`transition-all duration-300 mx-auto ${
+                    previewDevice === 'mobile' 
+                      ? 'max-w-sm p-4 bg-white dark:bg-[#0d1117] rounded-[2.5rem] border-8 border-neutral-800 shadow-2xl space-y-6' 
+                      : previewDevice === 'tablet'
+                        ? 'max-w-2xl p-6 bg-white dark:bg-[#0d1117] rounded-3xl border-4 border-neutral-700 shadow-2xl space-y-6'
+                        : 'w-full p-6 sm:p-8 bg-white dark:bg-[#0d1117] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-8'
+                  }`}>
+                    {/* Header Details */}
+                    <div className="space-y-4 text-left border-b border-neutral-200 dark:border-neutral-800 pb-6">
+                      <div className="flex items-center gap-2">
+                        <Badge label={categories.find(c => c.id === formData.categoryId)?.name || 'Chuyên Mục'} size="sm" />
+                        <span className="text-xs text-neutral-400 font-mono">
+                          29/08/2026 • {formData.readTime || '6 phút đọc'}
+                        </span>
+                      </div>
+
+                      <h1 className="font-serif text-2xl sm:text-3xl font-extrabold text-neutral-950 dark:text-neutral-50 leading-tight">
+                        {formData.title || 'Tiêu Đề Bài Báo Chưa Nhập...'}
+                      </h1>
+
+                      {/* Author Bar */}
+                      <div className="flex items-center justify-between pt-2">
+                        <div className="flex items-center space-x-3">
+                          <img
+                            src={authors.find(a => a.id === formData.authorId)?.avatar || 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_01.jpg'}
+                            alt="Author"
+                            className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
+                          />
+                          <div>
+                            <div className="flex items-center gap-1 font-bold text-sm text-neutral-900 dark:text-neutral-100">
+                              <span>{authors.find(a => a.id === formData.authorId)?.name || 'Ban Biên Tập'}</span>
+                              <CheckCircle className="w-3.5 h-3.5 text-blue-500 fill-blue-500 text-white" />
+                            </div>
+                            <span className="text-xs text-neutral-500 block">{authors.find(a => a.id === formData.authorId)?.role || 'Biên tập viên'}</span>
+                          </div>
+                        </div>
+
+                        <div className="text-xs text-neutral-400 font-mono hidden sm:flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>{formData.readTime || '6 phút đọc'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Cover Image Preview */}
+                    {formData.coverImage && (
+                      <div className="rounded-2xl overflow-hidden shadow-lg border border-neutral-200 dark:border-neutral-800 aspect-[16/9] bg-neutral-100 dark:bg-neutral-800">
+                        <img 
+                          src={formData.coverImage} 
+                          alt="Cover" 
+                          className="w-full h-full object-cover" 
+                        />
+                      </div>
+                    )}
+
+                    {/* Simulated AdSense Slot */}
+                    {formData.enableAds && (
+                      <div className="p-3 bg-amber-50/60 dark:bg-amber-950/40 border border-dashed border-amber-400/80 rounded-xl text-center">
+                        <span className="text-[11px] font-mono text-amber-700 dark:text-amber-300 font-bold uppercase tracking-wider">
+                          [Vị trí Quảng Cáo Google AdSense Tự Động]
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Article Content Render */}
+                    <div 
+                      className="editorial-prose min-h-[250px]"
+                      dangerouslySetInnerHTML={{ 
+                        __html: (formData.content && /<(p|div|h[1-6]|ul|ol|table|blockquote|figure)\b[^>]*>/i.test(formData.content))
+                          ? formData.content 
+                          : (formData.content || '')
+                              .split(/\n\s*\n/)
+                              .map(p => p.trim())
+                              .filter(Boolean)
+                              .map(p => `<p>${p.replace(/\n/g, '<br />')}</p>`)
+                              .join('\n') || '<p class="text-neutral-400 italic">Nội dung bài viết sẽ hiển thị tại đây...</p>'
+                      }}
+                    />
+
+                    {/* Simulated Reaction Bar */}
+                    <div className="pt-6 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-xs text-neutral-500">
+                      <span className="font-semibold">Độc giả đánh giá bài viết:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg flex items-center gap-1"><ThumbsUp className="w-3.5 h-3.5 text-blue-500" /> Hữu ích</span>
+                        <span className="px-2.5 py-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg flex items-center gap-1"><Lightbulb className="w-3.5 h-3.5 text-amber-500" /> Sâu sắc</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
