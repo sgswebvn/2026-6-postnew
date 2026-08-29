@@ -29,6 +29,7 @@ import {
   Brain,
   FileText
 } from 'lucide-react';
+import { NotFoundPage } from './NotFoundPage';
 
 export const PostDetailPage = ({ slug }) => {
   const { posts, categories, authors, settings, navigate, toggleBookmark, bookmarks, incrementPostView, showToast } = useBlog();
@@ -93,18 +94,7 @@ export const PostDetailPage = ({ slug }) => {
   }, [post?.title, settings?.siteName, slug]);
 
   if (!post) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4 font-sans">
-        <h2 className="font-serif text-3xl font-bold">Article Not Found</h2>
-        <p className="text-neutral-500">The editorial piece you are seeking may have been renamed or archived.</p>
-        <button
-          onClick={() => navigate('/')}
-          className="px-6 py-2.5 bg-blue-600 text-white text-xs font-bold uppercase rounded-xl"
-        >
-          Return to Front Page
-        </button>
-      </div>
-    );
+    return <NotFoundPage />;
   }
 
   const category = categories.find(c => c.id === post.categoryId);

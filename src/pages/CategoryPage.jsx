@@ -5,6 +5,7 @@ import { AdSenseUnit } from '../components/ads/AdSenseUnit';
 import { Badge } from '../components/common/Badge';
 import { NewsletterBox } from '../components/blog/NewsletterBox';
 import { Layers, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
+import { NotFoundPage } from './NotFoundPage';
 
 export const CategoryPage = ({ slug }) => {
   const { posts, categories, navigate } = useBlog();
@@ -15,14 +16,7 @@ export const CategoryPage = ({ slug }) => {
   const categoryPosts = posts.filter(p => p.categoryId === category?.id && p.status === 'published');
 
   if (!category) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4 font-sans">
-        <h2 className="font-serif text-3xl font-bold">Desk / Category Not Found</h2>
-        <button onClick={() => navigate('/')} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold uppercase">
-          Back to Front Page
-        </button>
-      </div>
-    );
+    return <NotFoundPage />;
   }
 
   // Pagination calculation
