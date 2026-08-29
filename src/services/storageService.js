@@ -20,7 +20,7 @@ export const storageService = {
   // Sync all with MongoDB on boot
   async initializeFromDB() {
     try {
-      const [posts, categories, authors, settings, referrals, staffList, activityLogs] = await Promise.all([
+      const [remotePosts, categories, authors, settings, referrals, staffList, activityLogs] = await Promise.all([
         api.getPosts(),
         api.getCategories(),
         api.getAuthors(),
@@ -30,18 +30,28 @@ export const storageService = {
         api.getActivityLogs()
       ]);
 
-      if (posts && posts.length > 0) localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+      const localPosts = this.getPosts();
+      let mergedPosts = [...(remotePosts || [])];
+      
+      // Preserve any custom posts created locally that are not yet in remote
+      for (const lp of localPosts) {
+        if (!mergedPosts.some(rp => rp.id === lp.id || (rp.slug && lp.slug && rp.slug === lp.slug))) {
+          mergedPosts.unshift(lp);
+          // Try background sync to backend
+          try { api.createPost(lp); } catch (e) {}
+        }
+      }
+
+      if (mergedPosts.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(mergedPosts));
+      }
       if (categories && categories.length > 0) localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
       if (authors && authors.length > 0) localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
       if (settings && settings.siteName) localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
       if (staffList && staffList.length > 0) localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(staffList));
       if (activityLogs && activityLogs.length > 0) localStorage.setItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify(activityLogs));
-      
-      if (referrals) {
-        localStorage.setItem('horizon_staff_referrals_v2', JSON.stringify(referrals));
-      }
 
-      return { posts, categories, authors, settings, referrals, staffList, activityLogs };
+      return { posts: mergedPosts, categories, authors, settings, referrals, staffList, activityLogs };
     } catch {
       return null;
     }

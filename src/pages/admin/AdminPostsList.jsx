@@ -32,11 +32,25 @@ export const AdminPostsList = () => {
   const isGlobalAdmin = userRole === 'admin' || currentUser?.role === 'admin';
   const visiblePosts = isGlobalAdmin
     ? posts
-    : posts.filter(p => 
-        (p.createdById && p.createdById === currentUser?.id) || 
-        (p.authorId && (p.authorId === currentUser?.id || p.authorId === currentUser?.authorId)) ||
-        (p.authorName && currentUser?.name && p.authorName.toLowerCase() === currentUser?.name.toLowerCase())
-      );
+    : posts.filter(p => {
+        const uId = currentUser?.id || '';
+        const uName = (currentUser?.name || '').toLowerCase().trim();
+        const uUser = (currentUser?.username || '').toLowerCase().trim();
+
+        const matchId = (p.createdById && p.createdById === uId) || (p.authorId && (p.authorId === uId || p.authorId === currentUser?.authorId));
+        const matchAuthorName = p.authorName && (
+          p.authorName.toLowerCase().includes(uName) || 
+          uName.includes(p.authorName.toLowerCase()) || 
+          p.authorName.toLowerCase() === uUser
+        );
+        const matchCreatedByName = p.createdByName && (
+          p.createdByName.toLowerCase().includes(uName) || 
+          uName.includes(p.createdByName.toLowerCase()) || 
+          p.createdByName.toLowerCase() === uUser
+        );
+
+        return matchId || matchAuthorName || matchCreatedByName;
+      });
 
   const filteredPosts = visiblePosts.filter(p => {
     const matchesSearch = 
