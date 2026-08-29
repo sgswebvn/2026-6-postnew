@@ -18,15 +18,9 @@ export const telemetryService = {
     }
   },
 
-  // Record Staff Attribution
+  // Staff Seeding attribution managed via Google Analytics 4
   recordStaffHit(staffCode, postSlug) {
-    if (!staffCode) return;
-    try {
-      const current = JSON.parse(localStorage.getItem(REFERRALS_KEY) || '{}');
-      const normalizedCode = staffCode.toUpperCase();
-      current[normalizedCode] = (current[normalizedCode] || 0) + 1;
-      localStorage.setItem(REFERRALS_KEY, JSON.stringify(current));
-    } catch {}
+    // Internal counters disabled - 100% verified via Google Analytics 4
   },
 
   // Get or initialize current reader session info
