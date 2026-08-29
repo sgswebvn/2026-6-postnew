@@ -27,7 +27,7 @@ const initialStaffList = [
     roleName: 'Quản Lý Tổng Biên Tập',
     joinDate: '2024-06-15',
     status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200',
+    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_30.jpg',
     permissions: {
       canManagePosts: true,
       canPublishPosts: true,
@@ -60,7 +60,7 @@ const initialStaffList = [
     roleName: 'Senior Editor & SEO Content',
     joinDate: '2025-01-10',
     status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200',
+    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_31.jpg',
     permissions: {
       canManagePosts: true,
       canPublishPosts: true,
@@ -93,7 +93,7 @@ const initialStaffList = [
     roleName: 'CTV Biên Tập & Seeding',
     joinDate: '2025-05-20',
     status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200',
+    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_32.jpg',
     permissions: {
       canManagePosts: true,
       canPublishPosts: false,
@@ -232,15 +232,36 @@ export const storageService = {
   // Posts
   getPosts() {
     const raw = localStorage.getItem(STORAGE_KEYS.POSTS);
+    let list = [];
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(initialPosts));
-      return initialPosts;
+      list = initialPosts;
+      localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(list));
+    } else {
+      try {
+        list = JSON.parse(raw);
+        if (!Array.isArray(list)) list = initialPosts;
+      } catch {
+        list = initialPosts;
+      }
     }
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return initialPosts;
+
+    // Auto-migrate old local /images/ paths to Supabase CDN
+    let migrated = false;
+    list = list.map(post => {
+      if (post.coverImage && post.coverImage.includes('/images/')) {
+        migrated = true;
+        // Simple hash based on string length or index to grab a random post_img
+        const index = (post.slug.length % 35) + 1; 
+        post.coverImage = `https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_${String(index).padStart(2, '0')}.jpg`;
+      }
+      return post;
+    });
+
+    if (migrated) {
+      localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(list));
     }
+
+    return list;
   },
 
   async savePost(post) {
@@ -464,15 +485,32 @@ export const storageService = {
   // Staff & Payroll Management
   getStaffList() {
     const raw = localStorage.getItem(STORAGE_KEYS.STAFF);
+    let list = [];
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(initialStaffList));
-      return initialStaffList;
+      list = initialStaffList;
+    } else {
+      try {
+        list = JSON.parse(raw);
+        if (!Array.isArray(list)) list = initialStaffList;
+      } catch {
+        list = initialStaffList;
+      }
     }
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return initialStaffList;
+    
+    // Ensure sample accounts are present if missing
+    let updated = false;
+    initialStaffList.forEach(initialStaff => {
+      if (!list.find(s => s.id === initialStaff.id)) {
+        list.push(initialStaff);
+        updated = true;
+      }
+    });
+
+    if (updated) {
+      localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(list));
     }
+    
+    return list;
   },
 
   saveStaff(staffMember) {
@@ -626,7 +664,7 @@ export const storageService = {
       postId,
       authorName: commentData.authorName || 'Verified Reader',
       authorRole: commentData.authorRole || 'Executive Subscriber',
-      avatar: commentData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150',
+      avatar: commentData.avatar || 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_30.jpg',
       content: commentData.content,
       likes: 1,
       status: 'approved',
