@@ -25,6 +25,7 @@ import {
   Filter,
   CheckCircle2
 } from 'lucide-react';
+import { storageService } from '../../services/storageService';
 
 const AVATAR_PRESETS = [
   'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_30.jpg',
