@@ -5,10 +5,20 @@ import { Category } from '../models/Category.js';
 import { Author } from '../models/Author.js';
 import { Setting } from '../models/Setting.js';
 import { Comment } from '../models/Comment.js';
-import { Subscriber } from '../models/Subscriber.js';
 import { Referral } from '../models/Referral.js';
+import { Staff } from '../models/Staff.js';
+import { ActivityLog } from '../models/ActivityLog.js';
 import { memoryStore, getDbStatus } from '../db.js';
-import { initialPosts, initialCategories, initialAuthors, initialSettings, initialComments, initialSubscribers } from '../seedData.js';
+import { 
+  initialPosts, 
+  initialCategories, 
+  initialAuthors, 
+  initialSettings, 
+  initialComments, 
+  initialSubscribers,
+  initialStaffList,
+  initialActivityLogs
+} from '../seedData.js';
 
 const router = express.Router();
 
@@ -527,6 +537,146 @@ router.post('/referrals/hit/:refCode', async (req, res) => {
     if (!memoryStore.referrals) memoryStore.referrals = {};
     memoryStore.referrals[cleanRef] = (memoryStore.referrals[cleanRef] || 0) + 1;
     return res.json(memoryStore.referrals);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// 9. STAFF & AUTH
+// ==========================================
+router.get('/staff', async (req, res) => {
+  try {
+    if (isMongooseReady()) {
+      const staff = await Staff.find().sort({ createdAt: -1 });
+      return res.json(staff);
+    }
+    return res.json(memoryStore.staff || []);
+  } catch (error) {
+    return res.json(memoryStore.staff || []);
+  }
+});
+
+router.post('/staff', async (req, res) => {
+  try {
+    const newStaff = {
+      ...req.body,
+      id: req.body.id || `staff-${Date.now()}`
+    };
+    if (isMongooseReady()) {
+      const created = await Staff.create(newStaff);
+      return res.status(201).json(created);
+    }
+    if (!memoryStore.staff) memoryStore.staff = [];
+    memoryStore.staff.push(newStaff);
+    return res.status(201).json(newStaff);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+router.put('/staff/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (isMongooseReady()) {
+      const updated = await Staff.findOneAndUpdate({ id }, req.body, { new: true });
+      if (updated) return res.json(updated);
+    }
+    if (!memoryStore.staff) memoryStore.staff = [];
+    const idx = memoryStore.staff.findIndex(s => s.id === id);
+    if (idx !== -1) {
+      memoryStore.staff[idx] = { ...memoryStore.staff[idx], ...req.body };
+      return res.json(memoryStore.staff[idx]);
+    }
+    return res.status(404).json({ error: 'Staff not found' });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+router.delete('/staff/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (isMongooseReady()) {
+      await Staff.findOneAndDelete({ id });
+      return res.status(204).send();
+    }
+    if (!memoryStore.staff) memoryStore.staff = [];
+    memoryStore.staff = memoryStore.staff.filter(s => s.id !== id);
+    return res.status(204).send();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/auth/login', async (req, res) => {
+  const { identifier, password } = req.body;
+  try {
+    let staffMember = null;
+    if (isMongooseReady()) {
+      staffMember = await Staff.findOne({
+        $or: [
+          { username: identifier, password: password },
+          { email: identifier, password: password }
+        ]
+      });
+    } else {
+      staffMember = (memoryStore.staff || []).find(
+        s => (s.username === identifier || s.email === identifier) && s.password === password
+      );
+    }
+
+    if (staffMember) {
+      return res.json({ success: true, staff: staffMember });
+    }
+    return res.status(401).json({ error: 'Invalid credentials' });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// 10. ACTIVITY LOGS
+// ==========================================
+router.get('/activity-logs', async (req, res) => {
+  try {
+    if (isMongooseReady()) {
+      const logs = await ActivityLog.find().sort({ createdAt: -1 }).limit(100);
+      return res.json(logs);
+    }
+    return res.json(memoryStore.activityLogs || []);
+  } catch (error) {
+    return res.json(memoryStore.activityLogs || []);
+  }
+});
+
+router.post('/activity-logs', async (req, res) => {
+  try {
+    const newLog = {
+      ...req.body,
+      id: req.body.id || `act-${Date.now()}`
+    };
+    if (isMongooseReady()) {
+      const created = await ActivityLog.create(newLog);
+      return res.status(201).json(created);
+    }
+    if (!memoryStore.activityLogs) memoryStore.activityLogs = [];
+    memoryStore.activityLogs.unshift(newLog);
+    if (memoryStore.activityLogs.length > 100) memoryStore.activityLogs.length = 100;
+    return res.status(201).json(newLog);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+router.delete('/activity-logs', async (req, res) => {
+  try {
+    if (isMongooseReady()) {
+      await ActivityLog.deleteMany({});
+      return res.status(204).send();
+    }
+    memoryStore.activityLogs = [];
+    return res.status(204).send();
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

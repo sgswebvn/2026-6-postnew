@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
+import { api } from '../services/api';
 
 const BlogContext = createContext();
 
@@ -207,7 +208,7 @@ export const BlogProvider = ({ children }) => {
     return Boolean(currentUser.permissions && currentUser.permissions[permissionKey]);
   };
 
-  const loginAdmin = (identifier, password, customTarget = null) => {
+  const loginAdmin = async (identifier, password, customTarget = null) => {
     const inputId = (identifier || '').trim().toLowerCase();
     const inputPass = (password || '').trim();
 
@@ -216,37 +217,16 @@ export const BlogProvider = ({ children }) => {
       return false;
     }
 
-    const currentStaffs = storageService.getStaffList();
-    
-    // 1. Check match in staffList (by username or email)
-    const matchedStaff = currentStaffs.find(s => 
-      (s.username && s.username.toLowerCase() === inputId) ||
-      (s.email && s.email.toLowerCase() === inputId)
-    );
-
     let authenticatedUser = null;
 
-    if (matchedStaff && (matchedStaff.password === inputPass || (matchedStaff.role === 'admin' && inputPass === 'admin123'))) {
-      authenticatedUser = matchedStaff;
-    } else if ((inputId === 'admin' || inputId === 'admin@thehori.click') && inputPass === 'admin123') {
-      authenticatedUser = currentStaffs.find(s => s.role === 'admin') || {
-        id: 'staff-1',
-        name: 'Nguyễn Quốc Bảo',
-        username: 'admin',
-        email: 'admin@thehori.click',
-        role: 'admin',
-        roleName: 'Quản Lý Tổng Biên Tập',
-        permissions: {
-          canManagePosts: true,
-          canPublishPosts: true,
-          canManageCategories: true,
-          canViewRevenue: true,
-          canManageStaff: true,
-          canManagePayroll: true,
-          canManageComments: true,
-          canManageSettings: true
-        }
-      };
+    try {
+      // API call to backend auth
+      const response = await api.loginAdmin(inputId, inputPass);
+      if (response && response.success && response.staff) {
+        authenticatedUser = response.staff;
+      }
+    } catch (error) {
+      console.error('Login failed', error);
     }
 
     if (authenticatedUser) {

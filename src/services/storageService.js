@@ -14,237 +14,34 @@ const STORAGE_KEYS = {
   ACTIVITY_LOGS: 'horizon_activity_logs_v2'
 };
 
-const initialStaffList = [
-  {
-    id: 'staff-1',
-    name: 'Nguyễn Quốc Bảo',
-    username: 'admin',
-    password: 'admin123',
-    email: 'bao.nq@thehori.click',
-    phone: '0908 123 456',
-    refCode: 'QB',
-    role: 'admin',
-    roleName: 'Quản Lý Tổng Biên Tập',
-    joinDate: '2024-06-15',
-    status: 'active',
-    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_30.jpg',
-    permissions: {
-      canManagePosts: true,
-      canPublishPosts: true,
-      canManageCategories: true,
-      canViewRevenue: true,
-      canManageStaff: true,
-      canManagePayroll: true,
-      canManageComments: true,
-      canManageSettings: true
-    },
-    salary: {
-      baseSalary: 25000000,
-      kpiBonus: 8000000,
-      deduction: 0,
-      netSalary: 33000000,
-      payPeriod: '08/2026',
-      paymentStatus: 'paid',
-      paymentDate: '2026-08-05'
-    }
-  },
-  {
-    id: 'staff-2',
-    name: 'Trần Quang Minh',
-    username: 'minh',
-    password: 'minh123',
-    email: 'minh.tq@thehori.click',
-    phone: '0912 345 678',
-    refCode: 'MINH',
-    role: 'editor',
-    roleName: 'Senior Editor & SEO Content',
-    joinDate: '2025-01-10',
-    status: 'active',
-    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_31.jpg',
-    permissions: {
-      canManagePosts: true,
-      canPublishPosts: true,
-      canManageCategories: true,
-      canViewRevenue: false,
-      canManageStaff: false,
-      canManagePayroll: false,
-      canManageComments: true,
-      canManageSettings: false
-    },
-    salary: {
-      baseSalary: 16000000,
-      kpiBonus: 4500000,
-      deduction: 0,
-      netSalary: 20500000,
-      payPeriod: '08/2026',
-      paymentStatus: 'paid',
-      paymentDate: '2026-08-05'
-    }
-  },
-  {
-    id: 'staff-3',
-    name: 'Lê Thúy An',
-    username: 'an',
-    password: 'an123',
-    email: 'an.lt@thehori.click',
-    phone: '0938 987 654',
-    refCode: 'AN',
-    role: 'editor',
-    roleName: 'CTV Biên Tập & Seeding',
-    joinDate: '2025-05-20',
-    status: 'active',
-    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_32.jpg',
-    permissions: {
-      canManagePosts: true,
-      canPublishPosts: false,
-      canManageCategories: false,
-      canViewRevenue: false,
-      canManageStaff: false,
-      canManagePayroll: false,
-      canManageComments: true,
-      canManageSettings: false
-    },
-    salary: {
-      baseSalary: 9000000,
-      kpiBonus: 3200000,
-      deduction: 0,
-      netSalary: 12200000,
-      payPeriod: '08/2026',
-      paymentStatus: 'pending',
-      paymentDate: ''
-    }
-  },
-  {
-    id: 'staff-4',
-    name: 'Phạm Mai Linh',
-    username: 'linh',
-    password: 'linh123',
-    email: 'linh.pm@thehori.click',
-    phone: '0977 456 123',
-    refCode: 'LINH',
-    role: 'editor',
-    roleName: 'CTV Viết Bài Công Nghệ',
-    joinDate: '2025-08-01',
-    status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=200',
-    permissions: {
-      canManagePosts: true,
-      canPublishPosts: false,
-      canManageCategories: false,
-      canViewRevenue: false,
-      canManageStaff: false,
-      canManagePayroll: false,
-      canManageComments: false,
-      canManageSettings: false
-    },
-    salary: {
-      baseSalary: 8500000,
-      kpiBonus: 2800000,
-      deduction: 500000,
-      netSalary: 10800000,
-      payPeriod: '08/2026',
-      paymentStatus: 'paid',
-      paymentDate: '2026-08-05'
-    }
-  }
-];
-
-const initialActivityLogs = [
-  {
-    id: 'act-1',
-    staffId: 'staff-2',
-    staffName: 'Trần Quang Minh',
-    refCode: 'MINH',
-    action: 'publish_post',
-    title: 'Xuất bản bài viết mới',
-    details: 'Đã xuất bản bài: "Where Americans Are Parking Cash in 2026: T-Bills, HYSA, and I-Bonds"',
-    timestamp: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
-    type: 'success'
-  },
-  {
-    id: 'act-2',
-    staffId: 'staff-3',
-    staffName: 'Lê Thúy An',
-    refCode: 'AN',
-    action: 'seeding_hit',
-    title: 'Ghi nhận lượt đọc Seeding (+12 views)',
-    details: 'Độc giả từ Facebook US Finance Group truy cập qua mã ?ref=AN',
-    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-    type: 'info'
-  },
-  {
-    id: 'act-3',
-    staffId: 'staff-1',
-    staffName: 'Nguyễn Quốc Bảo',
-    refCode: 'QB',
-    action: 'payroll_update',
-    title: 'Cập nhật bảng lương kỳ 08/2026',
-    details: 'Duyệt chi trả thưởng KPI Seeding cho ban biên tập (Tổng quỹ: 76.500.000 đ)',
-    timestamp: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-    type: 'warning'
-  },
-  {
-    id: 'act-4',
-    staffId: 'staff-4',
-    staffName: 'Phạm Mai Linh',
-    refCode: 'LINH',
-    action: 'edit_post',
-    title: 'Cập nhật nội dung & tối ưu SEO',
-    details: 'Chỉnh sửa thẻ Meta Description và chèn hình ảnh minh họa cho bài Tech Desk',
-    timestamp: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-    type: 'neutral'
-  },
-  {
-    id: 'act-5',
-    staffId: 'staff-1',
-    staffName: 'Nguyễn Quốc Bảo',
-    refCode: 'QB',
-    action: 'auth_login',
-    title: 'Đăng nhập hệ thống quản trị',
-    details: 'Phiên làm việc bảo mật bắt đầu từ IP Verified Editor',
-    timestamp: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
-    type: 'info'
-  }
-];
+// initialStaffList and initialActivityLogs moved to server/seedData.js
 
 export const storageService = {
   // Sync all with MongoDB on boot
   async initializeFromDB() {
     try {
-      const [posts, categories, authors, settings, referrals] = await Promise.all([
+      const [posts, categories, authors, settings, referrals, staffList, activityLogs] = await Promise.all([
         api.getPosts(),
         api.getCategories(),
         api.getAuthors(),
         api.getSettings(),
-        api.getReferrals()
+        api.getReferrals(),
+        api.getStaffList(),
+        api.getActivityLogs()
       ]);
 
       if (posts && posts.length > 0) localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
       if (categories && categories.length > 0) localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
       if (authors && authors.length > 0) localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
       if (settings && settings.siteName) localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+      if (staffList && staffList.length > 0) localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(staffList));
+      if (activityLogs && activityLogs.length > 0) localStorage.setItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify(activityLogs));
+      
       if (referrals) {
         localStorage.setItem('horizon_staff_referrals_v2', JSON.stringify(referrals));
-        
-        // Also update staff seedingHits and KPI in local storage
-        const staffList = this.getStaffList();
-        let updated = false;
-        const updatedStaffList = staffList.map(s => {
-          if (s.refCode && referrals[s.refCode.toUpperCase()] !== undefined) {
-            const hits = referrals[s.refCode.toUpperCase()];
-            if (s.seedingHits !== hits) {
-              updated = true;
-              return { ...s, seedingHits: hits };
-            }
-          }
-          return s;
-        });
-        if (updated) {
-          localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(updatedStaffList));
-        }
       }
 
-      return { posts, categories, authors, settings, referrals };
+      return { posts, categories, authors, settings, referrals, staffList, activityLogs };
     } catch {
       return null;
     }
@@ -498,39 +295,25 @@ export const storageService = {
   // Staff & Payroll Management
   getStaffList() {
     const raw = localStorage.getItem(STORAGE_KEYS.STAFF);
-    let list = [];
     if (!raw) {
-      list = initialStaffList;
-    } else {
-      try {
-        list = JSON.parse(raw);
-        if (!Array.isArray(list)) list = initialStaffList;
-      } catch {
-        list = initialStaffList;
-      }
+      return [];
     }
-    
-    // Ensure sample accounts are present if missing
-    let updated = false;
-    initialStaffList.forEach(initialStaff => {
-      if (!list.find(s => s.id === initialStaff.id)) {
-        list.push(initialStaff);
-        updated = true;
-      }
-    });
-
-    if (updated) {
-      localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(list));
+    try {
+      const list = JSON.parse(raw);
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
     }
-    
-    return list;
   },
 
   saveStaff(staffMember) {
     const list = this.getStaffList();
     const existingIndex = list.findIndex(s => s.id === staffMember.id);
     let updated;
+    let isNew = false;
+    
     if (existingIndex === -1) {
+      isNew = true;
       const newStaff = {
         ...staffMember,
         id: staffMember.id || `staff-${Date.now()}`,
@@ -557,6 +340,7 @@ export const storageService = {
         }
       };
       updated = [newStaff, ...list];
+      api.addStaff(newStaff).catch(() => {});
       this.addActivityLog({
         staffName: 'Quản Trị Viên',
         action: 'staff_add',
@@ -566,6 +350,7 @@ export const storageService = {
       });
     } else {
       updated = list.map(s => s.id === staffMember.id ? { ...s, ...staffMember } : s);
+      api.updateStaff(staffMember.id, staffMember).catch(() => {});
       this.addActivityLog({
         staffName: 'Quản Trị Viên',
         action: 'staff_update',
@@ -581,12 +366,14 @@ export const storageService = {
   deleteStaff(id) {
     const list = this.getStaffList().filter(s => s.id !== id);
     localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(list));
+    api.deleteStaff(id).catch(() => {});
     return list;
   },
 
   updateStaffSalary(id, salaryData) {
     const list = this.getStaffList();
     let targetStaffName = 'Nhân sự';
+    let targetStaff = null;
     const updated = list.map(s => {
       if (s.id === id) {
         targetStaffName = s.name;
@@ -594,7 +381,7 @@ export const storageService = {
         const bonus = Number(salaryData.kpiBonus || 0);
         const deduction = Number(salaryData.deduction || 0);
         const net = Math.max(0, base + bonus - deduction);
-        return {
+        targetStaff = {
           ...s,
           salary: {
             ...s.salary,
@@ -605,10 +392,14 @@ export const storageService = {
             netSalary: net
           }
         };
+        return targetStaff;
       }
       return s;
     });
     localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(updated));
+    if (targetStaff) {
+      api.updateStaff(targetStaff.id, targetStaff).catch(() => {});
+    }
     this.addActivityLog({
       staffName: 'Kế Toán / Quản Trị',
       action: 'payroll_update',
@@ -623,13 +414,13 @@ export const storageService = {
   getActivityLogs() {
     const raw = localStorage.getItem(STORAGE_KEYS.ACTIVITY_LOGS);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify(initialActivityLogs));
-      return initialActivityLogs;
+      return [];
     }
     try {
-      return JSON.parse(raw);
+      const list = JSON.parse(raw);
+      return Array.isArray(list) ? list : [];
     } catch {
-      return initialActivityLogs;
+      return [];
     }
   },
 
@@ -643,11 +434,13 @@ export const storageService = {
     };
     const updated = [newLog, ...logs].slice(0, 100);
     localStorage.setItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify(updated));
+    api.addActivityLog(newLog).catch(() => {});
     return updated;
   },
 
   clearActivityLogs() {
     localStorage.setItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify([]));
+    api.deleteActivityLogs && api.deleteActivityLogs().catch(() => {});
     return [];
   },
 

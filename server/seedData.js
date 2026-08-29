@@ -1162,3 +1162,196 @@ export const initialSettings = {
     }
   }
 };
+
+export const initialStaffList = [
+  {
+    id: 'staff-1',
+    name: 'Nguyễn Quốc Bảo',
+    username: 'admin',
+    password: 'admin123',
+    email: 'bao.nq@thehori.click',
+    phone: '0908 123 456',
+    refCode: 'QB',
+    role: 'admin',
+    roleName: 'Quản Lý Tổng Biên Tập',
+    joinDate: '2024-06-15',
+    status: 'active',
+    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_30.jpg',
+    permissions: {
+      canManagePosts: true,
+      canPublishPosts: true,
+      canManageCategories: true,
+      canViewRevenue: true,
+      canManageStaff: true,
+      canManagePayroll: true,
+      canManageComments: true,
+      canManageSettings: true
+    },
+    salary: {
+      baseSalary: 25000000,
+      kpiBonus: 8000000,
+      deduction: 0,
+      netSalary: 33000000,
+      payPeriod: '08/2026',
+      paymentStatus: 'paid',
+      paymentDate: '2026-08-05'
+    }
+  },
+  {
+    id: 'staff-2',
+    name: 'Trần Quang Minh',
+    username: 'minh',
+    password: 'minh123',
+    email: 'minh.tq@thehori.click',
+    phone: '0912 345 678',
+    refCode: 'MINH',
+    role: 'editor',
+    roleName: 'Senior Editor & SEO Content',
+    joinDate: '2025-01-10',
+    status: 'active',
+    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_31.jpg',
+    permissions: {
+      canManagePosts: true,
+      canPublishPosts: true,
+      canManageCategories: true,
+      canViewRevenue: false,
+      canManageStaff: false,
+      canManagePayroll: false,
+      canManageComments: true,
+      canManageSettings: false
+    },
+    salary: {
+      baseSalary: 16000000,
+      kpiBonus: 4500000,
+      deduction: 0,
+      netSalary: 20500000,
+      payPeriod: '08/2026',
+      paymentStatus: 'paid',
+      paymentDate: '2026-08-05'
+    }
+  },
+  {
+    id: 'staff-3',
+    name: 'Lê Thúy An',
+    username: 'an',
+    password: 'an123',
+    email: 'an.lt@thehori.click',
+    phone: '0938 987 654',
+    refCode: 'AN',
+    role: 'editor',
+    roleName: 'CTV Biên Tập & Seeding',
+    joinDate: '2025-05-20',
+    status: 'active',
+    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_32.jpg',
+    permissions: {
+      canManagePosts: true,
+      canPublishPosts: false,
+      canManageCategories: false,
+      canViewRevenue: false,
+      canManageStaff: false,
+      canManagePayroll: false,
+      canManageComments: true,
+      canManageSettings: false
+    },
+    salary: {
+      baseSalary: 9000000,
+      kpiBonus: 3200000,
+      deduction: 0,
+      netSalary: 12200000,
+      payPeriod: '08/2026',
+      paymentStatus: 'pending',
+      paymentDate: ''
+    }
+  },
+  {
+    id: 'staff-4',
+    name: 'Phạm Mai Linh',
+    username: 'linh',
+    password: 'linh123',
+    email: 'linh.pm@thehori.click',
+    phone: '0977 456 123',
+    refCode: 'LINH',
+    role: 'editor',
+    roleName: 'CTV Viết Bài Công Nghệ',
+    joinDate: '2025-08-01',
+    status: 'active',
+    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=200',
+    permissions: {
+      canManagePosts: true,
+      canPublishPosts: false,
+      canManageCategories: false,
+      canViewRevenue: false,
+      canManageStaff: false,
+      canManagePayroll: false,
+      canManageComments: false,
+      canManageSettings: false
+    },
+    salary: {
+      baseSalary: 8500000,
+      kpiBonus: 2800000,
+      deduction: 500000,
+      netSalary: 10800000,
+      payPeriod: '08/2026',
+      paymentStatus: 'paid',
+      paymentDate: '2026-08-05'
+    }
+  }
+];
+
+export const initialActivityLogs = [
+  {
+    id: 'act-1',
+    staffId: 'staff-2',
+    staffName: 'Trần Quang Minh',
+    refCode: 'MINH',
+    action: 'publish_post',
+    title: 'Xuất bản bài viết mới',
+    details: 'Đã xuất bản bài: "Where Americans Are Parking Cash in 2026: T-Bills, HYSA, and I-Bonds"',
+    timestamp: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+    type: 'success'
+  },
+  {
+    id: 'act-2',
+    staffId: 'staff-3',
+    staffName: 'Lê Thúy An',
+    refCode: 'AN',
+    action: 'seeding_hit',
+    title: 'Ghi nhận lượt đọc Seeding (+12 views)',
+    details: 'Độc giả từ Facebook US Finance Group truy cập qua mã ?ref=AN',
+    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+    type: 'info'
+  },
+  {
+    id: 'act-3',
+    staffId: 'staff-1',
+    staffName: 'Nguyễn Quốc Bảo',
+    refCode: 'QB',
+    action: 'payroll_update',
+    title: 'Cập nhật bảng lương kỳ 08/2026',
+    details: 'Duyệt chi trả thưởng KPI Seeding cho ban biên tập (Tổng quỹ: 76.500.000 đ)',
+    timestamp: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+    type: 'warning'
+  },
+  {
+    id: 'act-4',
+    staffId: 'staff-4',
+    staffName: 'Phạm Mai Linh',
+    refCode: 'LINH',
+    action: 'edit_post',
+    title: 'Cập nhật nội dung & tối ưu SEO',
+    details: 'Chỉnh sửa thẻ Meta Description và chèn hình ảnh minh họa cho bài Tech Desk',
+    timestamp: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
+    type: 'neutral'
+  },
+  {
+    id: 'act-5',
+    staffId: 'staff-1',
+    staffName: 'Nguyễn Quốc Bảo',
+    refCode: 'QB',
+    action: 'auth_login',
+    title: 'Đăng nhập hệ thống quản trị',
+    details: 'Phiên làm việc bảo mật bắt đầu từ IP Verified Editor',
+    timestamp: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
+    type: 'info'
+  }
+];

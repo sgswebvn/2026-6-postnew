@@ -11,8 +11,12 @@ import {
   initialPosts, 
   initialComments, 
   initialSubscribers, 
-  initialSettings 
+  initialSettings,
+  initialStaffList,
+  initialActivityLogs
 } from './seedData.js';
+import { Staff } from './models/Staff.js';
+import { ActivityLog } from './models/ActivityLog.js';
 
 let isConnected = false;
 let isInMemoryFallback = false;
@@ -24,7 +28,9 @@ export const memoryStore = {
   authors: [...initialAuthors],
   settings: { ...initialSettings },
   comments: [...initialComments],
-  subscribers: [...initialSubscribers]
+  subscribers: [...initialSubscribers],
+  staff: [...initialStaffList],
+  activityLogs: [...initialActivityLogs]
 };
 
 export async function connectDB() {
@@ -93,6 +99,18 @@ export async function seedDatabase() {
     if (subscriberCount === 0) {
       console.log('[MongoDB Seeder] Seeding initial Subscribers...');
       await Subscriber.insertMany(initialSubscribers);
+    }
+
+    const staffCount = await Staff.countDocuments();
+    if (staffCount === 0) {
+      console.log('[MongoDB Seeder] Seeding initial Staff...');
+      await Staff.insertMany(initialStaffList);
+    }
+
+    const logCount = await ActivityLog.countDocuments();
+    if (logCount === 0) {
+      console.log('[MongoDB Seeder] Seeding initial Activity Logs...');
+      await ActivityLog.insertMany(initialActivityLogs);
     }
 
     console.log('[MongoDB Seeder] All collections verified and ready.');

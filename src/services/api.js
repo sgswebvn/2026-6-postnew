@@ -264,5 +264,86 @@ export const api = {
     } catch {
       return null;
     }
+  },
+
+  // Auth & Staff
+  async loginAdmin(identifier, password) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password })
+      });
+      return await res.json();
+    } catch {
+      return { error: 'Network error' };
+    }
+  },
+
+  async getStaffList() {
+    try {
+      const res = await fetch(`${API_BASE}/staff`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async addStaff(staffData) {
+    try {
+      const res = await fetch(`${API_BASE}/staff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(staffData)
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async updateStaff(id, staffData) {
+    try {
+      const res = await fetch(`${API_BASE}/staff/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(staffData)
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async deleteStaff(id) {
+    try {
+      await fetch(`${API_BASE}/staff/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      return { success: true };
+    } catch {
+      return { success: false };
+    }
+  },
+
+  // Activity Logs
+  async getActivityLogs() {
+    try {
+      const res = await fetch(`${API_BASE}/activity-logs`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async addActivityLog(logData) {
+    try {
+      const res = await fetch(`${API_BASE}/activity-logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(logData)
+      });
+      return await res.json();
+    } catch {
+      return null;
+    }
   }
 };
