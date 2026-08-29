@@ -211,19 +211,40 @@ export const storageService = {
   // Sync all with MongoDB on boot
   async initializeFromDB() {
     try {
-      const [posts, categories, authors, settings] = await Promise.all([
+      const [posts, categories, authors, settings, referrals] = await Promise.all([
         api.getPosts(),
         api.getCategories(),
         api.getAuthors(),
-        api.getSettings()
+        api.getSettings(),
+        api.getReferrals()
       ]);
 
       if (posts && posts.length > 0) localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
       if (categories && categories.length > 0) localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
       if (authors && authors.length > 0) localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
       if (settings && settings.siteName) localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+      if (referrals) {
+        localStorage.setItem('horizon_staff_referrals_v2', JSON.stringify(referrals));
+        
+        // Also update staff seedingHits and KPI in local storage
+        const staffList = this.getStaffList();
+        let updated = false;
+        const updatedStaffList = staffList.map(s => {
+          if (s.refCode && referrals[s.refCode.toUpperCase()] !== undefined) {
+            const hits = referrals[s.refCode.toUpperCase()];
+            if (s.seedingHits !== hits) {
+              updated = true;
+              return { ...s, seedingHits: hits };
+            }
+          }
+          return s;
+        });
+        if (updated) {
+          localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(updatedStaffList));
+        }
+      }
 
-      return { posts, categories, authors, settings };
+      return { posts, categories, authors, settings, referrals };
     } catch {
       return null;
     }
@@ -313,19 +334,26 @@ export const storageService = {
     }
   },
 
-  recordSeedingHit(refCode, path = '/') {
+  async recordSeedingHit(refCode, path = '/') {
     if (!refCode) return;
     const cleanRef = refCode.toUpperCase().trim();
     
-    // 1. Update referrals map in localStorage
+    // Call Backend API to increment globally
+    let globalRefs = await api.recordSeedingHit(cleanRef);
+    
+    // Fallback or update local map
     const REFERRALS_KEY = 'horizon_staff_referrals_v2';
     let referrals = {};
-    try {
-      referrals = JSON.parse(localStorage.getItem(REFERRALS_KEY) || '{"QB": 18, "MINH": 12, "AN": 9, "LINH": 6}');
-    } catch {
-      referrals = { "QB": 18, "MINH": 12, "AN": 9, "LINH": 6 };
+    if (globalRefs) {
+      referrals = globalRefs;
+    } else {
+      try {
+        referrals = JSON.parse(localStorage.getItem(REFERRALS_KEY) || '{"QB": 18, "MINH": 12, "AN": 9, "LINH": 6}');
+      } catch {
+        referrals = { "QB": 18, "MINH": 12, "AN": 9, "LINH": 6 };
+      }
+      referrals[cleanRef] = (referrals[cleanRef] || 0) + 1;
     }
-    referrals[cleanRef] = (referrals[cleanRef] || 0) + 1;
     localStorage.setItem(REFERRALS_KEY, JSON.stringify(referrals));
 
     // 2. Find matching staff and update direct referral hits & KPI bonus
@@ -334,7 +362,7 @@ export const storageService = {
     const updatedStaffList = staffList.map(s => {
       if (s.refCode && s.refCode.toUpperCase() === cleanRef) {
         matchedStaff = s;
-        const hits = (s.seedingHits || 0) + 1;
+        const hits = referrals[cleanRef] || (s.seedingHits || 0) + 1;
         const currentBase = Number(s.salary?.baseSalary || 10000000);
         const currentDeduction = Number(s.salary?.deduction || 0);
         const currentKpi = (s.salary?.kpiBonus || 0) + 500;

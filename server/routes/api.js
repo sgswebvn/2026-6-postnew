@@ -6,6 +6,7 @@ import { Author } from '../models/Author.js';
 import { Setting } from '../models/Setting.js';
 import { Comment } from '../models/Comment.js';
 import { Subscriber } from '../models/Subscriber.js';
+import { Referral } from '../models/Referral.js';
 import { memoryStore, getDbStatus } from '../db.js';
 import { initialPosts, initialCategories, initialAuthors, initialSettings, initialComments, initialSubscribers } from '../seedData.js';
 
@@ -462,6 +463,48 @@ router.delete('/subscribers/:email', async (req, res) => {
     }
     memoryStore.subscribers = memoryStore.subscribers.filter(s => s.email !== email);
     return res.json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// 8. SEEDING / REFERRALS
+// ==========================================
+router.get('/referrals', async (req, res) => {
+  try {
+    if (isMongooseReady()) {
+      const refs = await Referral.find();
+      const refMap = {};
+      refs.forEach(r => { refMap[r.refCode] = r.hits; });
+      return res.json(refMap);
+    }
+    return res.json(memoryStore.referrals || {});
+  } catch (error) {
+    return res.json({});
+  }
+});
+
+router.post('/referrals/hit/:refCode', async (req, res) => {
+  const { refCode } = req.params;
+  const cleanRef = refCode.toUpperCase().trim();
+  try {
+    if (isMongooseReady()) {
+      const updated = await Referral.findOneAndUpdate(
+        { refCode: cleanRef },
+        { $inc: { hits: 1 }, lastHitAt: new Date() },
+        { new: true, upsert: true }
+      );
+      
+      const refs = await Referral.find();
+      const refMap = {};
+      refs.forEach(r => { refMap[r.refCode] = r.hits; });
+      return res.json(refMap);
+    }
+    
+    if (!memoryStore.referrals) memoryStore.referrals = {};
+    memoryStore.referrals[cleanRef] = (memoryStore.referrals[cleanRef] || 0) + 1;
+    return res.json(memoryStore.referrals);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

@@ -245,5 +245,24 @@ export const api = {
     } catch {
       return { success: false };
     }
+  },
+
+  // Referrals
+  async getReferrals() {
+    try {
+      const res = await fetch(`${API_BASE}/referrals`);
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async recordSeedingHit(refCode) {
+    try {
+      const res = await fetch(`${API_BASE}/referrals/hit/${encodeURIComponent(refCode)}`, { method: 'POST' });
+      return await res.json();
+    } catch {
+      return null;
+    }
   }
 };
