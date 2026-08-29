@@ -27,7 +27,7 @@
   }
 }
 
-/* Admin Font & Dialog Layer: 100% Vietnamese Font Compatibility & Deep Dark Obsidian UI */
+/* Admin Font & Dialog Layer: 100% Vietnamese Font Compatibility */
 .admin-view, 
 .admin-view *, 
 aside,
@@ -36,6 +36,116 @@ input,
 textarea,
 select {
   font-family: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* =========================================================
+   WARM BEIGE & IVORY EDITORIAL ADMIN THEME (Trắng Be Sang Trọng)
+   ========================================================= */
+.admin-view {
+  background-color: #F8F6F0 !important;
+  color: #1C1917 !important;
+}
+
+.admin-view aside {
+  background-color: #F1ECE4 !important;
+  border-color: #E2DAD0 !important;
+}
+
+.admin-view header {
+  background-color: #FAF8F5 !important;
+  border-color: #E2DAD0 !important;
+}
+
+.admin-view .bg-\[\#111622\],
+.admin-view .dark\:bg-\[\#111622\],
+.admin-view .bg-\[\#0d1117\],
+.admin-view .dark\:bg-\[\#0d1117\],
+.admin-view .bg-\[\#0d131f\],
+.admin-view .dark\:bg-\[\#0d131f\],
+.admin-view .bg-\[\#1a1f2c\],
+.admin-view .dark\:bg-\[\#1a1f2c\],
+.admin-view .bg-\[\#151e30\],
+.admin-view .dark\:bg-\[\#151e30\],
+.admin-view .bg-\[\#182234\],
+.admin-view .dark\:bg-\[\#182234\],
+.admin-view .bg-\[\#111c2e\],
+.admin-view .dark\:bg-\[\#111c2e\] {
+  background-color: #FFFFFF !important;
+  border-color: #E6DFD5 !important;
+  color: #1C1917 !important;
+}
+
+.admin-view .bg-neutral-50,
+.admin-view .dark\:bg-neutral-900,
+.admin-view .dark\:bg-neutral-900\/70,
+.admin-view .dark\:bg-neutral-900\/40,
+.admin-view .dark\:bg-neutral-900\/50,
+.admin-view .dark\:bg-neutral-900\/60,
+.admin-view .dark\:bg-neutral-800,
+.admin-view .dark\:bg-neutral-800\/80,
+.admin-view .dark\:bg-neutral-800\/60 {
+  background-color: #FAF8F5 !important;
+  border-color: #E6DFD5 !important;
+  color: #1C1917 !important;
+}
+
+.admin-view input,
+.admin-view textarea,
+.admin-view select {
+  background-color: #FAF8F5 !important;
+  border-color: #E2DAD0 !important;
+  color: #1C1917 !important;
+}
+
+.admin-view input:focus,
+.admin-view textarea:focus,
+.admin-view select:focus {
+  background-color: #FFFFFF !important;
+  border-color: #2D2823 !important;
+  outline: none !important;
+}
+
+.admin-view .border-neutral-800,
+.admin-view .dark\:border-neutral-800,
+.admin-view .border-neutral-700,
+.admin-view .dark\:border-neutral-700,
+.admin-view .border-\[\#1a2333\],
+.admin-view .border-\[\#1e293b\],
+.admin-view .border-\[\#2a3a54\] {
+  border-color: #E6DFD5 !important;
+}
+
+.admin-view .text-white,
+.admin-view .dark\:text-white,
+.admin-view .dark\:text-neutral-50,
+.admin-view .dark\:text-neutral-100,
+.admin-view .dark\:text-neutral-200,
+.admin-view .text-neutral-950,
+.admin-view .text-neutral-900 {
+  color: #1C1917 !important;
+}
+
+.admin-view .text-neutral-400,
+.admin-view .dark\:text-neutral-400,
+.admin-view .dark\:text-neutral-300,
+.admin-view .text-neutral-500,
+.admin-view .text-neutral-600 {
+  color: #78716C !important;
+}
+
+.admin-view table th {
+  background-color: #F5F1EA !important;
+  color: #57534E !important;
+  border-color: #E5DFD5 !important;
+}
+
+.admin-view table td {
+  border-color: #EFE9E0 !important;
+  color: #1C1917 !important;
+}
+
+.admin-view table tbody tr:hover {
+  background-color: #FAF7F2 !important;
 }
 
 /* =========================================================
