@@ -10,6 +10,7 @@ import { ArticleCard } from '../components/blog/ArticleCard';
 import { NewsletterBox } from '../components/blog/NewsletterBox';
 import { ReadingProgressBar } from '../components/layout/ReadingProgressBar';
 import { AffiliateShowcaseBox } from '../components/blog/AffiliateShowcaseBox';
+import { TableOfContents } from '../components/blog/TableOfContents';
 import { 
   Clock, 
   Eye, 
