@@ -65,17 +65,36 @@ router.get('/posts/published', async (req, res) => {
 });
 
 router.get('/posts/:slug', async (req, res) => {
-  const { slug } = req.params;
+  const rawSlug = req.params.slug;
+  const clean = (rawSlug || '').trim().replace(/-+$/, '');
   try {
     if (isMongooseReady()) {
-      const post = await Post.findOne({ slug });
+      const post = await Post.findOne({ 
+        $or: [
+          { slug: rawSlug }, 
+          { slug: clean }, 
+          { id: rawSlug },
+          { slug: { $regex: `^${clean}$`, $options: 'i' } }
+        ] 
+      });
       if (post) return res.json(post);
     }
-    const post = memoryStore.posts.find(p => p.slug === slug);
+    const post = (memoryStore.posts || []).find(p => 
+      p.slug === rawSlug || 
+      p.slug === clean || 
+      p.id === rawSlug || 
+      (p.slug && p.slug.toLowerCase() === clean.toLowerCase())
+    ) || initialPosts.find(p => 
+      p.slug === rawSlug || 
+      p.slug === clean || 
+      p.id === rawSlug || 
+      (p.slug && p.slug.toLowerCase() === clean.toLowerCase())
+    );
+
     if (!post) return res.status(404).json({ error: 'Article not found' });
     return res.json(post);
   } catch (error) {
-    const post = memoryStore.posts.find(p => p.slug === slug);
+    const post = (memoryStore.posts || []).find(p => p.slug === rawSlug || p.slug === clean || p.id === rawSlug);
     if (!post) return res.status(404).json({ error: 'Article not found' });
     return res.json(post);
   }

@@ -415,6 +415,7 @@ export const BlogProvider = ({ children }) => {
         navigate,
         searchOpen,
         setSearchOpen,
+        setIsSearchOpen: setSearchOpen,
         toasts,
         showToast,
         removeToast,

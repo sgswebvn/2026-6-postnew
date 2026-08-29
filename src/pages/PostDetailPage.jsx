@@ -41,13 +41,44 @@ export const PostDetailPage = ({ slug }) => {
     deepdive: 42
   });
 
-  const post = posts.find(p => p.slug === slug);
-  const isSaved = bookmarks.includes(slug);
+  const cleanSlug = (slug || '').trim().replace(/-+$/, '');
+  const localPost = posts.find(p => 
+    p.slug === slug || 
+    p.id === slug || 
+    p.slug === cleanSlug || 
+    (p.slug && p.slug.toLowerCase() === (slug || '').toLowerCase())
+  );
+
+  const [fetchedPost, setFetchedPost] = useState(null);
+  const [isLoading, setIsLoading] = useState(!localPost);
+
+  useEffect(() => {
+    if (!localPost && slug) {
+      setIsLoading(true);
+      fetch(`/api/posts/${encodeURIComponent(cleanSlug || slug)}`)
+        .then(res => {
+          if (res.ok) return res.json();
+          return fetch('/api/posts')
+            .then(r => r.ok ? r.json() : [])
+            .then(all => all.find(p => p.slug === slug || p.slug === cleanSlug || p.id === slug || (p.slug && p.slug.toLowerCase() === (slug || '').toLowerCase())));
+        })
+        .then(data => {
+          if (data) setFetchedPost(data);
+        })
+        .catch(() => {})
+        .finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
+    }
+  }, [slug, localPost]);
+
+  const post = localPost || fetchedPost;
+  const isSaved = post ? bookmarks.includes(post.slug || slug) : false;
   const recordedSlugRef = React.useRef('');
 
   // 1. Record single view increment & telemetry once per slug
   useEffect(() => {
-    if (!slug) return;
+    if (!post || !slug) return;
 
     if (recordedSlugRef.current !== slug) {
       recordedSlugRef.current = slug;
@@ -67,7 +98,7 @@ export const PostDetailPage = ({ slug }) => {
         cleanupTelemetry();
       }
     };
-  }, [slug]);
+  }, [slug, post]);
 
   // 2. Sync Document Title, Canonical URL, Open Graph & Twitter Social Share Cards
   useEffect(() => {
@@ -119,6 +150,22 @@ export const PostDetailPage = ({ slug }) => {
     }
   }, [post, settings?.siteName, slug]);
 
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 animate-pulse space-y-6">
+        <div className="h-4 bg-neutral-200 rounded w-1/4"></div>
+        <div className="h-10 bg-neutral-200 rounded w-3/4"></div>
+        <div className="h-4 bg-neutral-200 rounded w-1/2"></div>
+        <div className="h-80 bg-neutral-200 rounded-3xl"></div>
+        <div className="space-y-3">
+          <div className="h-4 bg-neutral-200 rounded"></div>
+          <div className="h-4 bg-neutral-200 rounded w-5/6"></div>
+          <div className="h-4 bg-neutral-200 rounded w-4/6"></div>
+        </div>
+      </div>
+    );
+  }
+
   if (!post) {
     return <NotFoundPage />;
   }
@@ -132,7 +179,7 @@ export const PostDetailPage = ({ slug }) => {
     .slice(0, 2);
 
   // Compute Word Count & Reading Time
-  const textContent = post.content.replace(/<[^>]*>/g, ' ');
+  const textContent = (post.content || '').replace(/<[^>]*>/g, ' ');
   const wordCount = textContent.trim().split(/\s+/).filter(Boolean).length;
 
   const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -180,7 +227,7 @@ export const PostDetailPage = ({ slug }) => {
       setIsPlayingAudio(false);
       telemetryService.trackEvent('audio_playback_stopped', { slug: post?.slug });
     } else {
-      const plainText = `${post.title}. By ${author?.name || 'our correspondent'}. ${post.excerpt}. ${post.content.replace(/<[^>]*>/g, ' ')}`;
+      const plainText = `${post.title}. By ${author?.name || 'our correspondent'}. ${post.excerpt || ''}. ${(post.content || '').replace(/<[^>]*>/g, ' ')}`;
       const utterance = new SpeechSynthesisUtterance(plainText);
       utterance.lang = 'en-US';
       utterance.rate = 1.0;
