@@ -27,7 +27,6 @@ const AdminPostsList = React.lazy(() => import('./pages/admin/AdminPostsList').t
 const AdminPostEditor = React.lazy(() => import('./pages/admin/AdminPostEditor').then(module => ({ default: module.AdminPostEditor })));
 const AdminCategories = React.lazy(() => import('./pages/admin/AdminCategories').then(module => ({ default: module.AdminCategories })));
 const AdminAdSense = React.lazy(() => import('./pages/admin/AdminAdSense').then(module => ({ default: module.AdminAdSense })));
-const AdminComments = React.lazy(() => import('./pages/admin/AdminComments').then(module => ({ default: module.AdminComments })));
 const AdminSubscribers = React.lazy(() => import('./pages/admin/AdminSubscribers').then(module => ({ default: module.AdminSubscribers })));
 const AdminAuthors = React.lazy(() => import('./pages/admin/AdminAuthors').then(module => ({ default: module.AdminAuthors })));
 const AdminSettings = React.lazy(() => import('./pages/admin/AdminSettings').then(module => ({ default: module.AdminSettings })));
@@ -206,22 +205,6 @@ const AppContent = () => {
         return (
           <AdminLayout currentTab="adsense">
             <AdminAdSense />
-          </AdminLayout>
-        );
-      }
-
-      // Comments (canManageComments)
-      if (cleanPath === '/admin/comments') {
-        if (userRole !== 'admin' && !hasPermission('canManageComments')) {
-          return (
-            <AdminLayout currentTab="profile">
-              <AdminAccessDenied requiredPermission="canManageComments" featureName="Quản Lý Bình Luận" />
-            </AdminLayout>
-          );
-        }
-        return (
-          <AdminLayout currentTab="comments">
-            <AdminComments />
           </AdminLayout>
         );
       }

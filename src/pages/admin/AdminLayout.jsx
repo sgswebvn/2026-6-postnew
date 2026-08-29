@@ -45,7 +45,6 @@ export const AdminLayout = ({ children, currentTab = 'dashboard' }) => {
     { id: 'staff', label: 'Nhân Sự & Bảng Lương', icon: Users, path: '/admin/staff', count: staffList?.length || 4, perm: 'canManageStaff' },
     { id: 'adsense', label: 'Google AdSense Ads', icon: DollarSign, path: '/admin/adsense', highlight: true, perm: 'canViewRevenue' },
     { id: 'profile', label: 'Hồ Sơ & Tiếp Thị Seeding', icon: User, path: '/admin/profile' },
-    { id: 'comments', label: 'Quản Lý Bình Luận', icon: MessageSquare, path: '/admin/comments', perm: 'canManageComments' },
     { id: 'subscribers', label: 'Email Đăng Ký Tin', icon: Mail, path: '/admin/subscribers', perm: 'canManageSettings' },
     { id: 'authors', label: 'Ban Biên Tập (E-E-A-T)', icon: Users, path: '/admin/authors', perm: 'canManageSettings' },
     { id: 'settings', label: 'Cài Đặt & Cấu Hình SEO', icon: Settings, path: '/admin/settings', perm: 'canManageSettings' },

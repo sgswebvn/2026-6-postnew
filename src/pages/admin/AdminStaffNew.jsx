@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { 
   ArrowLeft, 
@@ -15,7 +15,8 @@ import {
   Copy,
   CreditCard,
   CheckCircle,
-  Sparkles
+  Sparkles,
+  Upload
 } from 'lucide-react';
 
 const AVATAR_PRESETS = [
@@ -28,18 +29,19 @@ const AVATAR_PRESETS = [
 ];
 
 const PERMISSIONS_CONFIG = [
-  { key: 'canManagePosts', label: 'Soạn Thảo & Quản Lý Bài Viết', desc: 'Cho phép viết bài, chỉnh sửa nội dung bài viết và quản lý danh sách bài.' },
+  { key: 'canManagePosts', label: 'Soạn Thảo & Quản Lý Bài Viết Của Mình', desc: 'Cho phép viết bài mới, chỉnh sửa và quản lý các bài viết do tài khoản của mình tạo.' },
   { key: 'canPublishPosts', label: 'Xuất Bản Bài Viết Trực Tiếp (Live)', desc: 'Cho phép đưa bài viết lên trạng thái công khai mà không cần qua duyệt.' },
   { key: 'canManageCategories', label: 'Quản Lý Chuyên Mục (Desks)', desc: 'Tạo, sửa hoặc xóa các danh mục chủ đề trên website.' },
   { key: 'canViewRevenue', label: 'Xem Doanh Thu & Chỉ Số AdSense', desc: 'Truy cập tab Báo cáo doanh thu, RPM, CPC và cấu hình vị trí quảng cáo.' },
   { key: 'canManageStaff', label: 'Quản Lý Nhân Sự & Phân Quyền', desc: 'Thêm mới, sửa thông tin, đặt mật khẩu và phân quyền cho nhân sự khác.' },
   { key: 'canManagePayroll', label: 'Quản Lý Bảng Lương & Chi Trả', desc: 'Cập nhật lương cơ bản, nhập thưởng KPI và quản lý trạng thái thanh toán.' },
-  { key: 'canManageComments', label: 'Kiểm Duyệt Bình Luận', desc: 'Phê duyệt, phản hồi hoặc xóa bình luận từ độc giả.' },
   { key: 'canManageSettings', label: 'Cài Đặt & Cấu Hình Hệ Thống', desc: 'Thay đổi tên website, cấu hình SEO Schema, Google Analytics và thông tin tòa soạn.' }
 ];
 
 export const AdminStaffNew = () => {
   const { saveStaff, navigate, showToast } = useBlog();
+  const fileInputRef = useRef(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [form, setForm] = useState({
     name: '',
@@ -62,10 +64,26 @@ export const AdminStaffNew = () => {
       canViewRevenue: false,
       canManageStaff: false,
       canManagePayroll: false,
-      canManageComments: true,
       canManageSettings: false
     }
   });
+
+  const handleAvatarFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm(prev => ({ ...prev, avatar: reader.result }));
+      setIsUploading(false);
+      showToast('Đã tải ảnh đại diện nhân viên thành công!', 'success');
+    };
+    reader.onerror = () => {
+      setIsUploading(false);
+      showToast('Không thể đọc file ảnh', 'error');
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -94,7 +112,6 @@ export const AdminStaffNew = () => {
         canViewRevenue: true,
         canManageStaff: true,
         canManagePayroll: true,
-        canManageComments: true,
         canManageSettings: true
       } : form.permissions,
       salary: {
@@ -120,161 +137,190 @@ export const AdminStaffNew = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 animate-fadeIn pb-16">
+    <form onSubmit={handleSubmit} className="space-y-6 animate-fadeIn pb-16 font-admin">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#1e293b]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-200">
         <div className="flex items-center space-x-3">
           <button
             type="button"
             onClick={() => navigate('/admin/staff')}
-            className="p-2.5 bg-[#182234] hover:bg-[#202d44] text-neutral-300 rounded-xl border border-[#2a3a54] transition-colors"
+            className="p-2.5 bg-white hover:bg-neutral-50 text-neutral-700 rounded-xl border border-neutral-200 transition-colors shadow-xs"
             title="Quay lại danh sách nhân sự"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h1 className="font-serif text-2xl font-bold text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-blue-400" />
-              <span>Thêm Nhân Viên Mới Vào Tòa Soạn</span>
+            <h1 className="font-serif text-2xl font-bold text-neutral-900">
+              Thêm Mới Nhân Sự / Phóng Viên
             </h1>
-            <p className="text-xs text-neutral-400">
-              Tạo tài khoản CMS riêng, cấp mã Seeding CTV, thiết lập lương cứng và phân quyền truy cập chức năng.
+            <p className="text-xs text-neutral-500">
+              Tạo tài khoản CMS, cấp mã tiếp thị Seeding, thiết lập lương cơ bản và ma trận phân quyền.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3">
           <button
             type="button"
             onClick={() => navigate('/admin/staff')}
-            className="px-4 py-2.5 bg-[#182234] hover:bg-[#202d44] text-neutral-300 rounded-xl text-xs font-semibold border border-[#2a3a54] transition-colors"
+            className="px-4 py-2.5 bg-white hover:bg-neutral-50 text-neutral-700 rounded-xl border border-neutral-200 text-xs font-semibold transition-all shadow-xs"
           >
             Hủy Bỏ
           </button>
 
           <button
             type="submit"
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-blue-500/25 active:scale-95 transition-all"
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm active:scale-95 transition-all"
           >
             <Save className="w-4 h-4" />
-            <span>Tạo Tài Khoản Mới</span>
+            <span>Lưu & Kích Hoạt Tài Khoản</span>
           </button>
         </div>
       </div>
 
       {/* Main Grid: 7 Cols Left + 5 Cols Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT 7 COLS: Profile & Permissions Matrix */}
+        {/* LEFT 7 COLS: Personal Info & Permissions */}
         <div className="lg:col-span-7 space-y-6">
-          {/* SECTION 1: Personal Info */}
-          <div className="p-6 bg-[#111726] rounded-3xl border border-[#1e293b] shadow-md space-y-5">
-            <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase font-mono pb-2 border-b border-[#1e293b]">
+          {/* SECTION 1: Personal Profile */}
+          <div className="p-6 bg-white rounded-3xl border border-neutral-200 shadow-xs space-y-5">
+            <div className="flex items-center gap-2 text-blue-600 font-bold text-xs uppercase font-mono pb-2 border-b border-neutral-200">
               <User className="w-4 h-4" />
-              <span>1. Thông Tin Định Danh & Hồ Sơ</span>
+              <span>1. Thông Tin Định Danh & Ảnh Đại Diện</span>
             </div>
 
-            {/* Avatar Selector */}
-            <div>
-              <label className="block text-xs font-bold text-neutral-300 mb-2">
-                Chọn Ảnh Đại Diện (Avatar)
-              </label>
-              <div className="flex items-center space-x-3">
+            {/* Avatar Uploader & Selector */}
+            <div className="space-y-3 p-4 bg-neutral-50 rounded-2xl border border-neutral-200">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-neutral-800">
+                  Ảnh Đại Diện Nhân Viên (Avatar)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{isUploading ? 'Đang tải...' : 'Tải Ảnh Từ Máy Tính'}</span>
+                </button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleAvatarFile} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <img 
                   src={form.avatar} 
                   alt="Avatar Preview" 
-                  className="w-14 h-14 rounded-2xl object-cover border-2 border-blue-500 shadow-md flex-shrink-0"
+                  className="w-16 h-16 rounded-2xl object-cover border-2 border-blue-500 shadow-sm flex-shrink-0"
                 />
-                <div className="flex flex-wrap gap-2">
-                  {AVATAR_PRESETS.map((preset, idx) => (
-                    <img
-                      key={idx}
-                      src={preset}
-                      alt="preset"
-                      onClick={() => setForm({ ...form, avatar: preset })}
-                      className={`w-9 h-9 rounded-xl object-cover cursor-pointer border transition-all ${
-                        form.avatar === preset ? 'ring-2 ring-blue-500 scale-105 border-transparent' : 'opacity-60 hover:opacity-100 border-[#2a3a54]'
-                      }`}
-                    />
-                  ))}
+
+                <div className="space-y-2 flex-1 w-full">
+                  <input
+                    type="text"
+                    value={form.avatar}
+                    onChange={(e) => setForm({ ...form, avatar: e.target.value })}
+                    placeholder="Nhập đường dẫn URL ảnh hoặc bấm Tải Ảnh..."
+                    className="w-full px-3 py-2 bg-white border border-neutral-300 rounded-xl text-xs text-neutral-900 focus:outline-none focus:border-blue-500"
+                  />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] text-neutral-500 font-medium">Ảnh mẫu:</span>
+                    {AVATAR_PRESETS.map((preset, idx) => (
+                      <img
+                        key={idx}
+                        src={preset}
+                        alt="preset"
+                        onClick={() => setForm({ ...form, avatar: preset })}
+                        className={`w-7 h-7 rounded-lg object-cover cursor-pointer border transition-all ${
+                          form.avatar === preset ? 'ring-2 ring-blue-500 scale-105 border-transparent' : 'opacity-60 hover:opacity-100 border-neutral-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
-                <label className="block font-bold text-neutral-300 mb-1.5">
+                <label className="block font-bold text-neutral-700 mb-1.5">
                   Họ & Tên Nhân Viên *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="VD: Trần Quang Minh"
+                  placeholder="VD: Nguyễn Văn Anh"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-neutral-300 rounded-xl text-neutral-900 focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-neutral-300 mb-1.5">
+                <label className="block font-bold text-neutral-700 mb-1.5">
                   Email Công Việc *
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="VD: minh@thehori.click"
+                  placeholder="vananh@thehori.click"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-neutral-300 rounded-xl text-neutral-900 focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-neutral-300 mb-1.5">
+                <label className="block font-bold text-neutral-700 mb-1.5">
                   Số Điện Thoại Liên Hệ
                 </label>
                 <input
                   type="text"
-                  placeholder="VD: 0912 345 678"
+                  placeholder="0912 345 678"
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-neutral-300 rounded-xl text-neutral-900 focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-neutral-300 mb-1.5">
+                <label className="block font-bold text-neutral-700 mb-1.5">
                   Chức Danh / Vị Trí Công Tác
                 </label>
                 <input
                   type="text"
-                  placeholder="VD: Biên Tập Viên Trưởng Ban Tài Chính"
+                  placeholder="Phóng viên Tài chính & Đầu tư"
                   value={form.roleName}
                   onChange={(e) => setForm({ ...form, roleName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-neutral-300 rounded-xl text-neutral-900 focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-neutral-300 mb-1.5">
+                <label className="block font-bold text-neutral-700 mb-1.5">
                   Ngày Gia Nhập Tòa Soạn
                 </label>
                 <input
                   type="date"
                   value={form.joinDate}
                   onChange={(e) => setForm({ ...form, joinDate: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-neutral-300 rounded-xl text-neutral-900 focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-neutral-300 mb-1.5">
+                <label className="block font-bold text-neutral-700 mb-1.5">
                   Trạng Thái Làm Việc
                 </label>
                 <select
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-neutral-300 rounded-xl text-neutral-900 focus:outline-none focus:border-blue-500 font-semibold"
                 >
                   <option value="active">Đang làm việc</option>
                   <option value="writing">Đang viết bài</option>
@@ -284,34 +330,35 @@ export const AdminStaffNew = () => {
             </div>
           </div>
 
-          {/* SECTION 2: RBAC Matrix */}
-          <div className="p-6 bg-[#111726] rounded-3xl border border-[#1e293b] shadow-md space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-[#1e293b]">
-              <div className="flex items-center gap-2 text-purple-400 font-bold text-xs uppercase font-mono">
+          {/* SECTION 2: Granular RBAC Permissions */}
+          <div className="p-6 bg-white rounded-3xl border border-neutral-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-neutral-200">
+              <div className="flex items-center gap-2 text-purple-600 font-bold text-xs uppercase font-mono">
                 <ShieldCheck className="w-4 h-4" />
-                <span>2. Ma Trận Phân Quyền Chức Năng (8 Quyền Độc Lập)</span>
+                <span>2. Ma Trận Phân Quyền Chức Năng (7 Quyền Độc Lập)</span>
               </div>
             </div>
 
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-neutral-500">
               Chọn các chức năng cụ thể mà nhân viên này được phép truy cập trong bảng quản trị CMS.
             </p>
 
             <div className="space-y-2.5">
               {PERMISSIONS_CONFIG.map(perm => {
-                const isChecked = Boolean(form.permissions?.[perm.key]);
+                const isChecked = form.role === 'admin' || Boolean(form.permissions?.[perm.key]);
                 return (
                   <label
                     key={perm.key}
                     className={`p-3 rounded-2xl border transition-all flex items-start space-x-3 cursor-pointer ${
                       isChecked 
-                        ? 'bg-[#182234] border-purple-800/80 text-white' 
-                        : 'bg-[#111726] border-[#2a3a54] text-neutral-400 hover:text-white hover:bg-[#151e30]'
+                        ? 'bg-blue-50/50 border-blue-200 text-neutral-900' 
+                        : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={isChecked}
+                      disabled={form.role === 'admin'}
                       onChange={(e) => setForm({
                         ...form,
                         permissions: {
@@ -319,13 +366,13 @@ export const AdminStaffNew = () => {
                           [perm.key]: e.target.checked
                         }
                       })}
-                      className="mt-1 rounded border-[#2a3a54] text-blue-600 focus:ring-0 w-4 h-4"
+                      className="mt-1 rounded border-neutral-300 text-blue-600 focus:ring-0 w-4 h-4"
                     />
                     <div className="space-y-0.5 min-w-0 flex-1">
-                      <span className="text-xs font-bold block text-white">
+                      <span className="text-xs font-bold block text-neutral-900">
                         {perm.label}
                       </span>
-                      <span className="text-[11px] text-neutral-400 block leading-relaxed">
+                      <span className="text-[11px] text-neutral-500 block leading-relaxed">
                         {perm.desc}
                       </span>
                     </div>
@@ -336,52 +383,52 @@ export const AdminStaffNew = () => {
           </div>
         </div>
 
-        {/* RIGHT 5 COLS: Credentials & Payroll */}
+        {/* RIGHT 5 COLS: Account Credentials, Seeding Code & Payroll Initial */}
         <div className="lg:col-span-5 space-y-6">
           {/* SECTION 3: Account Credentials */}
-          <div className="p-6 bg-[#111726] rounded-3xl border border-[#1e293b] shadow-md space-y-4">
-            <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase font-mono pb-2 border-b border-[#1e293b]">
+          <div className="p-6 bg-white rounded-3xl border border-neutral-200 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 text-blue-600 font-bold text-xs uppercase font-mono pb-2 border-b border-neutral-200">
               <Key className="w-4 h-4" />
               <span>3. Tài Khoản Đăng Nhập CMS (Admin Cấp)</span>
             </div>
 
             <div className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-bold text-neutral-300 mb-1.5">
+                <label className="block font-bold text-neutral-700 mb-1.5">
                   Tên Đăng Nhập (Username) *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="VD: quangminh, linh, thuy..."
+                  placeholder="vananh"
                   value={form.username}
                   onChange={(e) => setForm({ ...form, username: e.target.value.toLowerCase().trim() })}
-                  className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-white font-mono focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-neutral-300 rounded-xl text-neutral-900 font-mono focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-neutral-300 mb-1.5">
-                  Mật Khẩu Truy Cập Ban Đầu *
+                <label className="block font-bold text-neutral-700 mb-1.5">
+                  Mật Khẩu Truy Cập *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="VD: 123456"
+                  placeholder="Nhập mật khẩu..."
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-white font-mono focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-neutral-300 rounded-xl text-neutral-900 font-mono focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-neutral-300 mb-1.5">
+                <label className="block font-bold text-neutral-700 mb-1.5">
                   Nhóm Quyền Hệ Thống
                 </label>
                 <select
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-white font-bold focus:outline-none focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-neutral-300 rounded-xl text-neutral-900 font-bold focus:outline-none focus:border-blue-500"
                 >
                   <option value="editor">Editor (Biên tập viên / CTV)</option>
                   <option value="admin">Admin (Tổng biên tập - Toàn quyền)</option>
@@ -391,40 +438,40 @@ export const AdminStaffNew = () => {
           </div>
 
           {/* SECTION 4: Seeding Code */}
-          <div className="p-6 bg-[#111726] rounded-3xl border border-[#1e293b] shadow-md space-y-4">
-            <div className="flex items-center gap-2 text-purple-400 font-bold text-xs uppercase font-mono pb-2 border-b border-[#1e293b]">
+          <div className="p-6 bg-white rounded-3xl border border-neutral-200 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 text-purple-600 font-bold text-xs uppercase font-mono pb-2 border-b border-neutral-200">
               <TrendingUp className="w-4 h-4" />
-              <span>4. Cấp Mã Tiếp Thị Seeding (?ref=...)</span>
+              <span>4. Mã Tiếp Thị Seeding (?ref=...)</span>
             </div>
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-neutral-300 mb-1.5">
+                <label className="block font-bold text-neutral-700 mb-1.5">
                   Mã Nhận Diện Seeding (Ref Code)
                 </label>
                 <input
                   type="text"
-                  placeholder="VD: MINH, AN, QB, TECH..."
+                  placeholder="VD: VA99"
                   value={form.refCode}
                   onChange={(e) => setForm({ ...form, refCode: e.target.value.toUpperCase().trim() })}
-                  className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-purple-300 font-mono font-bold uppercase focus:outline-none focus:border-purple-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-neutral-300 rounded-xl text-purple-700 font-mono font-bold uppercase focus:outline-none focus:border-purple-500"
                 />
               </div>
 
               {form.refCode && (
-                <div className="p-3 bg-[#182234] rounded-xl border border-purple-800/60 space-y-2">
-                  <span className="text-[10px] font-mono text-purple-400 uppercase font-semibold block">Đường Dẫn Seeding Tự Động:</span>
+                <div className="p-3 bg-neutral-50 rounded-xl border border-purple-200 space-y-2">
+                  <span className="text-[10px] font-mono text-purple-700 uppercase font-semibold block">Đường Dẫn Seeding:</span>
                   <div className="flex items-center gap-1.5">
                     <input 
                       type="text" 
                       readOnly 
                       value={`${window.location.origin}/?ref=${form.refCode.toUpperCase()}`} 
-                      className="w-full px-2 py-1.5 bg-[#0d131f] border border-[#2a3a54] rounded text-[11px] font-mono text-purple-300"
+                      className="w-full px-2 py-1.5 bg-white border border-neutral-300 rounded text-[11px] font-mono text-purple-700"
                     />
                     <button
                       type="button"
                       onClick={handleCopyLink}
-                      className="p-1.5 bg-purple-900/80 hover:bg-purple-800 text-purple-200 rounded transition-colors"
+                      className="p-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded border border-purple-200 transition-colors"
                       title="Sao chép link Seeding"
                     >
                       <Copy className="w-3.5 h-3.5" />
@@ -435,32 +482,36 @@ export const AdminStaffNew = () => {
             </div>
           </div>
 
-          {/* SECTION 5: Initial Salary */}
-          <div className="p-6 bg-[#111726] rounded-3xl border border-[#1e293b] shadow-md space-y-4">
-            <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase font-mono pb-2 border-b border-[#1e293b]">
-              <CreditCard className="w-4 h-4" />
-              <span>5. Lương Cứng & Đãi Ngộ Ban Đầu</span>
+          {/* SECTION 5: Initial Payroll Settings */}
+          <div className="p-6 bg-white rounded-3xl border border-neutral-200 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 text-emerald-600 font-bold text-xs uppercase font-mono pb-2 border-b border-neutral-200">
+              <DollarSign className="w-4 h-4" />
+              <span>5. Thiết Lập Lương Cơ Bản Kỳ Này</span>
             </div>
 
-            <div className="space-y-3.5 text-xs">
+            <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-neutral-300 mb-1.5">
-                  Lương Cứng Cơ Bản (VND)
+                <label className="block font-bold text-neutral-700 mb-1.5">
+                  Lương Cứng / Tháng (VNĐ)
                 </label>
                 <input
                   type="number"
-                  step="500000"
                   value={form.baseSalary}
                   onChange={(e) => setForm({ ...form, baseSalary: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-[#182234] border border-[#2a3a54] rounded-xl text-white font-mono focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-neutral-300 rounded-xl text-neutral-900 font-mono font-bold focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
-              <div className="p-3 bg-[#182234] rounded-xl border border-[#2a3a54] flex items-center justify-between text-xs">
-                <span className="text-neutral-400">Lương Thực Nhận (Net):</span>
-                <span className="font-mono font-bold text-emerald-400 text-sm">
-                  {Number(form.baseSalary).toLocaleString('vi-VN')} VND
-                </span>
+              <div>
+                <label className="block font-bold text-neutral-700 mb-1.5">
+                  Thưởng Năng Suất / KPI (VNĐ)
+                </label>
+                <input
+                  type="number"
+                  value={form.kpiBonus}
+                  onChange={(e) => setForm({ ...form, kpiBonus: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-white border border-neutral-300 rounded-xl text-neutral-900 font-mono focus:outline-none focus:border-emerald-500"
+                />
               </div>
             </div>
           </div>

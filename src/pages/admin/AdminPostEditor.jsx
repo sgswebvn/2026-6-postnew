@@ -57,9 +57,17 @@ const SAMPLE_COVERS = [
 ];
 
 export const AdminPostEditor = ({ postId }) => {
-  const { posts, categories, authors, savePost, addCategory, navigate, showToast, showPrompt } = useBlog();
+  const { posts, categories, authors, savePost, addCategory, navigate, showToast, showPrompt, userRole, currentUser } = useBlog();
 
+  const isGlobalAdmin = userRole === 'admin' || currentUser?.role === 'admin';
   const existingPost = postId ? posts.find(p => p.id === postId) : null;
+
+  // Check if staff has permission to edit this post
+  const isPostOwner = !existingPost || isGlobalAdmin || (
+    (existingPost.createdById && existingPost.createdById === currentUser?.id) ||
+    (existingPost.authorId && (existingPost.authorId === currentUser?.id || existingPost.authorId === currentUser?.authorId)) ||
+    (existingPost.authorName && currentUser?.name && existingPost.authorName.toLowerCase() === currentUser?.name.toLowerCase())
+  );
 
   const [formData, setFormData] = useState({
     title: '',
@@ -67,7 +75,7 @@ export const AdminPostEditor = ({ postId }) => {
     excerpt: '',
     coverImage: SAMPLE_COVERS[0].url,
     categoryId: categories[0]?.id || 'cat-money',
-    authorId: authors[0]?.id || 'author-1',
+    authorId: currentUser?.authorId || currentUser?.id || authors[0]?.id || 'author-1',
     factCheckerId: authors[1]?.id || 'author-2',
     readTime: '6 phút đọc',
     status: 'published',
@@ -77,7 +85,9 @@ export const AdminPostEditor = ({ postId }) => {
     metaDescription: '',
     focusKeyword: '',
     enableAds: true,
-    content: ''
+    content: '',
+    createdById: currentUser?.id || '',
+    createdByName: currentUser?.name || ''
   });
 
   const [activeTab, setActiveTab] = useState('write'); // 'write' or 'preview'
@@ -518,6 +528,12 @@ export const AdminPostEditor = ({ postId }) => {
         tags: tagsArray,
         id: existingPost ? existingPost.id : undefined,
         slug: formData.slug || generateSlug(formData.title),
+        createdById: existingPost?.createdById || currentUser?.id || 'admin',
+        createdByName: existingPost?.createdByName || currentUser?.name || 'Admin',
+        authorId: isGlobalAdmin ? formData.authorId : (existingPost?.authorId || currentUser?.authorId || currentUser?.id || 'author-1'),
+        authorName: isGlobalAdmin 
+          ? (authors.find(a => a.id === formData.authorId)?.name || formData.authorName || currentUser?.name)
+          : (existingPost?.authorName || currentUser?.name)
       };
 
       await savePost(postPayload);
@@ -529,6 +545,32 @@ export const AdminPostEditor = ({ postId }) => {
       setIsSubmitting(false);
     }
   };
+
+  // Guard: if existing post is not owned by current staff
+  if (existingPost && !isPostOwner) {
+    return (
+      <div className="max-w-2xl mx-auto py-16 px-4 text-center animate-fadeIn">
+        <div className="bg-white rounded-3xl border border-neutral-200 p-8 sm:p-12 space-y-4 shadow-sm">
+          <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-xs">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="font-serif text-2xl font-bold text-neutral-900">Không Có Quyền Chỉnh Sửa Bài Viết Này</h2>
+          <p className="text-sm text-neutral-600 max-w-md mx-auto">
+            Bài viết này do tài khoản khác tạo. Bạn chỉ có quyền chỉnh sửa bài viết do chính bạn ({currentUser?.name || 'Tài khoản của bạn'}) đăng tải.
+          </p>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => navigate('/admin/posts')}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold font-mono transition-all"
+            >
+              ← Về Danh Sách Bài Viết Của Bạn
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // SEO Score Calculations
   const metaTitleLength = (formData.metaTitle || formData.title || '').length;
@@ -1208,15 +1250,24 @@ export const AdminPostEditor = ({ postId }) => {
               <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">
                 Tác Giả Biên Soạn
               </label>
-              <select
-                value={formData.authorId}
-                onChange={(e) => setFormData({ ...formData, authorId: e.target.value })}
-                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs"
-              >
-                {authors.map(a => (
-                  <option key={a.id} value={a.id}>{a.name} ({a.role})</option>
-                ))}
-              </select>
+              {isGlobalAdmin ? (
+                <select
+                  value={formData.authorId}
+                  onChange={(e) => setFormData({ ...formData, authorId: e.target.value })}
+                  className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs font-semibold"
+                >
+                  {authors.map(a => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.role})</option>
+                  ))}
+                </select>
+              ) : (
+                <div className="p-2.5 bg-neutral-50 border border-neutral-200 rounded-xl flex items-center justify-between text-xs">
+                  <span className="font-bold text-neutral-900">{currentUser?.name || 'Tài khoản của bạn'}</span>
+                  <span className="text-[10px] font-mono text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 font-bold">
+                    Tác Giả Sở Hữu
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>

@@ -16,14 +16,24 @@ import {
 } from 'lucide-react';
 
 export const AdminPostsList = () => {
-  const { posts, categories, navigate, deletePost, savePost, showToast, showConfirm } = useBlog();
+  const { posts, categories, navigate, deletePost, savePost, showToast, showConfirm, userRole, currentUser } = useBlog();
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const filteredPosts = posts.filter(p => {
+  // Admin sees all posts. Staff only sees and manages their own posts!
+  const isGlobalAdmin = userRole === 'admin' || currentUser?.role === 'admin';
+  const visiblePosts = isGlobalAdmin
+    ? posts
+    : posts.filter(p => 
+        (p.createdById && p.createdById === currentUser?.id) || 
+        (p.authorId && (p.authorId === currentUser?.id || p.authorId === currentUser?.authorId)) ||
+        (p.authorName && currentUser?.name && p.authorName.toLowerCase() === currentUser?.name.toLowerCase())
+      );
+
+  const filteredPosts = visiblePosts.filter(p => {
     const matchesSearch = 
       p.title.toLowerCase().includes(search.toLowerCase()) ||
       p.slug.toLowerCase().includes(search.toLowerCase());
@@ -74,14 +84,16 @@ export const AdminPostsList = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="font-serif text-2xl sm:text-3xl font-extrabold text-neutral-950 dark:text-neutral-50">
-              Quản Lý Kho Bài Viết
+              {isGlobalAdmin ? 'Quản Lý Kho Bài Viết (Toàn Bộ)' : 'Bài Viết Của Tôi'}
             </h1>
             <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 text-xs font-mono font-bold">
-              Tổng số: {posts.length} bài
+              {isGlobalAdmin ? `Tổng số: ${posts.length} bài` : `Của bạn: ${visiblePosts.length} bài`}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-neutral-500 mt-1">
-            Quản lý số thứ tự (STT), phân trang bài viết, kiểm duyệt nội dung và bật/tắt quảng cáo AdSense.
+            {isGlobalAdmin 
+              ? 'Tài khoản Quản Trị Viên (Admin) có toàn quyền chỉnh sửa và quản lý tất cả bài viết của tòa soạn.'
+              : `Bạn đang quản lý các bài viết do chính bạn (${currentUser?.name || 'Cộng tác viên'}) biên soạn và đăng tải.`}
           </p>
         </div>
 

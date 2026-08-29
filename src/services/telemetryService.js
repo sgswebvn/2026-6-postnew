@@ -63,6 +63,17 @@ export const telemetryService = {
     return session;
   },
 
+  // Send Direct Google Analytics 4 (GA4) Event
+  sendGA4Event(eventName, params = {}) {
+    if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+      try {
+        window.gtag('event', eventName, params);
+      } catch (e) {
+        console.warn('[GA4 Forwarding Warning]', e);
+      }
+    }
+  },
+
   // Record an explicit telemetry event
   trackEvent(eventName, payload = {}) {
     const session = this.getSessionInfo();
@@ -85,6 +96,13 @@ export const telemetryService = {
       console.warn('[Telemetry Warning] Failed to persist event:', e);
     }
 
+    // Forward to GA4
+    this.sendGA4Event(eventName, {
+      ...payload,
+      staff_ref: refCode || '',
+      session_id: session.sessionId
+    });
+
     // Log to console in development mode
     if (typeof window !== 'undefined' && window.__HORIZON_DEBUG__) {
       console.log(`📡 [Telemetry Tracked] ${eventName}:`, payload);
@@ -104,6 +122,29 @@ export const telemetryService = {
     if (!session.articlesRead.includes(postSlug)) {
       session.articlesRead.push(postSlug);
       localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+
+    // Forward to GA4 with staff attribution
+    this.sendGA4Event('page_view', {
+      page_title: postTitle,
+      page_location: window.location.href,
+      page_path: window.location.pathname,
+      staff_ref: refCode || 'DIRECT',
+      staff_code: refCode || 'DIRECT'
+    });
+
+    if (refCode) {
+      this.sendGA4Event('seeding_referral_click', {
+        staff_code: refCode,
+        post_slug: postSlug,
+        post_title: postTitle,
+        referral_url: window.location.href
+      });
+      if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+        window.gtag('set', 'user_properties', {
+          staff_referral_code: refCode
+        });
+      }
     }
 
     this.trackEvent('article_view_start', { postSlug, postTitle, staffRef: refCode });

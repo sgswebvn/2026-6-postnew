@@ -4,10 +4,8 @@ import { storageService } from '../services/storageService';
 import { telemetryService } from '../services/telemetryService';
 import { Badge } from '../components/common/Badge';
 import { AdSenseUnit } from '../components/ads/AdSenseUnit';
-import { TableOfContents } from '../components/blog/TableOfContents';
 import { AuthorBioCard } from '../components/blog/AuthorBioCard';
 import { SocialShareBar } from '../components/blog/SocialShareBar';
-import { CommentsSection } from '../components/blog/CommentsSection';
 import { ArticleCard } from '../components/blog/ArticleCard';
 import { NewsletterBox } from '../components/blog/NewsletterBox';
 import { ReadingProgressBar } from '../components/layout/ReadingProgressBar';
@@ -488,9 +486,6 @@ export const PostDetailPage = ({ slug }) => {
                 </div>
               </div>
             )}
-
-            {/* Comments & Discussion */}
-            <CommentsSection postId={post.id} />
           </article>
 
           {/* Right 4 Cols: Sticky Sidebar with High RPM Ad Unit */}
