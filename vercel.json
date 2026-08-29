@@ -12,17 +12,6 @@
       "destination": "/api/index.js"
     },
     {
-      "source": "/post/(.*)",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": ".*([fF]acebook|[fF]acebot|[zZ]alo|[tT]witter|[tT]elegram|[sS]lack|[wW]hatsApp|[lL]inkedIn|[pP]interest|[dD]iscord|[gG]oogle|[bB]ing).*"
-        }
-      ],
-      "destination": "/api/index.js"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
