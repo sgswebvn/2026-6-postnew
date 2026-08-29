@@ -8,11 +8,18 @@
       "destination": "/api/index.js"
     },
     {
-      "source": "/post/(.*)",
+      "source": "/s/(.*)",
       "destination": "/api/index.js"
     },
     {
-      "source": "/s/(.*)",
+      "source": "/post/(.*)",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|facebook|zalo|Twitterbot|TelegramBot|Slackbot|WhatsApp|LinkedInBot|Pinterest|Discordbot|Googlebot|bingbot).*"
+        }
+      ],
       "destination": "/api/index.js"
     },
     {
