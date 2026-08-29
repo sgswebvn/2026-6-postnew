@@ -171,52 +171,82 @@ export const AdminPostEditor = ({ postId }) => {
     }));
   };
 
+  const textareaRef = React.useRef(null);
+
   const handleInsertHtml = (tag) => {
-    let insertSnippet = '';
+    const textarea = textareaRef.current;
+    const content = formData.content || '';
+    
+    let startPos = 0;
+    let endPos = 0;
+    let selectedText = '';
+
+    if (textarea) {
+      startPos = textarea.selectionStart;
+      endPos = textarea.selectionEnd;
+      selectedText = content.substring(startPos, endPos);
+    }
+
+    let replacement = '';
+
     switch (tag) {
       case 'h2':
-        insertSnippet = '\n<h2>Tiêu Đề Mục Chính (Heading 2)</h2>\n<p>Nội dung phân tích chuyên sâu...</p>\n';
+        replacement = selectedText ? `\n<h2>${selectedText}</h2>\n` : '\n<h2>Tiêu Đề Mục Chính (Heading 2)</h2>\n<p>Nội dung phân tích...</p>\n';
         break;
       case 'h3':
-        insertSnippet = '\n<h3>Tiêu Đề Mục Phụ (Heading 3)</h3>\n';
+        replacement = selectedText ? `\n<h3>${selectedText}</h3>\n` : '\n<h3>Tiêu Đề Mục Phụ (Heading 3)</h3>\n';
         break;
       case 'bold':
-        insertSnippet = ' <strong>từ khóa quan trọng</strong> ';
+        replacement = selectedText ? `<strong>${selectedText}</strong>` : '<strong>từ khóa in đậm</strong>';
         break;
       case 'italic':
-        insertSnippet = ' <em>ghi chú đặc biệt</em> ';
+        replacement = selectedText ? `<em>${selectedText}</em>` : '<em>chữ in nghiêng</em>';
         break;
       case 'quote':
-        insertSnippet = '\n<blockquote>\n  "Trích dẫn câu nói nổi tiếng hoặc nhận định đắt giá từ chuyên gia."\n</blockquote>\n';
+        replacement = selectedText ? `\n<blockquote>${selectedText}</blockquote>\n` : '\n<blockquote>\n  "Trích dẫn câu nói quan trọng hoặc nhận định từ chuyên gia."\n</blockquote>\n';
         break;
       case 'callout':
-        insertSnippet = '\n<div class="my-6 p-4 bg-blue-50 dark:bg-blue-950/40 border-l-4 border-blue-600 rounded-r-lg">\n  <h4 class="font-bold text-blue-900 dark:text-blue-200">Điểm Nhấn Chiến Lược</h4>\n  <p class="text-xs text-blue-800 dark:text-blue-300">Tóm tắt lợi ích quan trọng nhất cho độc giả...</p>\n</div>\n';
+        replacement = `\n<div class="my-6 p-4 bg-blue-50 dark:bg-blue-950/40 border-l-4 border-blue-600 rounded-r-lg">\n  <h4 class="font-bold text-blue-900 dark:text-blue-200">Điểm Nhấn Chiến Lược</h4>\n  <p class="text-sm text-blue-800 dark:text-blue-300">${selectedText || 'Tóm tắt lợi ích quan trọng nhất cho độc giả...'}</p>\n</div>\n`;
         break;
       case 'table':
-        insertSnippet = `
+        replacement = `
 <div class="overflow-x-auto my-6">
   <table class="min-w-full text-left text-sm border border-neutral-200 dark:border-neutral-800 rounded-lg">
     <thead class="bg-neutral-100 dark:bg-neutral-800 font-semibold">
       <tr><th class="p-3">Hạng Mục</th><th class="p-3">Chỉ Số</th><th class="p-3">Đánh Giá</th></tr>
     </thead>
     <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
-      <tr><td class="p-3">Mô Hình A</td><td class="p-3">+15.4%</td><td class="p-3 text-emerald-600">Xuất Sắc</td></tr>
+      <tr><td class="p-3">Mô Hình A</td><td class="p-3">+15.4%</td><td class="p-3 text-emerald-600 font-bold">Xuất Sắc</td></tr>
     </tbody>
   </table>
 </div>
 `;
         break;
       case 'list':
-        insertSnippet = '\n<ul>\n  <li>Ý phân tích quan trọng 1</li>\n  <li>Ý phân tích quan trọng 2</li>\n</ul>\n';
+        if (selectedText) {
+          const items = selectedText.split('\n').filter(Boolean).map(item => `  <li>${item}</li>`).join('\n');
+          replacement = `\n<ul>\n${items}\n</ul>\n`;
+        } else {
+          replacement = '\n<ul>\n  <li>Ý phân tích quan trọng 1</li>\n  <li>Ý phân tích quan trọng 2</li>\n</ul>\n';
+        }
         break;
       default:
         break;
     }
 
-    setFormData(prev => ({
-      ...prev,
-      content: prev.content + insertSnippet
-    }));
+    if (textarea && typeof startPos === 'number' && typeof endPos === 'number') {
+      const newContent = content.substring(0, startPos) + replacement + content.substring(endPos);
+      setFormData(prev => ({ ...prev, content: newContent }));
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(startPos + replacement.length, startPos + replacement.length);
+      }, 50);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        content: prev.content ? prev.content + replacement : replacement
+      }));
+    }
   };
 
   const handleInsertYouTube = () => {
@@ -399,8 +429,13 @@ export const AdminPostEditor = ({ postId }) => {
         .map(t => t.trim())
         .filter(Boolean);
 
+      // Auto-extract a clean 160-character lead excerpt from content
+      const plainTextContent = formData.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      const cleanExcerpt = formData.excerpt || (plainTextContent.length > 160 ? plainTextContent.slice(0, 160) + '...' : plainTextContent);
+
       const postPayload = {
         ...formData,
+        excerpt: cleanExcerpt,
         tags: tagsArray,
         id: existingPost ? existingPost.id : undefined,
         slug: formData.slug || generateSlug(formData.title),
@@ -456,10 +491,11 @@ export const AdminPostEditor = ({ postId }) => {
 
           <button
             type="submit"
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg active:scale-95 transition-all"
+            disabled={isSubmitting}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg active:scale-95 transition-all disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            <span>{existingPost ? 'Lưu Thay Đổi' : 'Xuất Bản Bài Viết'}</span>
+            <span>{isSubmitting ? 'Đang Lưu...' : (existingPost ? 'Lưu Thay Đổi' : 'Xuất Bản Bài Viết')}</span>
           </button>
         </div>
       </div>
@@ -468,18 +504,18 @@ export const AdminPostEditor = ({ postId }) => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left 8 Cols: Title & Rich Content */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Headline & Basic Info */}
+          {/* Article Title & Basic Meta */}
           <div className="p-6 bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300 mb-1.5">
-                Tiêu Đề Bài Viết (Chuẩn Báo Chí Mỹ) *
+              <label className="block text-xs font-bold uppercase text-neutral-700 dark:text-neutral-300 mb-1">
+                Tiêu Đề Bài Báo Phân Tích (Headline) *
               </label>
               <input
                 type="text"
-                placeholder="Ví dụ: Chiến Lược Tối Ưu Dòng Tiền Lãi Suất Cao Cho Nhà Đầu Tư Thông Minh"
+                placeholder="Nhập tiêu đề ấn tượng, có từ khóa và số liệu hấp dẫn độc giả..."
                 value={formData.title}
                 onChange={handleTitleChange}
-                className="w-full px-4 py-3 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-base font-serif font-bold text-neutral-900 dark:text-neutral-50 focus:outline-none focus:border-blue-500"
+                className="w-full px-4 py-3 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl font-serif text-lg font-bold text-neutral-900 dark:text-neutral-50 focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
@@ -487,7 +523,7 @@ export const AdminPostEditor = ({ postId }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-bold uppercase text-neutral-500 mb-1">
-                  Đường dẫn tĩnh (Slug URL)
+                  Đường Dẫn Thân Thiện (URL Slug)
                 </label>
                 <input
                   type="text"
@@ -509,20 +545,6 @@ export const AdminPostEditor = ({ postId }) => {
                   className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs"
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold uppercase text-neutral-500 mb-1">
-                Đoạn Tóm Tắt Mở Đầu (Lead Excerpt) *
-              </label>
-              <textarea
-                rows="2"
-                placeholder="Đoạn mở đầu súc tích 2-3 câu làm nổi bật giá trị bài viết cho người đọc..."
-                value={formData.excerpt}
-                onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
-                className="w-full px-3.5 py-2 text-xs bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl focus:outline-none focus:border-blue-500"
-                required
-              ></textarea>
             </div>
           </div>
 
@@ -607,17 +629,27 @@ export const AdminPostEditor = ({ postId }) => {
             <div className="p-4 sm:p-6">
               {activeTab === 'write' ? (
                 <textarea
+                  ref={textareaRef}
                   rows="16"
-                  placeholder="Nhập nội dung bài viết chi tiết..."
+                  placeholder="Nhập nội dung bài viết chi tiết... (Tô chọn chữ và bấm H2, H3 hoặc In Đậm trên thanh công cụ để định dạng tức thì)"
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="w-full font-mono text-sm bg-transparent border-0 focus:outline-none text-neutral-900 dark:text-neutral-100 leading-relaxed resize-y"
+                  className="w-full font-mono text-sm bg-transparent border-0 focus:outline-none text-neutral-900 dark:text-neutral-100 leading-relaxed resize-y min-h-[350px]"
                   required
                 ></textarea>
               ) : (
                 <div 
                   className="editorial-prose min-h-[300px]"
-                  dangerouslySetInnerHTML={{ __html: formData.content || '<p class="text-neutral-400">Chưa có nội dung...</p>' }}
+                  dangerouslySetInnerHTML={{ 
+                    __html: (formData.content && /<(p|div|h[1-6]|ul|ol|table|blockquote|figure)\b[^>]*>/i.test(formData.content))
+                      ? formData.content 
+                      : (formData.content || '')
+                          .split(/\n\s*\n/)
+                          .map(p => p.trim())
+                          .filter(Boolean)
+                          .map(p => `<p>${p.replace(/\n/g, '<br />')}</p>`)
+                          .join('\n') || '<p class="text-neutral-400">Chưa có nội dung...</p>'
+                  }}
                 />
               )}
             </div>

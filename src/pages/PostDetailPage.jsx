@@ -343,7 +343,16 @@ export const PostDetailPage = ({ slug }) => {
             {/* Main Editorial HTML Content Body */}
             <div 
               className={`editorial-prose font-sans ${fontSizeClasses[fontSize]}`}
-              dangerouslySetInnerHTML={{ __html: post.content }}
+              dangerouslySetInnerHTML={{ 
+                __html: (post.content && /<(p|div|h[1-6]|ul|ol|table|blockquote|figure)\b[^>]*>/i.test(post.content))
+                  ? post.content 
+                  : (post.content || '')
+                      .split(/\n\s*\n/)
+                      .map(p => p.trim())
+                      .filter(Boolean)
+                      .map(p => `<p>${p.replace(/\n/g, '<br />')}</p>`)
+                      .join('\n')
+              }}
             />
 
             {/* In-Article Mid Ad Unit */}
