@@ -3,7 +3,7 @@ import { useBlog } from '../../context/BlogContext';
 import { Users, Plus, Edit2, Trash2, Check, ShieldCheck, CheckCircle } from 'lucide-react';
 
 export const AdminAuthors = () => {
-  const { authors, updateAuthors, showToast, showConfirm } = useBlog();
+  const { posts, authors, updateAuthors, showToast, showConfirm } = useBlog();
   const [editingId, setEditingId] = useState(null);
   const [newAuthor, setNewAuthor] = useState({
     name: '',
