@@ -17,7 +17,7 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": "(?i).*(facebookexternalhit|Facebot|facebook|zalo|Twitterbot|TelegramBot|Slackbot|WhatsApp|LinkedInBot|Pinterest|Discordbot|Googlebot|bingbot).*"
+          "value": ".*([fF]acebook|[fF]acebot|[zZ]alo|[tT]witter|[tT]elegram|[sS]lack|[wW]hatsApp|[lL]inkedIn|[pP]interest|[dD]iscord|[gG]oogle|[bB]ing).*"
         }
       ],
       "destination": "/api/index.js"

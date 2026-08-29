@@ -20,6 +20,7 @@ import { ActivityLog } from './models/ActivityLog.js';
 
 let isConnected = false;
 let isInMemoryFallback = false;
+let connectionPromise = null;
 
 // In-Memory dynamic cache for 100% resilient fallback
 export const memoryStore = {
@@ -35,31 +36,46 @@ export const memoryStore = {
 };
 
 export async function connectDB() {
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/horizon_blog';
-
-  try {
-    console.log(`[MongoDB] Connecting to database at: ${mongoUri.replace(/:\/\/.*@/, '://***@')} ...`);
-    
-    // Set 15 second timeout for reliable Atlas DNS & TLS Handshake
-    await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 15000,
-      connectTimeoutMS: 15000,
-    });
-
-    isConnected = true;
-    isInMemoryFallback = false;
-    console.log('[MongoDB] Connected successfully to MongoDB Database!');
-
-    // Initialize & Seed Collections if needed
-    await seedDatabase();
-  } catch (err) {
-    console.warn(`[MongoDB Warning] Could not connect to external MongoDB daemon (${err.message}).`);
-    console.log('[MongoDB] Activating high-performance Embedded In-Memory Database Engine...');
-    isConnected = true;
-    isInMemoryFallback = true;
+  if (isConnected || isInMemoryFallback) {
+    return { isConnected, isInMemoryFallback };
   }
 
-  return { isConnected, isInMemoryFallback };
+  if (mongoose.connection && mongoose.connection.readyState === 1) {
+    isConnected = true;
+    return { isConnected, isInMemoryFallback: false };
+  }
+
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) {
+    isConnected = true;
+    isInMemoryFallback = true;
+    return { isConnected, isInMemoryFallback };
+  }
+
+  if (connectionPromise) {
+    return connectionPromise;
+  }
+
+  connectionPromise = (async () => {
+    try {
+      await mongoose.connect(mongoUri, {
+        serverSelectionTimeoutMS: 3000,
+        connectTimeoutMS: 3000,
+      });
+
+      isConnected = true;
+      isInMemoryFallback = false;
+      console.log('[MongoDB] Connected successfully to MongoDB Database!');
+      await seedDatabase();
+    } catch (err) {
+      console.warn(`[MongoDB Warning] Could not connect to MongoDB (${err.message}). Using in-memory engine.`);
+      isConnected = true;
+      isInMemoryFallback = true;
+    }
+    return { isConnected, isInMemoryFallback };
+  })();
+
+  return connectionPromise;
 }
 
 export async function seedDatabase() {

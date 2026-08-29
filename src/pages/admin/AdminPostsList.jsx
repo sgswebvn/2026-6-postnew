@@ -8,13 +8,13 @@ import {
   Trash2, 
   ExternalLink, 
   Eye, 
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
-  FileText,
-  Copy,
-  Link2,
-  Zap
+  ChevronLeft, 
+  ChevronRight, 
+  Sparkles, 
+  FileText, 
+  Copy, 
+  Link2, 
+  Zap 
 } from 'lucide-react';
 import { ShortLinkModal } from '../../components/admin/ShortLinkModal';
 
@@ -254,7 +254,7 @@ export const AdminPostsList = () => {
                           className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-semibold border transition-all ${
                             post.enableAds
                               ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800'
-                              : 'bg-neutral-100 text-neutral-400 border-neutral-200 dark:bg-neutral-800 dark:border-neutral-700'
+                              : 'bg-neutral-100 text-neutral-400 border-neutral-200 dark:border-neutral-800 dark:border-neutral-700'
                           }`}
                           title="Bấm để bật/tắt quảng cáo AdSense trong bài này"
                         >
@@ -277,12 +277,14 @@ export const AdminPostsList = () => {
                           </button>
                           <button
                             onClick={() => {
-                              const postUrl = `${window.location.origin}/post/${post.slug}`;
+                              const myRef = currentUser?.refCode || (currentUser?.role === 'admin' ? 'QB' : '');
+                              const refQuery = myRef ? `?ref=${myRef}` : '';
+                              const postUrl = `${window.location.origin}/post/${post.slug}${refQuery}`;
                               navigator.clipboard.writeText(postUrl);
-                              showToast('Đã sao chép liên kết bài viết vào clipboard!');
+                              showToast(myRef ? `Đã sao chép link kèm mã Seeding (${myRef})!` : 'Đã sao chép liên kết bài viết!');
                             }}
                             className="p-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded text-emerald-600 dark:text-emerald-400"
-                            title="Sao chép link bài viết 1-Click (để rải link / seeding)"
+                            title="Sao chép link bài viết tự động gắn mã Seeding nhân viên"
                           >
                             <Copy className="w-4 h-4" />
                           </button>
