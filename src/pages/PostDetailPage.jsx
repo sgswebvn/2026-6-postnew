@@ -70,12 +70,27 @@ export const PostDetailPage = ({ slug }) => {
     };
   }, [slug]);
 
-  // 2. Sync Document Title
+  // 2. Sync Document Title and Canonical URL
   useEffect(() => {
     if (post?.title) {
       document.title = `${post.title} | ${settings?.siteName || 'THE HORI CLICK'}`;
     }
-  }, [post?.title, settings?.siteName]);
+    
+    // Add or update canonical URL
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.rel = 'canonical';
+      document.head.appendChild(canonical);
+    }
+    const currentUrl = window.location.origin + window.location.pathname;
+    canonical.href = currentUrl;
+
+    return () => {
+      // Optional cleanup if navigating away
+      if (canonical) canonical.remove();
+    };
+  }, [post?.title, settings?.siteName, slug]);
 
   if (!post) {
     return (

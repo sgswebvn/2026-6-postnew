@@ -70,6 +70,28 @@ router.get('/posts/:slug', async (req, res) => {
   }
 });
 
+router.post('/posts/:slug/view', async (req, res) => {
+  const { slug } = req.params;
+  try {
+    if (isMongooseReady()) {
+      const updated = await Post.findOneAndUpdate(
+        { slug },
+        { $inc: { views: 1 } },
+        { new: true }
+      );
+      if (updated) return res.json(updated);
+    }
+    const post = memoryStore.posts.find(p => p.slug === slug);
+    if (post) {
+      post.views = (post.views || 0) + 1;
+      return res.json(post);
+    }
+    return res.status(404).json({ error: 'Article not found' });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/posts', async (req, res) => {
   try {
     const newPostData = {

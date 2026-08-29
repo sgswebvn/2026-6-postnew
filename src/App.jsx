@@ -18,23 +18,23 @@ import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
 import { TermsPage } from './pages/TermsPage';
 import { DisclaimerPage } from './pages/DisclaimerPage';
 
-// Admin CMS Pages (100% Tiếng Việt)
-import { AdminAuthModal } from './pages/admin/AdminAuthModal';
-import { AdminLayout } from './pages/admin/AdminLayout';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { AdminPostsList } from './pages/admin/AdminPostsList';
-import { AdminPostEditor } from './pages/admin/AdminPostEditor';
-import { AdminCategories } from './pages/admin/AdminCategories';
-import { AdminAdSense } from './pages/admin/AdminAdSense';
-import { AdminComments } from './pages/admin/AdminComments';
-import { AdminSubscribers } from './pages/admin/AdminSubscribers';
-import { AdminAuthors } from './pages/admin/AdminAuthors';
-import { AdminSettings } from './pages/admin/AdminSettings';
-import { AdminStaff } from './pages/admin/AdminStaff';
-import { AdminProfile } from './pages/admin/AdminProfile';
-import { AdminStaffNew } from './pages/admin/AdminStaffNew';
-import { AdminStaffEdit } from './pages/admin/AdminStaffEdit';
-import { AdminStaffSalary } from './pages/admin/AdminStaffSalary';
+// Admin CMS Pages (100% Tiếng Việt) - Lazy Loaded for Code Splitting
+const AdminAuthModal = React.lazy(() => import('./pages/admin/AdminAuthModal').then(module => ({ default: module.AdminAuthModal })));
+const AdminLayout = React.lazy(() => import('./pages/admin/AdminLayout').then(module => ({ default: module.AdminLayout })));
+const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
+const AdminPostsList = React.lazy(() => import('./pages/admin/AdminPostsList').then(module => ({ default: module.AdminPostsList })));
+const AdminPostEditor = React.lazy(() => import('./pages/admin/AdminPostEditor').then(module => ({ default: module.AdminPostEditor })));
+const AdminCategories = React.lazy(() => import('./pages/admin/AdminCategories').then(module => ({ default: module.AdminCategories })));
+const AdminAdSense = React.lazy(() => import('./pages/admin/AdminAdSense').then(module => ({ default: module.AdminAdSense })));
+const AdminComments = React.lazy(() => import('./pages/admin/AdminComments').then(module => ({ default: module.AdminComments })));
+const AdminSubscribers = React.lazy(() => import('./pages/admin/AdminSubscribers').then(module => ({ default: module.AdminSubscribers })));
+const AdminAuthors = React.lazy(() => import('./pages/admin/AdminAuthors').then(module => ({ default: module.AdminAuthors })));
+const AdminSettings = React.lazy(() => import('./pages/admin/AdminSettings').then(module => ({ default: module.AdminSettings })));
+const AdminStaff = React.lazy(() => import('./pages/admin/AdminStaff').then(module => ({ default: module.AdminStaff })));
+const AdminProfile = React.lazy(() => import('./pages/admin/AdminProfile').then(module => ({ default: module.AdminProfile })));
+const AdminStaffNew = React.lazy(() => import('./pages/admin/AdminStaffNew').then(module => ({ default: module.AdminStaffNew })));
+const AdminStaffEdit = React.lazy(() => import('./pages/admin/AdminStaffEdit').then(module => ({ default: module.AdminStaffEdit })));
+const AdminStaffSalary = React.lazy(() => import('./pages/admin/AdminStaffSalary').then(module => ({ default: module.AdminStaffSalary })));
 
 const AppContent = () => {
   const { currentRoute, isAdminAuthenticated, userRole, currentUser, hasPermission } = useBlog();
@@ -217,12 +217,12 @@ const AppContent = () => {
   };
 
   return (
-    <>
+    <React.Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#0a0f18] text-neutral-400 font-mono text-sm">Loading CMS modules...</div>}>
       {renderRoute()}
       <SearchModal />
       <Toast />
       <CustomDialog />
-    </>
+    </React.Suspense>
   );
 };
 
