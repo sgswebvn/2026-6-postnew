@@ -232,36 +232,21 @@ export const storageService = {
   // Posts
   getPosts() {
     const raw = localStorage.getItem(STORAGE_KEYS.POSTS);
-    let list = [];
     if (!raw) {
-      list = initialPosts;
-      localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(list));
-    } else {
-      try {
-        list = JSON.parse(raw);
-        if (!Array.isArray(list)) list = initialPosts;
-      } catch {
-        list = initialPosts;
-      }
+      localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(initialPosts));
+      return initialPosts;
     }
-
-    // Auto-migrate old local /images/ paths to Supabase CDN
-    let migrated = false;
-    list = list.map(post => {
-      if (post.coverImage && post.coverImage.includes('/images/')) {
-        migrated = true;
-        // Simple hash based on string length or index to grab a random post_img
-        const index = (post.slug.length % 35) + 1; 
-        post.coverImage = `https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_${String(index).padStart(2, '0')}.jpg`;
+    try {
+      const list = JSON.parse(raw);
+      // Optional cache bust for old images: if any image is old, force refresh from initialPosts
+      if (Array.isArray(list) && list.some(p => p.coverImage && p.coverImage.includes('/images/'))) {
+        localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(initialPosts));
+        return initialPosts;
       }
-      return post;
-    });
-
-    if (migrated) {
-      localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(list));
+      return Array.isArray(list) ? list : initialPosts;
+    } catch {
+      return initialPosts;
     }
-
-    return list;
   },
 
   async savePost(post) {
