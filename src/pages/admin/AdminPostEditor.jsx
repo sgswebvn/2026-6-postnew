@@ -128,24 +128,32 @@ export const AdminPostEditor = ({ postId }) => {
     }
   }, [existingPost]);
 
-  const generateSlug = (text) => {
-    return text
+  const generateSlug = (text = '') => {
+    let clean = String(text || '')
+      .replace(/<[^>]*>/g, ' ') // Strip HTML tags
+      .replace(/https?:\/\/[^\s]+/gi, '') // Strip full URLs
+      .replace(/www\.[^\s]+/gi, '')
+      .replace(/href\s*=\s*["'][^"']*["']/gi, '')
       .toLowerCase()
       .trim()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[đĐ]/g, 'd')
       .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/[\s-]+/g, '-');
+      .replace(/[\s-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    return clean || `bai-viet-${Date.now().toString(36)}`;
   };
 
   const handleTitleChange = (e) => {
     const title = e.target.value;
+    const isAutoSlug = !formData.slug || formData.slug === generateSlug(formData.title);
     setFormData(prev => ({
       ...prev,
       title,
-      slug: prev.slug || generateSlug(title),
-      metaTitle: prev.metaTitle || title
+      slug: isAutoSlug ? generateSlug(title) : prev.slug,
+      metaTitle: (!prev.metaTitle || prev.metaTitle === prev.title) ? title : prev.metaTitle
     }));
   };
 
@@ -661,12 +669,22 @@ export const AdminPostEditor = ({ postId }) => {
                 <label className="block text-[11px] font-bold uppercase text-neutral-500 mb-1">
                   Đường Dẫn Thân Thiện (URL Slug)
                 </label>
-                <input
-                  type="text"
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-mono"
-                />
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: generateSlug(e.target.value) })}
+                    className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, slug: generateSlug(prev.title) }))}
+                    className="px-2.5 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-300 rounded-lg text-[10px] font-bold font-mono whitespace-nowrap flex-shrink-0"
+                    title="Tự động tạo lại đường dẫn slug chuẩn từ tiêu đề"
+                  >
+                    🔄 Tạo lại
+                  </button>
+                </div>
               </div>
 
               <div>

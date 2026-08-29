@@ -125,14 +125,21 @@ router.post('/posts/:slug/view', async (req, res) => {
 router.post('/posts', async (req, res) => {
   try {
     const rawTitle = req.body.title || 'Untitled Article';
-    const autoSlug = (req.body.slug || rawTitle)
+    const slugInput = String(req.body.slug || rawTitle)
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/https?:\/\/[^\s]+/gi, '')
+      .replace(/www\.[^\s]+/gi, '')
+      .replace(/href\s*=\s*["'][^"']*["']/gi, '');
+
+    const autoSlug = slugInput
       .toLowerCase()
       .trim()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[đĐ]/g, 'd')
       .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/[\s-]+/g, '-') || `post-${Date.now()}`;
+      .replace(/[\s-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || `post-${Date.now()}`;
 
     const newPostData = {
       id: req.body.id || `post-${Date.now()}`,
