@@ -12,8 +12,11 @@ import {
   ChevronRight,
   Sparkles,
   FileText,
-  Copy
+  Copy,
+  Link2,
+  Zap
 } from 'lucide-react';
+import { ShortLinkModal } from '../../components/admin/ShortLinkModal';
 
 export const AdminPostsList = () => {
   const { posts, categories, navigate, deletePost, savePost, showToast, showConfirm, userRole, currentUser } = useBlog();
@@ -22,6 +25,8 @@ export const AdminPostsList = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isShortLinkModalOpen, setIsShortLinkModalOpen] = useState(false);
+  const [selectedShortLinkPost, setSelectedShortLinkPost] = useState(null);
 
   // Admin sees all posts. Staff only sees and manages their own posts!
   const isGlobalAdmin = userRole === 'admin' || currentUser?.role === 'admin';
@@ -97,13 +102,28 @@ export const AdminPostsList = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => navigate('/admin/posts/new')}
-          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md transition-all active:scale-95 self-start sm:self-auto"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Soạn Thảo Bài Mới</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedShortLinkPost(null);
+              setIsShortLinkModalOpen(true);
+            }}
+            className="px-3.5 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold border border-purple-200 flex items-center gap-1.5 transition-all shadow-xs"
+            title="Mở công cụ rút gọn link bài viết để rải seeding MXH"
+          >
+            <Zap className="w-4 h-4 text-purple-600" />
+            <span>🔗 Rút Gọn Link Seeding</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/admin/posts/new')}
+            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Soạn Thảo Bài Mới</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search Controls */}
@@ -247,6 +267,16 @@ export const AdminPostsList = () => {
                         <div className="flex items-center justify-end space-x-1.5">
                           <button
                             onClick={() => {
+                              setSelectedShortLinkPost(post);
+                              setIsShortLinkModalOpen(true);
+                            }}
+                            className="p-1.5 hover:bg-purple-50 rounded text-purple-600"
+                            title="Rút gọn link bài này để rải Seeding"
+                          >
+                            <Link2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
                               const postUrl = `${window.location.origin}/post/${post.slug}`;
                               navigator.clipboard.writeText(postUrl);
                               showToast('Đã sao chép liên kết bài viết vào clipboard!');
@@ -333,6 +363,13 @@ export const AdminPostsList = () => {
           </div>
         )}
       </div>
+
+      {/* Short Link Generator Modal */}
+      <ShortLinkModal
+        isOpen={isShortLinkModalOpen}
+        onClose={() => setIsShortLinkModalOpen(false)}
+        defaultPost={selectedShortLinkPost}
+      />
     </div>
   );
 };

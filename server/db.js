@@ -30,7 +30,8 @@ export const memoryStore = {
   comments: [...initialComments],
   subscribers: [...initialSubscribers],
   staff: [...initialStaffList],
-  activityLogs: [...initialActivityLogs]
+  activityLogs: [...initialActivityLogs],
+  shortLinks: []
 };
 
 export async function connectDB() {

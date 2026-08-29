@@ -16,8 +16,11 @@ import {
   Sparkles,
   CheckCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  Link2,
+  Zap
 } from 'lucide-react';
+import { ShortLinkModal } from '../../components/admin/ShortLinkModal';
 import { storageService } from '../../services/storageService';
 
 const AVATAR_PRESETS = [
@@ -74,6 +77,7 @@ export const AdminProfile = () => {
     confirmPassword: ''
   });
   const [showPass, setShowPass] = useState(false);
+  const [isShortLinkModalOpen, setIsShortLinkModalOpen] = useState(false);
 
   // Seeding referral stats
   const referralData = JSON.parse(localStorage.getItem('horizon_staff_referrals_v2') || '{}');
@@ -506,9 +510,19 @@ export const AdminProfile = () => {
                   <span>Sao Chép Link</span>
                 </button>
               </div>
-              <p className="text-[11px] text-neutral-400">
-                💡 <strong>Mẹo rải link bài viết:</strong> Gắn <code className="text-purple-300 font-mono">?ref={profileForm.refCode || 'SEEK'}</code> vào cuối link bài viết bất kỳ: <code className="text-neutral-300 font-mono">https://www.thehori.click/post/slug?ref={profileForm.refCode || 'SEEK'}</code>
-              </p>
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-[11px] text-neutral-400">
+                  💡 <strong>Mẹo rải link bài viết:</strong> Gắn <code className="text-purple-300 font-mono">?ref={profileForm.refCode || 'SEEK'}</code> vào cuối link bài viết bất kỳ: <code className="text-neutral-300 font-mono">https://www.thehori.click/post/slug?ref={profileForm.refCode || 'SEEK'}</code>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsShortLinkModalOpen(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold font-mono shadow-md flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0"
+                >
+                  <Zap className="w-4 h-4" />
+                  <span>🔗 Mở Công Cụ Rút Gọn Link Bài Viết</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -564,6 +578,13 @@ export const AdminProfile = () => {
           )}
         </div>
       )}
+
+      {/* Short Link Modal */}
+      <ShortLinkModal
+        isOpen={isShortLinkModalOpen}
+        onClose={() => setIsShortLinkModalOpen(false)}
+        defaultPost={null}
+      />
     </div>
   );
 };

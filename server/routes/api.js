@@ -8,6 +8,7 @@ import { Comment } from '../models/Comment.js';
 import { Referral } from '../models/Referral.js';
 import { Staff } from '../models/Staff.js';
 import { ActivityLog } from '../models/ActivityLog.js';
+import { ShortLink } from '../models/ShortLink.js';
 import { memoryStore, getDbStatus } from '../db.js';
 import { 
   initialPosts, 
@@ -728,13 +729,75 @@ router.post('/activity-logs', async (req, res) => {
   }
 });
 
-router.delete('/activity-logs', async (req, res) => {
+// ==========================================
+// 10. SHORTLINKS ENDPOINTS (Seeding URL Shortener)
+// ==========================================
+router.get('/shortlinks', async (req, res) => {
   try {
     if (isMongooseReady()) {
-      await ActivityLog.deleteMany({});
+      const links = await ShortLink.find().sort({ createdAt: -1 });
+      return res.json(links);
+    }
+    return res.json(memoryStore.shortLinks || []);
+  } catch (error) {
+    return res.json(memoryStore.shortLinks || []);
+  }
+});
+
+router.post('/shortlinks', async (req, res) => {
+  try {
+    const { originalUrl, postSlug, postTitle, coverImage, staffCode, staffName, customCode } = req.body;
+    let code = (customCode || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    if (!code) {
+      code = Math.random().toString(36).substring(2, 7);
+    }
+
+    const newLink = {
+      id: `sl-${Date.now()}`,
+      code,
+      originalUrl,
+      postSlug: postSlug || '',
+      postTitle: postTitle || '',
+      coverImage: coverImage || '',
+      staffCode: (staffCode || '').toUpperCase().trim(),
+      staffName: staffName || '',
+      clicks: 0,
+      createdAt: new Date().toISOString()
+    };
+
+    if (isMongooseReady()) {
+      // Upsert
+      const saved = await ShortLink.findOneAndUpdate(
+        { code },
+        newLink,
+        { upsert: true, new: true }
+      );
+      return res.status(201).json(saved);
+    }
+
+    if (!memoryStore.shortLinks) memoryStore.shortLinks = [];
+    const existingIdx = memoryStore.shortLinks.findIndex(l => l.code === code);
+    if (existingIdx >= 0) {
+      memoryStore.shortLinks[existingIdx] = newLink;
+    } else {
+      memoryStore.shortLinks.unshift(newLink);
+    }
+    return res.status(201).json(newLink);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+router.delete('/shortlinks/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (isMongooseReady()) {
+      await ShortLink.findOneAndDelete({ $or: [{ id }, { code: id }] });
       return res.status(204).send();
     }
-    memoryStore.activityLogs = [];
+    if (memoryStore.shortLinks) {
+      memoryStore.shortLinks = memoryStore.shortLinks.filter(l => l.id !== id && l.code !== id);
+    }
     return res.status(204).send();
   } catch (error) {
     return res.status(500).json({ error: error.message });

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import apiRouter from './routes/api.js';
 import { connectDB, memoryStore } from './db.js';
 import { Post } from './models/Post.js';
+import { ShortLink } from './models/ShortLink.js';
 import { initialPosts } from './seedData.js';
 
 dotenv.config();
@@ -32,62 +33,102 @@ const escapeHtml = (unsafe = '') => {
     .replace(/'/g, '&#039;');
 };
 
+// Helper: Detect Social Media Crawlers
+const isSocialCrawler = (userAgent = '') => {
+  const ua = userAgent.toLowerCase();
+  return (
+    ua.includes('facebookexternalhit') ||
+    ua.includes('facebot') ||
+    ua.includes('zalo') ||
+    ua.includes('twitterbot') ||
+    ua.includes('telegrambot') ||
+    ua.includes('slackbot') ||
+    ua.includes('whatsapp') ||
+    ua.includes('linkedinbot') ||
+    ua.includes('pinterest') ||
+    ua.includes('discordbot') ||
+    ua.includes('googlebot') ||
+    ua.includes('bingbot')
+  );
+};
+
+// Helper: Build Full Open Graph HTML
+const buildPostHtml = (post, reqUrl, refCode = '') => {
+  const title = `${escapeHtml(post.title)} | THE HORI CLICK`;
+  const cleanExcerpt = escapeHtml(post.excerpt || post.metaDescription || post.title);
+  const imageUrl = post.coverImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200';
+  const postUrl = `https://www.thehori.click/post/${post.slug}${refCode ? `?ref=${refCode}` : ''}`;
+
+  const distHtmlPath = path.resolve(__dirname, '../dist/index.html');
+  const rootHtmlPath = path.resolve(__dirname, '../index.html');
+  const htmlFilePath = fs.existsSync(distHtmlPath) ? distHtmlPath : (fs.existsSync(rootHtmlPath) ? rootHtmlPath : null);
+
+  if (htmlFilePath) {
+    let html = fs.readFileSync(htmlFilePath, 'utf8');
+
+    html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
+    html = html.replace(/<meta name="title" content=".*?" \/>/gi, `<meta name="title" content="${title}" />`);
+    html = html.replace(/<meta name="description" content=".*?" \/>/gi, `<meta name="description" content="${cleanExcerpt}" />`);
+    html = html.replace(/<link rel="canonical" href=".*?" \/>/gi, `<link rel="canonical" href="${postUrl}" />`);
+
+    html = html.replace(/<meta property="og:type" content=".*?" \/>/gi, `<meta property="og:type" content="article" />`);
+    html = html.replace(/<meta property="og:url" content=".*?" \/>/gi, `<meta property="og:url" content="${postUrl}" />`);
+    html = html.replace(/<meta property="og:title" content=".*?" \/>/gi, `<meta property="og:title" content="${title}" />`);
+    html = html.replace(/<meta property="og:description" content=".*?" \/>/gi, `<meta property="og:description" content="${cleanExcerpt}" />`);
+    html = html.replace(
+      /<meta property="og:image" content=".*?" \/>/gi, 
+      `<meta property="og:image" content="${imageUrl}" />\n    <meta property="og:image:secure_url" content="${imageUrl}" />\n    <meta property="og:image:width" content="1200" />\n    <meta property="og:image:height" content="630" />\n    <meta property="og:image:type" content="image/jpeg" />`
+    );
+
+    html = html.replace(/<meta property="twitter:title" content=".*?" \/>/gi, `<meta name="twitter:title" content="${title}" />`);
+    html = html.replace(/<meta property="twitter:description" content=".*?" \/>/gi, `<meta name="twitter:description" content="${cleanExcerpt}" />`);
+    html = html.replace(/<meta property="twitter:url" content=".*?" \/>/gi, `<meta name="twitter:url" content="${postUrl}" />`);
+    if (html.includes('twitter:image')) {
+      html = html.replace(/<meta (?:property|name)="twitter:image" content=".*?" \/>/gi, `<meta name="twitter:image" content="${imageUrl}" />`);
+    } else {
+      html = html.replace('</head>', `    <meta name="twitter:image" content="${imageUrl}" />\n</head>`);
+    }
+
+    return html;
+  }
+
+  return `<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>${title}</title>
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="${title}" />
+  <meta property="og:description" content="${cleanExcerpt}" />
+  <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:url" content="${postUrl}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="${imageUrl}" />
+  <meta http-equiv="refresh" content="0;url=${postUrl}" />
+</head>
+<body><script>window.location.href = "${postUrl}";</script></body>
+</html>`;
+};
+
 // 1. Social Sharing & Open Graph Crawler Handler for /post/:slug
 app.get('/post/:slug', async (req, res, next) => {
   try {
     const slug = req.params.slug;
+    const refCode = (req.query.ref || req.query.utm_source || '').toUpperCase();
     let post = null;
 
     try {
       if (Post) {
-        post = await Post.findOne({ slug });
+        post = await Post.findOne({ $or: [{ slug }, { id: slug }] });
       }
-    } catch (e) {
-      // fallback
-    }
+    } catch (e) {}
 
     if (!post) {
-      post = (memoryStore.posts || []).find(p => p.slug === slug) || initialPosts.find(p => p.slug === slug);
+      post = (memoryStore.posts || []).find(p => p.slug === slug || p.id === slug) || initialPosts.find(p => p.slug === slug || p.id === slug);
     }
 
-    // Locate HTML file (dist/index.html or root index.html)
-    const distHtmlPath = path.resolve(__dirname, '../dist/index.html');
-    const rootHtmlPath = path.resolve(__dirname, '../index.html');
-    const htmlFilePath = fs.existsSync(distHtmlPath) ? distHtmlPath : (fs.existsSync(rootHtmlPath) ? rootHtmlPath : null);
-
-    if (htmlFilePath && post) {
-      let html = fs.readFileSync(htmlFilePath, 'utf8');
-
-      const title = `${escapeHtml(post.title)} | THE HORI CLICK`;
-      const description = escapeHtml(post.excerpt || post.metaDescription || post.title);
-      const imageUrl = post.coverImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200';
-      const postUrl = `https://www.thehori.click/post/${post.slug}`;
-
-      // Replace standard Title & Meta
-      html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);
-      html = html.replace(/<meta name="title" content=".*?" \/>/gi, `<meta name="title" content="${title}" />`);
-      html = html.replace(/<meta name="description" content=".*?" \/>/gi, `<meta name="description" content="${description}" />`);
-      html = html.replace(/<link rel="canonical" href=".*?" \/>/gi, `<link rel="canonical" href="${postUrl}" />`);
-
-      // Replace Open Graph / Facebook / Zalo / Telegram / Messenger tags
-      html = html.replace(/<meta property="og:title" content=".*?" \/>/gi, `<meta property="og:title" content="${title}" />`);
-      html = html.replace(/<meta property="og:description" content=".*?" \/>/gi, `<meta property="og:description" content="${description}" />`);
-      html = html.replace(/<meta property="og:image" content=".*?" \/>/gi, `<meta property="og:image" content="${imageUrl}" /><meta property="og:image:secure_url" content="${imageUrl}" /><meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" />`);
-      html = html.replace(/<meta property="og:url" content=".*?" \/>/gi, `<meta property="og:url" content="${postUrl}" />`);
-      html = html.replace(/<meta property="og:type" content=".*?" \/>/gi, `<meta property="og:type" content="article" />`);
-
-      // Replace Twitter Card tags
-      html = html.replace(/<meta property="twitter:title" content=".*?" \/>/gi, `<meta property="twitter:title" content="${title}" />`);
-      html = html.replace(/<meta property="twitter:description" content=".*?" \/>/gi, `<meta property="twitter:description" content="${description}" />`);
-      html = html.replace(/<meta property="twitter:url" content=".*?" \/>/gi, `<meta property="twitter:url" content="${postUrl}" />`);
-
-      // In case Twitter image is present
-      if (html.includes('twitter:image')) {
-        html = html.replace(/<meta (?:property|name)="twitter:image" content=".*?" \/>/gi, `<meta name="twitter:image" content="${imageUrl}" />`);
-      } else {
-        html = html.replace('</head>', `  <meta name="twitter:image" content="${imageUrl}" />\n</head>`);
-      }
-
+    if (post) {
+      const html = buildPostHtml(post, req.originalUrl, refCode);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.send(html);
     }
@@ -99,41 +140,75 @@ app.get('/post/:slug', async (req, res, next) => {
   }
 });
 
-// Mount API Router
+// 2. Short Link Resolver for /s/:code
+app.get('/s/:code', async (req, res) => {
+  try {
+    const code = req.params.code.toLowerCase().trim();
+    const userAgent = req.headers['user-agent'] || '';
+    const isCrawler = isSocialCrawler(userAgent);
+
+    let shortLink = null;
+    try {
+      if (ShortLink) {
+        shortLink = await ShortLink.findOne({ code });
+      }
+    } catch (e) {}
+
+    if (!shortLink) {
+      shortLink = (memoryStore.shortLinks || []).find(l => l.code === code);
+    }
+
+    if (shortLink) {
+      try {
+        if (ShortLink) await ShortLink.updateOne({ code }, { $inc: { clicks: 1 } });
+        shortLink.clicks = (shortLink.clicks || 0) + 1;
+      } catch (e) {}
+
+      let post = null;
+      if (shortLink.postSlug) {
+        try {
+          if (Post) post = await Post.findOne({ slug: shortLink.postSlug });
+        } catch (e) {}
+        if (!post) {
+          post = (memoryStore.posts || []).find(p => p.slug === shortLink.postSlug) ||
+                 initialPosts.find(p => p.slug === shortLink.postSlug);
+        }
+      }
+
+      if (isCrawler && post) {
+        const html = buildPostHtml(post, req.originalUrl, shortLink.staffCode);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(html);
+      }
+
+      const targetUrl = shortLink.originalUrl || (post ? `https://www.thehori.click/post/${post.slug}${shortLink.staffCode ? `?ref=${shortLink.staffCode}` : ''}` : 'https://www.thehori.click/');
+      return res.redirect(302, targetUrl);
+    }
+
+    return res.redirect(302, `https://www.thehori.click/?ref=${code.toUpperCase()}`);
+  } catch (err) {
+    return res.redirect(302, 'https://www.thehori.click/');
+  }
+});
+
+// 3. API Routes
 app.use('/api', apiRouter);
 
-// Serve static assets from dist folder if built
-const distDir = path.resolve(__dirname, '../dist');
-if (fs.existsSync(distDir)) {
-  app.use(express.static(distDir));
-}
+// Serve static assets from React dist
+app.use(express.static(path.resolve(__dirname, '../dist')));
 
-// Fallback for SPA routing
+// Fallback SPA routing
 app.get('*', (req, res) => {
   const distHtml = path.resolve(__dirname, '../dist/index.html');
-  const rootHtml = path.resolve(__dirname, '../index.html');
   if (fs.existsSync(distHtml)) {
     return res.sendFile(distHtml);
   }
-  if (fs.existsSync(rootHtml)) {
-    return res.sendFile(rootHtml);
-  }
-  res.json({
-    name: 'The Horizon Post - US Editorial Blog MongoDB API Server',
-    version: '2.0.0'
+  return res.sendFile(path.resolve(__dirname, '../index.html'));
+});
+
+// Boot Server
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 [Production Server] Running at: http://localhost:${PORT}`);
   });
 });
-
-// Start Server and Connect DB
-const server = app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(`🚀 [Server] The Horizon Post API running on port ${PORT}`);
-  console.log(`🔗 [Endpoint] http://localhost:${PORT}/api/status`);
-  console.log(`=======================================================`);
-});
-
-connectDB().catch(err => {
-  console.warn('[MongoDB Atlas] Background connection notice:', err.message);
-});
-
-export default app;

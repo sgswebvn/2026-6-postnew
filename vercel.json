@@ -8,6 +8,14 @@
       "destination": "/api/index.js"
     },
     {
+      "source": "/post/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/s/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -38,6 +38,7 @@ import {
   X,
   ExternalLink,
   Clock,
+  Zap,
   User,
   Share2,
   Layers,
@@ -47,6 +48,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { supabaseStorage } from '../../services/supabaseStorage';
+import { ShortLinkModal } from '../../components/admin/ShortLinkModal';
 
 const SAMPLE_COVERS = [
   { name: 'Tài Chính & Đầu Tư', url: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_24.jpg' },
@@ -95,6 +97,7 @@ export const AdminPostEditor = ({ postId }) => {
   const [newCatName, setNewCatName] = useState('');
   const [newCatDesc, setNewCatDesc] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isShortLinkModalOpen, setIsShortLinkModalOpen] = useState(false);
 
   const handleCreateCategory = async (e) => {
     e.preventDefault();
@@ -600,7 +603,19 @@ export const AdminPostEditor = ({ postId }) => {
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2">
+          {existingPost && (
+            <button
+              type="button"
+              onClick={() => setIsShortLinkModalOpen(true)}
+              className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold border border-purple-200 flex items-center gap-1.5 transition-all shadow-xs"
+              title="Tạo link rút gọn bài viết này để rải seeding MXH"
+            >
+              <Zap className="w-3.5 h-3.5 text-purple-600" />
+              <span>🔗 Rút Gọn Link</span>
+            </button>
+          )}
+
           <select
             value={formData.status}
             onChange={(e) => setFormData({ ...formData, status: e.target.value })}
@@ -1567,6 +1582,13 @@ export const AdminPostEditor = ({ postId }) => {
           </div>
         </div>
       )}
+
+      {/* Short Link Modal */}
+      <ShortLinkModal
+        isOpen={isShortLinkModalOpen}
+        onClose={() => setIsShortLinkModalOpen(false)}
+        defaultPost={existingPost || { ...formData, id: 'temp', slug: formData.slug }}
+      />
     </form>
   );
 };
