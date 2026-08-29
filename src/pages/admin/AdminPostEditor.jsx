@@ -625,6 +625,69 @@ export const AdminPostEditor = ({ postId }) => {
                 />
               </div>
             </div>
+
+            {/* Quick Top Bar: Category & Cover Image (Không cần cuộn xuống dưới) */}
+            <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center text-xs">
+              {/* Quick Category */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-neutral-700">📁 Chuyên Mục:</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowCatModal(true)}
+                    className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    <PlusCircle className="w-3 h-3" />
+                    <span>+ Tạo Chuyên Mục</span>
+                  </button>
+                </div>
+                <select
+                  value={formData.categoryId}
+                  onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                  className="w-full px-2.5 py-1.5 bg-white border border-neutral-300 rounded-lg font-semibold text-neutral-900 focus:outline-none focus:border-blue-500"
+                >
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Quick Cover Image Thumbnail & Uploader */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-neutral-700">🖼️ Ảnh Bìa:</span>
+                  <button
+                    type="button"
+                    onClick={() => coverFileInputRef.current?.click()}
+                    disabled={uploadingImage}
+                    className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    <Upload className="w-3 h-3" />
+                    <span>{uploadingImage ? 'Đang tải...' : '+ Tải Ảnh Từ Máy'}</span>
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  {formData.coverImage ? (
+                    <img 
+                      src={formData.coverImage} 
+                      alt="Thumbnail" 
+                      className="w-9 h-7 object-cover rounded-md border border-neutral-300 flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-9 h-7 bg-neutral-200 rounded-md flex items-center justify-center text-neutral-400 text-[10px] flex-shrink-0">
+                      Chưa có
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={formData.coverImage}
+                    onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
+                    placeholder="Dán URL ảnh hoặc bấm nút Tải Ảnh..."
+                    className="flex-1 px-2.5 py-1.5 bg-white border border-neutral-300 rounded-lg text-[11px] truncate focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Rich Content Editor & Toolbar */}
@@ -1033,113 +1096,9 @@ export const AdminPostEditor = ({ postId }) => {
           </div>
         </div>
 
-      {/* Right 4 Cols: Publishing Settings & Ad Controls */}
+      {/* Right 4 Cols: Publishing Settings, Cover Image & Categories */}
       <div className="lg:col-span-4 space-y-6">
-          {/* AdSense Placement Controls for this Post */}
-          <div className="p-6 bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-xs uppercase font-mono pb-2 border-b border-neutral-200 dark:border-neutral-800">
-              <DollarSign className="w-4 h-4" />
-              <span>Kiểm Soát Quảng Cáo AdSense</span>
-            </div>
-
-            <div className="space-y-3">
-              <label className="flex items-center justify-between cursor-pointer p-2.5 bg-neutral-50 dark:bg-neutral-900/60 rounded-xl">
-                <div className="space-y-0.5">
-                  <span className="text-xs font-bold block text-neutral-800 dark:text-neutral-200">
-                    Bật Quảng Cáo Trong Bài
-                  </span>
-                  <span className="text-[11px] text-neutral-500 block">
-                    Chèn banner sau đoạn 2 và đoạn 5
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={formData.enableAds}
-                  onChange={(e) => setFormData({ ...formData, enableAds: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 rounded"
-                />
-              </label>
-
-              <label className="flex items-center justify-between cursor-pointer p-2.5 bg-neutral-50 dark:bg-neutral-900/60 rounded-xl">
-                <div className="space-y-0.5">
-                  <span className="text-xs font-bold block text-neutral-800 dark:text-neutral-200">
-                    Đặt Làm Bài Viết Đinh (Featured Lead)
-                  </span>
-                  <span className="text-[11px] text-neutral-500 block">
-                    Hiển thị vị trí lớn nhất trên Trang chủ
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={formData.featured}
-                  onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 rounded"
-                />
-              </label>
-            </div>
-          </div>
-
-          {/* Desk Category & Author Byline */}
-          <div className="p-6 bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
-            <h3 className="font-serif text-base font-bold text-neutral-900 dark:text-neutral-100">
-              Phân Loại & Tác Giả (E-E-A-T)
-            </h3>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold uppercase text-neutral-500">
-                  Chuyên Mục Bài Viết
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowCatModal(true)}
-                  className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                >
-                  <PlusCircle className="w-3.5 h-3.5" />
-                  <span>+ Tạo Chuyên Mục</span>
-                </button>
-              </div>
-              <select
-                value={formData.categoryId}
-                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs font-semibold"
-              >
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">
-                Tác Giả Biên Soạn
-              </label>
-              <select
-                value={formData.authorId}
-                onChange={(e) => setFormData({ ...formData, authorId: e.target.value })}
-                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs"
-              >
-                {authors.map(a => (
-                  <option key={a.id} value={a.id}>{a.name} ({a.role})</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">
-                Thẻ Phân Loại (Tags - Cách nhau dấu phẩy)
-              </label>
-              <input
-                type="text"
-                placeholder="Tài chính, Đầu tư, Trái phiếu Mỹ"
-                value={formData.tagsString}
-                onChange={(e) => setFormData({ ...formData, tagsString: e.target.value })}
-                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs"
-              />
-            </div>
-          </div>
-
-          {/* Cover Image Selector */}
+          {/* 1. Cover Image Selector (Đưa lên ĐẦU TIÊN để dễ tải ảnh) */}
           <div className="p-6 bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-serif text-base font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5">
@@ -1211,6 +1170,110 @@ export const AdminPostEditor = ({ postId }) => {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* 2. Desk Category & Author Byline (Đưa lên THỨ HAI) */}
+          <div className="p-6 bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
+            <h3 className="font-serif text-base font-bold text-neutral-900 dark:text-neutral-100">
+              Phân Loại & Tác Giả (E-E-A-T)
+            </h3>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold uppercase text-neutral-500">
+                  Chuyên Mục Bài Viết
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowCatModal(true)}
+                  className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>+ Tạo Chuyên Mục</span>
+                </button>
+              </div>
+              <select
+                value={formData.categoryId}
+                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs font-semibold"
+              >
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">
+                Tác Giả Biên Soạn
+              </label>
+              <select
+                value={formData.authorId}
+                onChange={(e) => setFormData({ ...formData, authorId: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs"
+              >
+                {authors.map(a => (
+                  <option key={a.id} value={a.id}>{a.name} ({a.role})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-neutral-500 mb-1">
+                Thẻ Phân Loại (Tags - Cách nhau dấu phẩy)
+              </label>
+              <input
+                type="text"
+                placeholder="Tài chính, Đầu tư, Trái phiếu Mỹ"
+                value={formData.tagsString}
+                onChange={(e) => setFormData({ ...formData, tagsString: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-xs"
+              />
+            </div>
+          </div>
+
+          {/* 3. AdSense Placement Controls & Featured Lead */}
+          <div className="p-6 bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-xs uppercase font-mono pb-2 border-b border-neutral-200 dark:border-neutral-800">
+              <DollarSign className="w-4 h-4" />
+              <span>Kiểm Soát Quảng Cáo & Hiển Thị</span>
+            </div>
+
+            <div className="space-y-3">
+              <label className="flex items-center justify-between cursor-pointer p-2.5 bg-neutral-50 dark:bg-neutral-900/60 rounded-xl">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-bold block text-neutral-800 dark:text-neutral-200">
+                    Bật Quảng Cáo Trong Bài
+                  </span>
+                  <span className="text-[11px] text-neutral-500 block">
+                    Chèn banner sau đoạn 2 và đoạn 5
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={formData.enableAds}
+                  onChange={(e) => setFormData({ ...formData, enableAds: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer p-2.5 bg-neutral-50 dark:bg-neutral-900/60 rounded-xl">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-bold block text-neutral-800 dark:text-neutral-200">
+                    Đặt Làm Bài Viết Đinh (Featured Lead)
+                  </span>
+                  <span className="text-[11px] text-neutral-500 block">
+                    Hiển thị vị trí lớn nhất trên Trang chủ
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={formData.featured}
+                  onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+              </label>
             </div>
           </div>
         </div>

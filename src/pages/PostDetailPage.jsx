@@ -71,27 +71,55 @@ export const PostDetailPage = ({ slug }) => {
     };
   }, [slug]);
 
-  // 2. Sync Document Title and Canonical URL
+  // 2. Sync Document Title, Canonical URL, Open Graph & Twitter Social Share Cards
   useEffect(() => {
-    if (post?.title) {
-      document.title = `${post.title} | ${settings?.siteName || 'THE HORI CLICK'}`;
-    }
-    
-    // Add or update canonical URL
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.rel = 'canonical';
-      document.head.appendChild(canonical);
-    }
-    const currentUrl = window.location.origin + window.location.pathname;
-    canonical.href = currentUrl;
+    if (post) {
+      const siteName = settings?.siteName || 'THE HORI CLICK';
+      const pageTitle = `${post.title} | ${siteName}`;
+      const pageDesc = post.excerpt || post.metaDescription || post.title;
+      const pageImage = post.coverImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200';
+      const pageUrl = window.location.origin + `/post/${post.slug}`;
 
-    return () => {
-      // Optional cleanup if navigating away
-      if (canonical) canonical.remove();
-    };
-  }, [post?.title, settings?.siteName, slug]);
+      document.title = pageTitle;
+
+      const setMetaTag = (attrName, attrValue, content) => {
+        let el = document.querySelector(`meta[${attrName}="${attrValue}"]`);
+        if (!el) {
+          el = document.createElement('meta');
+          el.setAttribute(attrName, attrValue);
+          document.head.appendChild(el);
+        }
+        el.setAttribute('content', content);
+      };
+
+      // Standard Meta
+      setMetaTag('name', 'description', pageDesc);
+
+      // Open Graph / Facebook / Zalo / Messenger / Telegram / LinkedIn
+      setMetaTag('property', 'og:type', 'article');
+      setMetaTag('property', 'og:title', pageTitle);
+      setMetaTag('property', 'og:description', pageDesc);
+      setMetaTag('property', 'og:image', pageImage);
+      setMetaTag('property', 'og:image:secure_url', pageImage);
+      setMetaTag('property', 'og:url', pageUrl);
+      setMetaTag('property', 'og:site_name', siteName);
+
+      // Twitter Cards
+      setMetaTag('name', 'twitter:card', 'summary_large_image');
+      setMetaTag('name', 'twitter:title', pageTitle);
+      setMetaTag('name', 'twitter:description', pageDesc);
+      setMetaTag('name', 'twitter:image', pageImage);
+
+      // Canonical URL
+      let canonical = document.querySelector('link[rel="canonical"]');
+      if (!canonical) {
+        canonical = document.createElement('link');
+        canonical.rel = 'canonical';
+        document.head.appendChild(canonical);
+      }
+      canonical.href = pageUrl;
+    }
+  }, [post, settings?.siteName, slug]);
 
   if (!post) {
     return <NotFoundPage />;
