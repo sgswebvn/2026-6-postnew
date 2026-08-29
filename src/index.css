@@ -39,21 +39,21 @@ select {
 }
 
 /* =========================================================
-   WARM BEIGE & IVORY EDITORIAL ADMIN THEME (Trắng Be Sang Trọng)
+   PURE FULL WHITE PROFESSIONAL ADMIN THEME (Full Trắng Hiện Đại)
    ========================================================= */
 .admin-view {
-  background-color: #F8F6F0 !important;
-  color: #1C1917 !important;
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
 }
 
 .admin-view aside {
-  background-color: #F1ECE4 !important;
-  border-color: #E2DAD0 !important;
+  background-color: #FFFFFF !important;
+  border-color: #E5E7EB !important;
 }
 
 .admin-view header {
-  background-color: #FAF8F5 !important;
-  border-color: #E2DAD0 !important;
+  background-color: #FFFFFF !important;
+  border-color: #E5E7EB !important;
 }
 
 .admin-view .bg-\[\#111622\],
@@ -71,8 +71,8 @@ select {
 .admin-view .bg-\[\#111c2e\],
 .admin-view .dark\:bg-\[\#111c2e\] {
   background-color: #FFFFFF !important;
-  border-color: #E6DFD5 !important;
-  color: #1C1917 !important;
+  border-color: #E5E7EB !important;
+  color: #111827 !important;
 }
 
 .admin-view .bg-neutral-50,
@@ -84,25 +84,26 @@ select {
 .admin-view .dark\:bg-neutral-800,
 .admin-view .dark\:bg-neutral-800\/80,
 .admin-view .dark\:bg-neutral-800\/60 {
-  background-color: #FAF8F5 !important;
-  border-color: #E6DFD5 !important;
-  color: #1C1917 !important;
+  background-color: #FFFFFF !important;
+  border-color: #E5E7EB !important;
+  color: #111827 !important;
 }
 
 .admin-view input,
 .admin-view textarea,
 .admin-view select {
-  background-color: #FAF8F5 !important;
-  border-color: #E2DAD0 !important;
-  color: #1C1917 !important;
+  background-color: #FFFFFF !important;
+  border-color: #D1D5DB !important;
+  color: #111827 !important;
 }
 
 .admin-view input:focus,
 .admin-view textarea:focus,
 .admin-view select:focus {
   background-color: #FFFFFF !important;
-  border-color: #2D2823 !important;
+  border-color: #2563EB !important;
   outline: none !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15) !important;
 }
 
 .admin-view .border-neutral-800,
@@ -112,7 +113,7 @@ select {
 .admin-view .border-\[\#1a2333\],
 .admin-view .border-\[\#1e293b\],
 .admin-view .border-\[\#2a3a54\] {
-  border-color: #E6DFD5 !important;
+  border-color: #E5E7EB !important;
 }
 
 .admin-view .text-white,
@@ -122,7 +123,7 @@ select {
 .admin-view .dark\:text-neutral-200,
 .admin-view .text-neutral-950,
 .admin-view .text-neutral-900 {
-  color: #1C1917 !important;
+  color: #111827 !important;
 }
 
 .admin-view .text-neutral-400,
@@ -130,22 +131,23 @@ select {
 .admin-view .dark\:text-neutral-300,
 .admin-view .text-neutral-500,
 .admin-view .text-neutral-600 {
-  color: #78716C !important;
+  color: #4B5563 !important;
 }
 
 .admin-view table th {
-  background-color: #F5F1EA !important;
-  color: #57534E !important;
-  border-color: #E5DFD5 !important;
+  background-color: #F9FAFB !important;
+  color: #374151 !important;
+  border-color: #E5E7EB !important;
+  font-weight: 600 !important;
 }
 
 .admin-view table td {
-  border-color: #EFE9E0 !important;
-  color: #1C1917 !important;
+  border-color: #F3F4F6 !important;
+  color: #111827 !important;
 }
 
 .admin-view table tbody tr:hover {
-  background-color: #FAF7F2 !important;
+  background-color: #F9FAFB !important;
 }
 
 /* =========================================================

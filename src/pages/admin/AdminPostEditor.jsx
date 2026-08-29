@@ -5,6 +5,7 @@ import {
   ArrowLeft, 
   Eye, 
   Sparkles, 
+  Heading1,
   Heading2, 
   Heading3, 
   Bold, 
@@ -190,123 +191,101 @@ export const AdminPostEditor = ({ postId }) => {
   };
 
   const [previewDevice, setPreviewDevice] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
-
+  const visualEditorRef = React.useRef(null);
   const textareaRef = React.useRef(null);
 
-  const handleInsertHtml = (tag, param) => {
-    const textarea = textareaRef.current;
-    const content = formData.content || '';
-    
-    let startPos = 0;
-    let endPos = 0;
-    let selectedText = '';
+  // Sync content into visual editor on boot or edit
+  useEffect(() => {
+    if (visualEditorRef.current && activeTab === 'write') {
+      if (visualEditorRef.current.innerHTML !== (formData.content || '')) {
+        visualEditorRef.current.innerHTML = formData.content || '';
+      }
+    }
+  }, [existingPost, activeTab]);
 
-    if (textarea) {
-      startPos = textarea.selectionStart;
-      endPos = textarea.selectionEnd;
-      selectedText = content.substring(startPos, endPos);
+  const handleVisualInput = () => {
+    if (visualEditorRef.current) {
+      setFormData(prev => ({ ...prev, content: visualEditorRef.current.innerHTML }));
+    }
+  };
+
+  const handleFormatVisual = (command, value = null) => {
+    if (visualEditorRef.current) {
+      visualEditorRef.current.focus();
     }
 
-    let replacement = '';
-
-    switch (tag) {
-      case 'fontSize':
-        const px = param || '18';
-        replacement = `<span style="font-size: ${px}px; line-height: 1.6;">${selectedText || `Văn bản cỡ ${px}px`}</span>`;
-        break;
-      case 'color':
-        const hex = param || '#2563eb';
-        replacement = `<span style="color: ${hex}; font-weight: 600;">${selectedText || 'văn bản màu sắc'}</span>`;
-        break;
-      case 'underline':
-        replacement = selectedText ? `<u>${selectedText}</u>` : '<u>chữ gạch chân</u>';
-        break;
-      case 'highlight':
-        replacement = `<mark style="background-color: #fef08a; padding: 2px 6px; border-radius: 4px; color: #1e293b;">${selectedText || 'văn bản highlight'} </mark>`;
-        break;
-      case 'alignLeft':
-        replacement = `\n<div style="text-align: left;">\n  <p>${selectedText || 'Đoạn văn căn lề trái'}</p>\n</div>\n`;
-        break;
-      case 'alignCenter':
-        replacement = `\n<div style="text-align: center;">\n  <p>${selectedText || 'Đoạn văn căn giữa'}</p>\n</div>\n`;
-        break;
-      case 'alignRight':
-        replacement = `\n<div style="text-align: right;">\n  <p>${selectedText || 'Đoạn văn căn lề phải'}</p>\n</div>\n`;
-        break;
-      case 'h1':
-        replacement = selectedText ? `\n<h1>${selectedText}</h1>\n` : '\n<h1>Tiêu Đề Lớn (Heading 1)</h1>\n';
-        break;
-      case 'h2':
-        replacement = selectedText ? `\n<h2>${selectedText}</h2>\n` : '\n<h2>Tiêu Đề Mục Chính (Heading 2)</h2>\n<p>Nội dung phân tích...</p>\n';
-        break;
-      case 'h3':
-        replacement = selectedText ? `\n<h3>${selectedText}</h3>\n` : '\n<h3>Tiêu Đề Mục Phụ (Heading 3)</h3>\n';
-        break;
-      case 'h4':
-        replacement = selectedText ? `\n<h4>${selectedText}</h4>\n` : '\n<h4>Tiêu Đề Nhỏ (Heading 4)</h4>\n';
-        break;
-      case 'bold':
-        replacement = selectedText ? `<strong>${selectedText}</strong>` : '<strong>từ khóa in đậm</strong>';
-        break;
-      case 'italic':
-        replacement = selectedText ? `<em>${selectedText}</em>` : '<em>chữ in nghiêng</em>';
-        break;
-      case 'quote':
-        replacement = selectedText ? `\n<blockquote>\n  "${selectedText}"\n</blockquote>\n` : '\n<blockquote>\n  "Trích dẫn câu nói quan trọng hoặc nhận định từ chuyên gia."\n</blockquote>\n';
-        break;
-      case 'callout':
-        replacement = `\n<div class="my-6 p-4 bg-blue-50 dark:bg-blue-950/40 border-l-4 border-blue-600 rounded-r-lg">\n  <h4 class="font-bold text-blue-900 dark:text-blue-200">Điểm Nhấn Chiến Lược</h4>\n  <p class="text-sm text-blue-800 dark:text-blue-300">${selectedText || 'Tóm tắt lợi ích quan trọng nhất cho độc giả...'}</p>\n</div>\n`;
-        break;
-      case 'table':
-        replacement = `
+    if (command === 'fontSize') {
+      const sizePx = value || '18';
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        if (!range.collapsed) {
+          const span = document.createElement('span');
+          span.style.fontSize = `${sizePx}px`;
+          span.style.lineHeight = '1.6';
+          span.appendChild(range.extractContents());
+          range.insertNode(span);
+          selection.removeAllRanges();
+          const newRange = document.createRange();
+          newRange.selectNodeContents(span);
+          selection.addRange(newRange);
+        } else {
+          document.execCommand('insertHTML', false, `<span style="font-size: ${sizePx}px;">Văn bản cỡ ${sizePx}px</span>`);
+        }
+      }
+    } else if (command === 'heading') {
+      if (value === 'p') {
+        document.execCommand('formatBlock', false, '<p>');
+      } else {
+        document.execCommand('formatBlock', false, `<${value}>`);
+      }
+    } else if (command === 'color') {
+      document.execCommand('foreColor', false, value);
+    } else if (command === 'highlight') {
+      document.execCommand('hiliteColor', false, '#FEF08A');
+    } else if (command === 'table') {
+      const tableHtml = `
 <div class="overflow-x-auto my-6">
-  <table class="min-w-full text-left text-sm border border-neutral-200 dark:border-neutral-800 rounded-lg">
-    <thead class="bg-neutral-100 dark:bg-neutral-800 font-semibold">
-      <tr><th class="p-3">Hạng Mục</th><th class="p-3">Chỉ Số</th><th class="p-3">Đánh Giá</th></tr>
+  <table class="min-w-full text-left text-sm border border-neutral-300 rounded-lg">
+    <thead class="bg-neutral-100 font-semibold">
+      <tr><th class="p-3 border">Hạng Mục</th><th class="p-3 border">Số Liệu</th><th class="p-3 border">Đánh Giá</th></tr>
     </thead>
-    <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
-      <tr><td class="p-3">Mô Hình A</td><td class="p-3">+15.4%</td><td class="p-3 text-emerald-600 font-bold">Xuất Sắc</td></tr>
+    <tbody class="divide-y divide-neutral-200">
+      <tr><td class="p-3 border">Mô Hình A</td><td class="p-3 border">+15.4%</td><td class="p-3 border text-emerald-600 font-bold">Xuất Sắc</td></tr>
+      <tr><td class="p-3 border">Mô Hình B</td><td class="p-3 border">+8.2%</td><td class="p-3 border text-blue-600">Ổn Định</td></tr>
     </tbody>
   </table>
-</div>
+</div><p><br></p>
 `;
-        break;
-      case 'list':
-        if (selectedText) {
-          const items = selectedText.split('\n').filter(Boolean).map(item => `  <li>${item}</li>`).join('\n');
-          replacement = `\n<ul>\n${items}\n</ul>\n`;
-        } else {
-          replacement = '\n<ul>\n  <li>Ý phân tích quan trọng 1</li>\n  <li>Ý phân tích quan trọng 2</li>\n</ul>\n';
-        }
-        break;
-      case 'olist':
-        if (selectedText) {
-          const items = selectedText.split('\n').filter(Boolean).map(item => `  <li>${item}</li>`).join('\n');
-          replacement = `\n<ol>\n${items}\n</ol>\n`;
-        } else {
-          replacement = '\n<ol>\n  <li>Bước 1: Thực hiện thao tác ban đầu</li>\n  <li>Bước 2: Triển khai tối ưu tiếp theo</li>\n</ol>\n';
-        }
-        break;
-      case 'hr':
-        replacement = '\n<hr class="my-8 border-neutral-300 dark:border-neutral-700" />\n';
-        break;
-      default:
-        break;
+      document.execCommand('insertHTML', false, tableHtml);
+    } else if (command === 'callout') {
+      const calloutHtml = `
+<div class="my-6 p-4 bg-blue-50 border-l-4 border-blue-600 rounded-r-lg">
+  <h4 class="font-bold text-blue-900 mb-1 text-base">💡 Điểm Nhấn Chiến Lược</h4>
+  <p class="text-sm text-blue-800">Nhập tóm tắt ý quan trọng nhất cho độc giả tại đây...</p>
+</div><p><br></p>
+`;
+      document.execCommand('insertHTML', false, calloutHtml);
+    } else if (command === 'quote') {
+      document.execCommand('formatBlock', false, '<blockquote>');
+    } else if (command === 'hr') {
+      document.execCommand('insertHorizontalRule', false, null);
+    } else {
+      document.execCommand(command, false, value);
     }
 
-    if (textarea && typeof startPos === 'number' && typeof endPos === 'number') {
-      const newContent = content.substring(0, startPos) + replacement + content.substring(endPos);
-      setFormData(prev => ({ ...prev, content: newContent }));
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(startPos + replacement.length, startPos + replacement.length);
-      }, 50);
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        content: prev.content ? prev.content + replacement : replacement
-      }));
+    if (visualEditorRef.current) {
+      setFormData(prev => ({ ...prev, content: visualEditorRef.current.innerHTML }));
     }
+  };
+
+  const handleVisualPaste = (e) => {
+    // Let browser paste naturally and sync content immediately
+    setTimeout(() => {
+      if (visualEditorRef.current) {
+        setFormData(prev => ({ ...prev, content: visualEditorRef.current.innerHTML }));
+      }
+    }, 50);
   };
 
   const handlePaste = (e) => {
@@ -639,50 +618,59 @@ export const AdminPostEditor = ({ postId }) => {
 
           {/* Rich Content Editor & Toolbar */}
           <div className="bg-white dark:bg-[#111622] rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm overflow-hidden space-y-0">
-            {/* Editor Tabs & Quick HTML Snippet Toolbar */}
-            <div className="p-3 bg-neutral-50 dark:bg-neutral-900/70 border-b border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-2">
+            {/* Editor Tabs & Quick Visual Formatting Toolbar */}
+            <div className="p-3 bg-neutral-50 border-b border-neutral-200 flex flex-wrap items-center justify-between gap-2">
               {/* Tab Switcher */}
-              <div className="flex items-center space-x-1 bg-white dark:bg-neutral-800 p-1 rounded-lg border border-neutral-200 dark:border-neutral-700">
+              <div className="flex items-center space-x-1 bg-white p-1 rounded-lg border border-neutral-200 shadow-xs">
                 <button
                   type="button"
                   onClick={() => setActiveTab('write')}
-                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors ${activeTab === 'write' ? 'bg-blue-600 text-white' : 'text-neutral-600 dark:text-neutral-400'}`}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'write' ? 'bg-blue-600 text-white shadow-xs' : 'text-neutral-600 hover:text-neutral-900'}`}
                 >
-                  Trình Soạn Thảo
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Soạn Thảo Trực Quan (Word / Docs)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('preview')}
-                  className={`px-3 py-1 text-xs font-bold rounded-md transition-colors flex items-center gap-1 ${activeTab === 'preview' ? 'bg-blue-600 text-white' : 'text-neutral-600 dark:text-neutral-400'}`}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${activeTab === 'preview' ? 'bg-blue-600 text-white shadow-xs' : 'text-neutral-600 hover:text-neutral-900'}`}
                 >
                   <Eye className="w-3.5 h-3.5" />
-                  <span>Xem Trước</span>
+                  <span>Xem Trước Giao Diện</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('code')}
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${activeTab === 'code' ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
+                  title="Xem mã HTML nguồn bài viết"
+                >
+                  <span>&lt;/&gt; Mã HTML</span>
                 </button>
               </div>
 
-              {/* Formatting Quick Insert Tools */}
+              {/* Visual Formatting Tools (Shown in Visual mode) */}
               {activeTab === 'write' && (
                 <div className="flex flex-wrap items-center gap-1.5">
                   {/* Cỡ chữ Dropdown */}
-                  <div className="flex items-center gap-1 bg-white dark:bg-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700">
+                  <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-neutral-200 shadow-xs">
                     <Type className="w-3.5 h-3.5 text-neutral-500" />
                     <select
                       onChange={(e) => {
                         if (e.target.value) {
-                          handleInsertHtml('fontSize', e.target.value);
+                          handleFormatVisual('fontSize', e.target.value);
                           e.target.value = '';
                         }
                       }}
                       defaultValue=""
-                      className="bg-transparent text-xs font-bold text-neutral-800 dark:text-neutral-200 focus:outline-none cursor-pointer"
-                      title="Chọn cỡ chữ cho đoạn văn bản bôi đen"
+                      className="bg-transparent text-xs font-bold text-neutral-800 focus:outline-none cursor-pointer"
+                      title="Chọn cỡ chữ trực quan"
                     >
                       <option value="" disabled>Cỡ Chữ...</option>
-                      <option value="12">12px - Rất nhỏ (Chú thích)</option>
+                      <option value="12">12px - Rất nhỏ</option>
                       <option value="14">14px - Nhỏ</option>
-                      <option value="16">16px - Tiêu chuẩn (Vừa)</option>
-                      <option value="18">18px - Lớn</option>
-                      <option value="20">20px - Rất lớn</option>
+                      <option value="16">16px - Chuẩn (16px)</option>
+                      <option value="18">18px - Lớn (18px)</option>
+                      <option value="20">20px - Rất lớn (20px)</option>
                       <option value="24">24px - Tiêu đề phụ (24px)</option>
                       <option value="28">28px - Tiêu đề mục (28px)</option>
                       <option value="32">32px - Tiêu đề lớn (32px)</option>
@@ -690,18 +678,41 @@ export const AdminPostEditor = ({ postId }) => {
                     </select>
                   </div>
 
-                  {/* Màu chữ Selector */}
-                  <div className="flex items-center gap-1 bg-white dark:bg-neutral-800 px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700">
-                    <Palette className="w-3.5 h-3.5 text-neutral-500" />
+                  {/* Định dạng Khối / Tiêu đề */}
+                  <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-neutral-200 shadow-xs">
+                    <Heading1 className="w-3.5 h-3.5 text-neutral-500" />
                     <select
                       onChange={(e) => {
                         if (e.target.value) {
-                          handleInsertHtml('color', e.target.value);
+                          handleFormatVisual('heading', e.target.value);
                           e.target.value = '';
                         }
                       }}
                       defaultValue=""
-                      className="bg-transparent text-xs font-bold text-neutral-800 dark:text-neutral-200 focus:outline-none cursor-pointer"
+                      className="bg-transparent text-xs font-bold text-neutral-800 focus:outline-none cursor-pointer"
+                      title="Chọn định dạng tiêu đề hoặc đoạn văn"
+                    >
+                      <option value="" disabled>Kiểu Tiêu Đề...</option>
+                      <option value="p">Đoạn văn thông thường (P)</option>
+                      <option value="h1">Tiêu Đề Lớn (H1)</option>
+                      <option value="h2">Tiêu Đề Chính (H2)</option>
+                      <option value="h3">Tiêu Đề Mục Phụ (H3)</option>
+                      <option value="h4">Tiêu Đề Nhỏ (H4)</option>
+                    </select>
+                  </div>
+
+                  {/* Màu chữ Selector */}
+                  <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-neutral-200 shadow-xs">
+                    <Palette className="w-3.5 h-3.5 text-neutral-500" />
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleFormatVisual('color', e.target.value);
+                          e.target.value = '';
+                        }
+                      }}
+                      defaultValue=""
+                      className="bg-transparent text-xs font-bold text-neutral-800 focus:outline-none cursor-pointer"
                       title="Chọn màu chữ"
                     >
                       <option value="" disabled>Màu Chữ...</option>
@@ -714,33 +725,29 @@ export const AdminPostEditor = ({ postId }) => {
                     </select>
                   </div>
 
-                  {/* Quick Headings */}
-                  <button type="button" onClick={() => handleInsertHtml('h2')} className="px-2 py-1 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-xs font-mono font-bold text-neutral-700 dark:text-neutral-300" title="Chèn Heading 2">H2</button>
-                  <button type="button" onClick={() => handleInsertHtml('h3')} className="px-2 py-1 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-xs font-mono font-bold text-neutral-700 dark:text-neutral-300" title="Chèn Heading 3">H3</button>
-                  
                   {/* Text Styles */}
-                  <button type="button" onClick={() => handleInsertHtml('bold')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300 font-bold" title="In đậm (Bold)"><Bold className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => handleInsertHtml('italic')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300 italic" title="In nghiêng"><Italic className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => handleInsertHtml('underline')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Gạch chân"><Underline className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => handleInsertHtml('highlight')} className="p-1.5 hover:bg-yellow-100 dark:hover:bg-yellow-950/60 rounded text-amber-600 font-bold" title="Tô vàng Highlight"><Highlighter className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleFormatVisual('bold')} className="p-1.5 bg-white hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-800 font-bold shadow-xs" title="In đậm (Bold)"><Bold className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleFormatVisual('italic')} className="p-1.5 bg-white hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-800 italic shadow-xs" title="In nghiêng"><Italic className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleFormatVisual('underline')} className="p-1.5 bg-white hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-800 shadow-xs" title="Gạch chân"><Underline className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleFormatVisual('highlight')} className="p-1.5 bg-yellow-50 hover:bg-yellow-100 rounded-lg border border-yellow-200 text-amber-700 font-bold shadow-xs" title="Tô vàng Highlight"><Highlighter className="w-4 h-4" /></button>
 
                   {/* Alignments */}
-                  <button type="button" onClick={() => handleInsertHtml('alignLeft')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Căn trái"><AlignLeft className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => handleInsertHtml('alignCenter')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Căn giữa"><AlignCenter className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => handleInsertHtml('alignRight')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Căn phải"><AlignRight className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleFormatVisual('justifyLeft')} className="p-1.5 bg-white hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-700 shadow-xs" title="Căn trái"><AlignLeft className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleFormatVisual('justifyCenter')} className="p-1.5 bg-white hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-700 shadow-xs" title="Căn giữa"><AlignCenter className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleFormatVisual('justifyRight')} className="p-1.5 bg-white hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-700 shadow-xs" title="Căn phải"><AlignRight className="w-4 h-4" /></button>
 
-                  {/* Lists & Quotes */}
-                  <button type="button" onClick={() => handleInsertHtml('list')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Danh sách gạch đầu dòng"><List className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => handleInsertHtml('olist')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Danh sách số 1, 2, 3"><ListOrdered className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => handleInsertHtml('quote')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Trích dẫn"><Quote className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => handleInsertHtml('callout')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-blue-600 dark:text-blue-400" title="Hộp Điểm Nhấn"><Sparkles className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => handleInsertHtml('table')} className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded text-neutral-700 dark:text-neutral-300" title="Bảng dữ liệu"><Table className="w-4 h-4" /></button>
+                  {/* Lists & Blocks */}
+                  <button type="button" onClick={() => handleFormatVisual('insertUnorderedList')} className="p-1.5 bg-white hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-700 shadow-xs" title="Danh sách gạch đầu dòng"><List className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleFormatVisual('insertOrderedList')} className="p-1.5 bg-white hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-700 shadow-xs" title="Danh sách số 1, 2, 3"><ListOrdered className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleFormatVisual('quote')} className="p-1.5 bg-white hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-700 shadow-xs" title="Trích dẫn câu nói"><Quote className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleFormatVisual('callout')} className="p-1.5 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 text-blue-700 shadow-xs" title="Hộp Điểm Nhấn"><Sparkles className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => handleFormatVisual('table')} className="p-1.5 bg-white hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-700 shadow-xs" title="Chèn Bảng Dữ Liệu"><Table className="w-4 h-4" /></button>
                   
                   {/* YouTube & Image Inserters */}
                   <button 
                     type="button" 
                     onClick={handleInsertYouTube}
-                    className="px-2 py-1 bg-red-50 dark:bg-red-950/60 hover:bg-red-100 text-red-700 dark:text-red-300 rounded-lg text-xs font-mono font-bold flex items-center gap-1 border border-red-200 dark:border-red-800 transition-colors"
+                    className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-mono font-bold flex items-center gap-1 border border-red-200 transition-colors shadow-xs"
                     title="Nhúng Video YouTube vào bài viết"
                   >
                     <Video className="w-3.5 h-3.5 text-red-600" />
@@ -750,10 +757,10 @@ export const AdminPostEditor = ({ postId }) => {
                   <button 
                     type="button" 
                     onClick={() => setShowImageModal(true)}
-                    className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-mono font-bold flex items-center gap-1 border border-emerald-200 dark:border-emerald-800 transition-colors"
+                    className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-mono font-bold flex items-center gap-1 border border-emerald-200 transition-colors shadow-xs"
                     title="Tải ảnh từ máy tính hoặc chèn link CDN"
                   >
-                    <Upload className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <Upload className="w-3.5 h-3.5 text-emerald-600" />
                     <span>+ Tải / Chèn Ảnh</span>
                   </button>
 
@@ -761,7 +768,7 @@ export const AdminPostEditor = ({ postId }) => {
                   <button 
                     type="button" 
                     onClick={handleInsertAiOutline}
-                    className="px-2.5 py-1 bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 hover:bg-amber-200 rounded-lg text-xs font-mono font-bold flex items-center gap-1 border border-amber-300 dark:border-amber-800 transition-colors ml-1"
+                    className="px-2.5 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 rounded-lg text-xs font-mono font-bold flex items-center gap-1 border border-amber-300 transition-colors ml-1 shadow-xs"
                     title="Chèn khung dàn bài mẫu chuẩn báo chí Mỹ"
                   >
                     <Wand2 className="w-3.5 h-3.5" />
@@ -771,29 +778,41 @@ export const AdminPostEditor = ({ postId }) => {
               )}
             </div>
 
-            {/* Word Count & Tip Indicator */}
-            <div className="px-6 py-2 bg-neutral-100/60 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-neutral-500">
-              <span className="flex items-center gap-1">
-                💡 <span className="text-neutral-600 dark:text-neutral-400 font-sans">Mẹo: Bôi đen chữ rồi bấm <b>Cỡ chữ</b>, <b>Màu chữ</b> hoặc <b>In đậm</b> để định dạng nhanh. Bạn có thể copy-paste trực tiếp từ Word / Google Docs.</span>
+            {/* Word Count & Low-Tech Helper Bar */}
+            <div className="px-6 py-2.5 bg-blue-50/60 border-b border-neutral-200 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+              <span className="flex items-center gap-1.5 text-blue-900">
+                ✨ <span className="font-sans font-medium">Bạn có thể <strong>copy-paste trực tiếp từ Word, Google Docs, ChatGPT</strong> vào đây. Văn bản sẽ giữ nguyên in đậm, tiêu đề và định dạng đẹp mắt mà không cần biết HTML!</span>
               </span>
-              <span className={wordCount >= 1000 ? 'text-emerald-600 font-bold' : 'text-amber-600'}>
-                {wordCount} từ {wordCount >= 1000 ? '✓ Đạt chuẩn 1,000+ từ cho AdSense' : '(Khuyến nghị 1,000+ từ)'}
+              <span className={wordCount >= 1000 ? 'text-emerald-700 font-bold' : 'text-amber-700 font-bold'}>
+                {wordCount} từ {wordCount >= 1000 ? '✓ Đạt chuẩn 1,000+ từ AdSense' : '(Khuyến nghị 1,000+ từ)'}
               </span>
             </div>
 
-            {/* Main Editor or High-End Live Preview */}
-            <div className="p-4 sm:p-6">
+            {/* Main Visual WYSIWYG Editor / Code Editor / High-End Live Preview */}
+            <div className="p-4 sm:p-6 bg-white min-h-[420px]">
               {activeTab === 'write' ? (
-                <textarea
-                  ref={textareaRef}
-                  onPaste={handlePaste}
-                  rows="16"
-                  placeholder="Nhập hoặc dán nội dung bài viết vào đây... (Tô chọn chữ và chọn Cỡ Chữ, Màu Sắc, In Đậm, Tiêu Đề trên thanh công cụ để định dạng tức thì)"
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="w-full font-mono text-sm bg-transparent border-0 focus:outline-none text-neutral-900 dark:text-neutral-100 leading-relaxed resize-y min-h-[380px]"
-                  required
-                ></textarea>
+                <div
+                  ref={visualEditorRef}
+                  contentEditable
+                  onInput={handleVisualInput}
+                  onPaste={handleVisualPaste}
+                  dangerouslySetInnerHTML={{ __html: formData.content || '' }}
+                  className="editorial-prose min-h-[420px] p-4 sm:p-6 focus:outline-none text-neutral-900 leading-relaxed bg-white border border-neutral-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-inner"
+                  style={{ minHeight: '420px' }}
+                />
+              ) : activeTab === 'code' ? (
+                <div className="space-y-2">
+                  <div className="p-2 bg-neutral-100 text-neutral-700 text-xs font-mono rounded-lg border border-neutral-200">
+                    💻 Chế độ mã HTML thô (Dành cho nhà phát triển chỉnh sửa thẻ trực tiếp):
+                  </div>
+                  <textarea
+                    ref={textareaRef}
+                    rows="16"
+                    value={formData.content}
+                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                    className="w-full font-mono text-sm bg-neutral-900 text-neutral-100 p-4 rounded-xl border border-neutral-700 focus:outline-none focus:border-blue-500 leading-relaxed resize-y min-h-[380px]"
+                  />
+                </div>
               ) : (
                 <div className="space-y-6">
                   {/* Device Preview Switcher Bar */}
