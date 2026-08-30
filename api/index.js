@@ -15,11 +15,8 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Ensure database connection in serverless lifecycle
-app.use(async (req, res, next) => {
-  await connectDB();
-  next();
-});
+// Non-blocking database connection in background
+connectDB().catch(() => {});
 
 // Helper: Escape HTML
 const escapeHtml = (unsafe = '') => {
@@ -181,7 +178,7 @@ const handlePostCrawler = async (req, res) => {
 };
 
 app.get('/post/:slug', handlePostCrawler);
-app.get('/post/*', handlePostCrawler);
+app.use('/post', handlePostCrawler);
 
 // ==========================================
 // 2. Short Link Resolver for /s/:code
