@@ -2,6 +2,7 @@ import React from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { Badge } from '../common/Badge';
 import { Clock, TrendingUp, ArrowRight } from 'lucide-react';
+import { getOptimizedImageUrl } from '../../utils/imageOptimizer';
 
 export const HeroFeatured = () => {
   const { posts, categories, authors, navigate } = useBlog();
@@ -31,8 +32,9 @@ export const HeroFeatured = () => {
         >
           <div className="relative aspect-[16/9] sm:aspect-[21/11] overflow-hidden bg-neutral-900">
             <img 
-              src={leadPost.coverImage} 
+              src={getOptimizedImageUrl(leadPost.coverImage, 960)} 
               alt={leadPost.title}
+              decoding="async"
               className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500" 
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>

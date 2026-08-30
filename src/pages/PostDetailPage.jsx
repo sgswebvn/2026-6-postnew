@@ -11,6 +11,7 @@ import { NewsletterBox } from '../components/blog/NewsletterBox';
 import { ReadingProgressBar } from '../components/layout/ReadingProgressBar';
 import { AffiliateShowcaseBox } from '../components/blog/AffiliateShowcaseBox';
 import { TableOfContents } from '../components/blog/TableOfContents';
+import { getOptimizedImageUrl } from '../utils/imageOptimizer';
 import { 
   Clock, 
   Eye, 
@@ -375,8 +376,6 @@ export const PostDetailPage = ({ slug }) => {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3 text-xs text-neutral-400 font-mono">
                 <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {post.readTime}</span>
-                <span>•</span>
-                <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {(post.views || 0).toLocaleString()} views</span>
               </div>
               <SocialShareBar title={post.title} />
             </div>
@@ -386,8 +385,9 @@ export const PostDetailPage = ({ slug }) => {
         {/* Feature Cover Image */}
         <div className="max-w-4xl mx-auto mb-10 rounded-3xl overflow-hidden shadow-2xl border border-neutral-200 dark:border-neutral-800 aspect-[16/9] bg-neutral-100 dark:bg-neutral-800">
           <img 
-            src={post.coverImage} 
+            src={getOptimizedImageUrl(post.coverImage, 1200)} 
             alt={post.title}
+            decoding="async"
             className="w-full h-full object-cover" 
           />
         </div>

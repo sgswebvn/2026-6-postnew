@@ -2,6 +2,7 @@ import React from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { Clock, Bookmark, ArrowRight } from 'lucide-react';
 import { Badge } from '../common/Badge';
+import { getOptimizedImageUrl } from '../../utils/imageOptimizer';
 
 export const ArticleCard = ({ post, variant = 'standard' }) => {
   const { categories, authors, navigate, toggleBookmark, bookmarks } = useBlog();
@@ -31,8 +32,10 @@ export const ArticleCard = ({ post, variant = 'standard' }) => {
         className="group cursor-pointer flex items-start gap-3.5 p-2.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800/50 transition-all font-sans"
       >
         <img 
-          src={post.coverImage} 
+          src={getOptimizedImageUrl(post.coverImage, 160)} 
           alt={post.title}
+          loading="lazy"
+          decoding="async"
           className="w-16 h-16 object-cover rounded-lg flex-shrink-0 border border-neutral-200 dark:border-neutral-700" 
         />
         <div className="space-y-1 flex-1">
@@ -56,10 +59,11 @@ export const ArticleCard = ({ post, variant = 'standard' }) => {
       {/* Cover Image Container */}
       <div className="relative aspect-[16/10] overflow-hidden bg-neutral-100 dark:bg-neutral-800">
         <img 
-          src={post.coverImage} 
+          src={getOptimizedImageUrl(post.coverImage, 640)} 
           alt={post.title}
           className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
           loading="lazy"
+          decoding="async"
         />
         <div className="absolute top-3 left-3">
           <Badge label={category?.name || 'Article'} size="sm" />
