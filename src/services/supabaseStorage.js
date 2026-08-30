@@ -70,6 +70,28 @@ export const supabaseStorage = {
         body: jsonBlob
       });
 
+      // Update posts_manifest.json
+      try {
+        let manifest = [];
+        const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/posts_manifest.json`);
+        if (manRes.ok) {
+          const parsed = await manRes.json();
+          if (Array.isArray(parsed)) manifest = parsed;
+        }
+        const updatedManifest = [post, ...manifest.filter(p => p.id !== post.id && p.slug !== post.slug)];
+        const manBlob = new Blob([JSON.stringify(updatedManifest, null, 2)], { type: 'application/json' });
+        await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/posts_manifest.json`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+            'apikey': SUPABASE_SERVICE_ROLE,
+            'Content-Type': 'application/json',
+            'x-upsert': 'true'
+          },
+          body: manBlob
+        });
+      } catch (me) {}
+
       return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${filePath}`;
     } catch (e) {
       console.warn('Could not sync post metadata to Supabase:', e);

@@ -25,6 +25,78 @@ const router = express.Router();
 
 const isMongooseReady = () => mongoose.connection.readyState === 1;
 
+const SUPABASE_URL = 'https://mmltqgekvpdnezqdavvc.supabase.co';
+const SUPABASE_SERVICE_ROLE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tbHRxZ2VrdnBkbmV6cWRhdnZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NzkzMDY3NywiZXhwIjoyMTAzNTA2Njc3fQ.q_cgtmcVGrBeD8eCuov4xHzl4Lahy5bJIAlsZ8Y_ZUo';
+
+async function syncPostToSupabase(post) {
+  try {
+    const cleanSlug = (post.slug || post.id || '').toLowerCase().trim().replace(/[^a-z0-9-]/g, '-');
+    // 1. Save single post
+    await fetch(`${SUPABASE_URL}/storage/v1/object/postnew/posts/${cleanSlug}.json`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+        'apikey': SUPABASE_SERVICE_ROLE,
+        'Content-Type': 'application/json',
+        'x-upsert': 'true'
+      },
+      body: JSON.stringify(post)
+    });
+
+    // 2. Update manifest
+    let currentManifest = [];
+    try {
+      const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/postnew/posts_manifest.json`);
+      if (manRes.ok) currentManifest = await manRes.json();
+    } catch (e) {}
+
+    const updatedManifest = [post, ...(Array.isArray(currentManifest) ? currentManifest.filter(p => p.id !== post.id && p.slug !== post.slug) : [])];
+    await fetch(`${SUPABASE_URL}/storage/v1/object/postnew/posts_manifest.json`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+        'apikey': SUPABASE_SERVICE_ROLE,
+        'Content-Type': 'application/json',
+        'x-upsert': 'true'
+      },
+      body: JSON.stringify(updatedManifest)
+    });
+  } catch (err) {
+    console.warn('[Supabase Sync Warning]', err.message);
+  }
+}
+
+async function getSupabasePostsManifest() {
+  try {
+    const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/postnew/posts_manifest.json`);
+    if (manRes.ok) {
+      const data = await manRes.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (e) {}
+  return [];
+}
+
+async function deletePostFromSupabase(postId) {
+  try {
+    let currentManifest = [];
+    const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/postnew/posts_manifest.json`);
+    if (manRes.ok) currentManifest = await manRes.json();
+
+    const updatedManifest = currentManifest.filter(p => p.id !== postId && p.slug !== postId);
+    await fetch(`${SUPABASE_URL}/storage/v1/object/postnew/posts_manifest.json`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+        'apikey': SUPABASE_SERVICE_ROLE,
+        'Content-Type': 'application/json',
+        'x-upsert': 'true'
+      },
+      body: JSON.stringify(updatedManifest)
+    });
+  } catch (e) {}
+}
+
 // ==========================================
 // 1. SYSTEM HEALTH & MONGODB STATUS
 // ==========================================
@@ -43,11 +115,20 @@ router.get('/posts', async (req, res) => {
   try {
     if (isMongooseReady()) {
       const posts = await Post.find().sort({ publishedAt: -1 });
-      return res.json(posts);
+      if (posts && posts.length > 0) return res.json(posts);
     }
-    return res.json(memoryStore.posts);
+
+    const cloudPosts = await getSupabasePostsManifest();
+    const memoryPosts = memoryStore.posts || [];
+    const merged = [...cloudPosts];
+    for (const p of memoryPosts) {
+      if (!merged.some(m => m.id === p.id || m.slug === p.slug)) {
+        merged.push(p);
+      }
+    }
+    return res.json(merged.length > 0 ? merged : initialPosts);
   } catch (error) {
-    return res.json(memoryStore.posts);
+    return res.json(memoryStore.posts || initialPosts);
   }
 });
 
@@ -55,12 +136,21 @@ router.get('/posts/published', async (req, res) => {
   try {
     if (isMongooseReady()) {
       const posts = await Post.find({ status: 'published' }).sort({ publishedAt: -1 });
-      return res.json(posts);
+      if (posts && posts.length > 0) return res.json(posts);
     }
-    const published = memoryStore.posts.filter(p => p.status === 'published');
+    const cloudPosts = await getSupabasePostsManifest();
+    const memoryPosts = memoryStore.posts || [];
+    const merged = [...cloudPosts];
+    for (const p of memoryPosts) {
+      if (!merged.some(m => m.id === p.id || m.slug === p.slug)) {
+        merged.push(p);
+      }
+    }
+    const published = (merged.length > 0 ? merged : initialPosts).filter(p => p.status === 'published');
     return res.json(published);
   } catch (error) {
-    return res.json(memoryStore.posts.filter(p => p.status === 'published'));
+    const published = (memoryStore.posts || initialPosts).filter(p => p.status === 'published');
+    return res.json(published);
   }
 });
 
@@ -79,7 +169,8 @@ router.get('/posts/:slug', async (req, res) => {
       });
       if (post) return res.json(post);
     }
-    const post = (memoryStore.posts || []).find(p => 
+
+    let post = (memoryStore.posts || []).find(p => 
       p.slug === rawSlug || 
       p.slug === clean || 
       p.id === rawSlug || 
@@ -91,12 +182,19 @@ router.get('/posts/:slug', async (req, res) => {
       (p.slug && p.slug.toLowerCase() === clean.toLowerCase())
     );
 
+    if (!post) {
+      try {
+        const sbRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/postnew/posts/${clean}.json`);
+        if (sbRes.ok) {
+          post = await sbRes.json();
+        }
+      } catch (e) {}
+    }
+
     if (!post) return res.status(404).json({ error: 'Article not found' });
     return res.json(post);
   } catch (error) {
-    const post = (memoryStore.posts || []).find(p => p.slug === rawSlug || p.slug === clean || p.id === rawSlug);
-    if (!post) return res.status(404).json({ error: 'Article not found' });
-    return res.json(post);
+    return res.status(404).json({ error: 'Article not found' });
   }
 });
 
@@ -168,6 +266,9 @@ router.post('/posts', async (req, res) => {
       updatedAt: new Date()
     };
 
+    // Synchronize to Supabase Cloud Storage
+    syncPostToSupabase(newPostData).catch(() => {});
+
     if (isMongooseReady()) {
       // Find and update if existing by id or slug, otherwise create new
       const created = await Post.findOneAndUpdate(
@@ -199,6 +300,9 @@ router.put('/posts/:id', async (req, res) => {
       updatedAt: new Date()
     };
 
+    // Synchronize update to Supabase Cloud Storage
+    syncPostToSupabase(updateData).catch(() => {});
+
     if (isMongooseReady()) {
       const updated = await Post.findOneAndUpdate(
         { id },
@@ -224,6 +328,8 @@ router.put('/posts/:id', async (req, res) => {
 router.delete('/posts/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    deletePostFromSupabase(id).catch(() => {});
+
     if (isMongooseReady()) {
       await Post.deleteOne({ id });
     }

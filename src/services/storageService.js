@@ -31,15 +31,32 @@ export const storageService = {
         api.getActivityLogs()
       ]);
 
+      // Fetch Supabase posts manifest as cloud database layer
+      let supabasePosts = [];
+      try {
+        const sbRes = await fetch('https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/posts_manifest.json');
+        if (sbRes.ok) {
+          const parsed = await sbRes.json();
+          if (Array.isArray(parsed)) supabasePosts = parsed;
+        }
+      } catch (e) {}
+
       const localPosts = this.getPosts();
       let mergedPosts = [...(remotePosts || [])];
+
+      for (const sp of supabasePosts) {
+        if (!mergedPosts.some(rp => rp.id === sp.id || (rp.slug && sp.slug && rp.slug === sp.slug))) {
+          mergedPosts.unshift(sp);
+        }
+      }
       
       // Preserve any custom posts created locally that are not yet in remote
       for (const lp of localPosts) {
         if (!mergedPosts.some(rp => rp.id === lp.id || (rp.slug && lp.slug && rp.slug === lp.slug))) {
           mergedPosts.unshift(lp);
-          // Try background sync to backend
+          // Try background sync to backend & Supabase
           try { api.createPost(lp); } catch (e) {}
+          try { supabaseStorage.savePostMetadata(lp); } catch (e) {}
         }
       }
 

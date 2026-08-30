@@ -59,9 +59,9 @@ export const PostDetailPage = ({ slug }) => {
       fetch(`/api/posts/${encodeURIComponent(cleanSlug || slug)}`)
         .then(res => {
           if (res.ok) return res.json();
-          return fetch('/api/posts')
-            .then(r => r.ok ? r.json() : [])
-            .then(all => all.find(p => p.slug === slug || p.slug === cleanSlug || p.id === slug || (p.slug && p.slug.toLowerCase() === (slug || '').toLowerCase())));
+          // Direct Supabase CDN fetch fallback
+          return fetch(`https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/posts/${encodeURIComponent(cleanSlug || slug)}.json`)
+            .then(sb => sb.ok ? sb.json() : null);
         })
         .then(data => {
           if (data) setFetchedPost(data);
@@ -71,7 +71,7 @@ export const PostDetailPage = ({ slug }) => {
     } else {
       setIsLoading(false);
     }
-  }, [slug, localPost]);
+  }, [slug, localPost, cleanSlug]);
 
   const post = localPost || fetchedPost;
   const isSaved = post ? bookmarks.includes(post.slug || slug) : false;
