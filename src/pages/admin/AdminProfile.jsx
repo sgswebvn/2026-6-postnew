@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { 
   User, 
@@ -18,7 +18,8 @@ import {
   Eye,
   EyeOff,
   Link2,
-  Zap
+  Zap,
+  Upload
 } from 'lucide-react';
 import { ShortLinkModal } from '../../components/admin/ShortLinkModal';
 import { storageService } from '../../services/storageService';
