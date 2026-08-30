@@ -192,7 +192,7 @@ export const storageService = {
         details: `Đã xuất bản: "${newPost.title}"`,
         type: 'success'
       });
-      supabaseStorage.savePostMetadata(newPost).catch(() => {});
+      await supabaseStorage.savePostMetadata(newPost).catch(() => {});
     } else {
       const updatedPost = { ...post, updatedAt: new Date().toISOString() };
       try {
@@ -211,7 +211,7 @@ export const storageService = {
         details: `Cập nhật bài: "${post.title}"`,
         type: 'neutral'
       });
-      supabaseStorage.savePostMetadata(updatedPost).catch(() => {});
+      await supabaseStorage.savePostMetadata(updatedPost).catch(() => {});
     }
 
     safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(updated));
