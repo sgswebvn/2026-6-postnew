@@ -30,12 +30,12 @@
 /* Admin Font & Dialog Layer: 100% Vietnamese Font Compatibility */
 .admin-view, 
 .admin-view *, 
-aside,
-button,
-input,
-textarea,
-select {
-  font-family: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+.admin-view aside,
+.admin-view button,
+.admin-view input,
+.admin-view textarea,
+.admin-view select {
+  font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif !important;
 }
 
 /* =========================================================

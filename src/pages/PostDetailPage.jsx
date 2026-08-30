@@ -220,7 +220,7 @@ export const PostDetailPage = ({ slug }) => {
 
   const handleToggleSpeech = () => {
     if (!('speechSynthesis' in window)) {
-      showToast('Trình duyệt của bạn chưa hỗ trợ tính năng đọc bài báo bằng giọng nói', 'warning');
+      showToast('Text-to-speech audio narration is not supported in your browser.', 'warning');
       return;
     }
     if (isPlayingAudio) {

@@ -114,7 +114,7 @@ export const Footer = () => {
             <button onClick={() => navigate('/terms')} className="hover:text-neutral-300">Terms</button>
             <button onClick={() => navigate('/disclaimer')} className="hover:text-neutral-300">Disclosures</button>
             <button onClick={() => navigate('/contact')} className="hover:text-neutral-300">Contact</button>
-            <button onClick={() => navigate('/admin')} className="hover:text-neutral-200 text-neutral-500 font-mono text-[11px]">🔒 Quản Trị CMS</button>
+            <button onClick={() => navigate('/admin')} className="hover:text-neutral-200 text-neutral-500 font-mono text-[11px]">🔒 CMS Portal</button>
           </div>
         </div>
       </div>

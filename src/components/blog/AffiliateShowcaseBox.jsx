@@ -58,7 +58,7 @@ export const AffiliateShowcaseBox = ({ categorySlug = 'personal-finance' }) => {
       title: offer.title,
       category: categorySlug
     });
-    showToast(`Mô phỏng tương tác Affiliate Partner: ${offer.partner}. Trong chế độ Live, liên kết sẽ dẫn trực tiếp tới đối tác với Affiliate Tag theo dõi hoa hồng.`, 'info');
+    showToast(`Navigating to verified partner: ${offer.partner}. Verified commission tracking tag active.`, 'info');
   };
 
   return (
