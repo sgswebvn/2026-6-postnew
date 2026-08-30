@@ -24,7 +24,6 @@ export const BlogProvider = ({ children }) => {
 
   const getInitialRoute = () => {
     if (typeof window === 'undefined') return '/';
-    // If user opened with legacy hash (e.g. #/post/slug or #/admin), automatically convert to clean URL
     if (window.location.hash && window.location.hash.startsWith('#/')) {
       const clean = window.location.hash.replace(/^#/, '');
       window.history.replaceState(null, '', clean);
@@ -42,159 +41,112 @@ export const BlogProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
   const [dialog, setDialog] = useState(null);
   
-  // Persist Admin Auth
+  // Persist Admin Auth (Server-verified via Token)
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => {
-    const sessionAuth = sessionStorage.getItem('horizon_admin_session');
-    const localAuth = localStorage.getItem('horizon_admin_session');
-    return sessionAuth === 'true' || localAuth === 'true';
+    const token = localStorage.getItem('horizon_auth_token') || sessionStorage.getItem('horizon_auth_token');
+    return Boolean(token);
   });
   
   const [userRole, setUserRole] = useState(() => {
-    return sessionStorage.getItem('horizon_user_role') || localStorage.getItem('horizon_user_role') || 'admin';
+    return sessionStorage.getItem('horizon_user_role') || localStorage.getItem('horizon_user_role') || 'editor';
   });
 
   const [currentUser, setCurrentUser] = useState(() => {
     try {
-      const sessionUser = sessionStorage.getItem('horizon_current_user');
-      const localUser = localStorage.getItem('horizon_current_user');
+      const sessionUser = sessionStorage.getItem('horizon_current_user') || localStorage.getItem('horizon_current_user');
       if (sessionUser) return JSON.parse(sessionUser);
-      if (localUser) return JSON.parse(localUser);
-      const isAuth = sessionStorage.getItem('horizon_admin_session') === 'true' || localStorage.getItem('horizon_admin_session') === 'true';
-      if (isAuth) {
-        const staff = storageService.getStaffList().find(s => s.role === 'admin');
-        return staff || {
-          id: 'staff-1',
-          name: 'Nguyễn Quốc Bảo',
-          username: 'admin',
-          email: 'admin@thehori.click',
-          role: 'admin',
-          roleName: 'Quản Lý Tổng Biên Tập'
-        };
-      }
       return null;
     } catch {
       return null;
     }
   });
 
-  // Enforce Clean Editorial Light Theme (WSJ / Financial Times Standard)
+  // Enforce Clean Editorial Light Theme
   useEffect(() => {
     document.documentElement.classList.remove('dark');
     localStorage.setItem('horizon_theme', 'light');
   }, []);
 
-  // Initialize data from MongoDB API & Local storage
+  // Initialize data from MongoDB API & verify session token
   useEffect(() => {
     refreshAllData();
 
-    // Async sync with MongoDB Backend
-    storageService.initializeFromDB().then((dbData) => {
-      if (dbData) {
-        if (dbData.posts) setPosts(dbData.posts);
-        if (dbData.categories) setCategories(dbData.categories);
-        if (dbData.authors) setAuthors(dbData.authors);
-        if (dbData.settings) setSettings(dbData.settings);
-        if (dbData.staffList) setStaffList(dbData.staffList);
-        if (dbData.activityLogs) setActivityLogs(dbData.activityLogs);
-      }
-    });
-
-    // Listen to history popstate & hash changes for clean routing
-    const handleRouteChange = () => {
-      setCurrentRoute(getInitialRoute());
-      window.scrollTo(0, 0);
-    };
-
-    window.addEventListener('popstate', handleRouteChange);
-    window.addEventListener('hashchange', handleRouteChange);
-    return () => {
-      window.removeEventListener('popstate', handleRouteChange);
-      window.removeEventListener('hashchange', handleRouteChange);
-    };
-  }, []);
-
-  // Automatic Seeding Referral Tracker on Route Change
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
-      const refCode = urlParams.get('ref') || hashParams.get('ref') || urlParams.get('utm_source');
-      
-      if (refCode) {
-        const result = storageService.recordSeedingHit(refCode, currentRoute || window.location.pathname);
-        if (result) {
-          if (result.posts) setPosts([...result.posts]);
-          if (result.activityLogs) setActivityLogs([...result.activityLogs]);
-          if (result.staffList) setStaffList([...result.staffList]);
+    // Verify session token against server
+    const token = localStorage.getItem('horizon_auth_token') || sessionStorage.getItem('horizon_auth_token');
+    if (token) {
+      api.getMe().then(user => {
+        if (user && user.id) {
+          setIsAdminAuthenticated(true);
+          setUserRole(user.role || 'editor');
+          setCurrentUser(user);
+          localStorage.setItem('horizon_user_role', user.role || 'editor');
+          localStorage.setItem('horizon_current_user', JSON.stringify(user));
+        } else {
+          // Token expired or invalid
+          api.logout();
+          setIsAdminAuthenticated(false);
+          setCurrentUser(null);
         }
-      }
-    } catch {}
-  }, [currentRoute]);
+      }).catch(() => {});
+    }
+
+    // Async sync with MongoDB Backend
+    storageService.initializeFromDB().then(() => {
+      refreshAllData();
+    });
+  }, []);
 
   const refreshAllData = () => {
     setPosts(storageService.getPosts());
     setCategories(storageService.getCategories());
     setAuthors(storageService.getAuthors());
     setSettings(storageService.getSettings());
-    setBookmarks(storageService.getBookmarks());
     setStaffList(storageService.getStaffList());
+    setBookmarks(storageService.getBookmarks());
     setActivityLogs(storageService.getActivityLogs());
   };
 
-  const incrementPostView = async (slug) => {
-    const updated = await storageService.incrementView(slug);
-    if (updated) setPosts([...updated]);
-  };
+  // Sync route on popstate
+  useEffect(() => {
+    const handlePopState = () => {
+      let path = window.location.pathname;
+      if (window.location.hash && window.location.hash.startsWith('#/')) {
+        path = window.location.hash.replace(/^#/, '');
+        window.history.replaceState(null, '', path);
+      }
+      setCurrentRoute(path || '/');
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const navigate = (path) => {
-    if (!path) return;
-    let clean = path.startsWith('#') ? path.replace(/^#/, '') : path;
-    if (!clean.startsWith('/')) clean = `/${clean}`;
-
-    window.history.pushState(null, '', clean);
-    setCurrentRoute(clean);
-    window.scrollTo(0, 0);
+    if (currentRoute === path) return;
+    window.history.pushState(null, '', path);
+    setCurrentRoute(path);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const showToast = (message, type = 'success', title = '', duration = 4000) => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const newToast = { id, message, type, title, timeStr, duration };
-    setToasts(prev => [newToast, ...prev].slice(0, 4));
-
+  const showToast = (message, type = 'success', duration = 3500) => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, duration);
   };
 
-  const removeToast = (id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  };
-
-  const showConfirm = ({ title, message, confirmText = 'Xác Nhận', cancelText = 'Hủy Bỏ', variant = 'danger', onConfirm }) => {
+  const showDialog = ({ title, message, type = 'danger', confirmText = 'Xác nhận', cancelText = 'Hủy', onConfirm }) => {
     setDialog({
-      type: 'confirm',
       title,
       message,
+      type,
       confirmText,
       cancelText,
-      variant,
-      onConfirm
-    });
-  };
-
-  const showPrompt = ({ title, message, inputLabel, placeholder, defaultValue = '', confirmText = 'Xác Nhận', cancelText = 'Hủy Bỏ', onConfirm }) => {
-    setDialog({
-      type: 'prompt',
-      title,
-      message,
-      inputLabel,
-      placeholder,
-      defaultValue,
-      confirmText,
-      cancelText,
-      onConfirm
+      onConfirm: () => {
+        if (onConfirm) onConfirm();
+        setDialog(null);
+      }
     });
   };
 
@@ -211,7 +163,7 @@ export const BlogProvider = ({ children }) => {
   };
 
   const loginAdmin = async (identifier, password, customTarget = null) => {
-    const inputId = (identifier || '').trim().toLowerCase();
+    const inputId = (identifier || '').trim();
     const inputPass = (password || '').trim();
 
     if (!inputId || !inputPass) {
@@ -219,49 +171,37 @@ export const BlogProvider = ({ children }) => {
       return false;
     }
 
-    let authenticatedUser = null;
-
     try {
-      // API call to backend auth
       const response = await api.loginAdmin(inputId, inputPass);
-      if (response && response.success && response.staff) {
-        authenticatedUser = response.staff;
+      if (response && response.success && response.user) {
+        const authenticatedUser = response.user;
+        setIsAdminAuthenticated(true);
+        setUserRole(authenticatedUser.role || 'editor');
+        setCurrentUser(authenticatedUser);
+
+        localStorage.setItem('horizon_user_role', authenticatedUser.role || 'editor');
+        localStorage.setItem('horizon_current_user', JSON.stringify(authenticatedUser));
+
+        storageService.addActivityLog({
+          staffId: authenticatedUser.id,
+          staffName: authenticatedUser.name,
+          refCode: authenticatedUser.refCode || '',
+          action: 'login',
+          title: 'Đăng nhập hệ thống',
+          details: `Nhân viên ${authenticatedUser.name} (${authenticatedUser.roleName || authenticatedUser.role}) đã đăng nhập thành công.`,
+          type: 'info'
+        });
+        setActivityLogs(storageService.getActivityLogs());
+
+        showToast(`Chào mừng ${authenticatedUser.name} (${authenticatedUser.roleName || authenticatedUser.role})!`, 'success');
+        
+        const destination = customTarget || (currentRoute && currentRoute.startsWith('/admin') ? currentRoute : (authenticatedUser.role === 'admin' ? '/admin' : '/admin/posts'));
+        navigate(destination);
+        return true;
       }
     } catch (error) {
-      console.error('Login failed', error);
-    }
-
-    if (authenticatedUser) {
-      setIsAdminAuthenticated(true);
-      setUserRole(authenticatedUser.role || 'editor');
-      setCurrentUser(authenticatedUser);
-      
-      try {
-        sessionStorage.setItem('horizon_admin_session', 'true');
-        localStorage.setItem('horizon_admin_session', 'true');
-        sessionStorage.setItem('horizon_user_role', authenticatedUser.role || 'editor');
-        localStorage.setItem('horizon_user_role', authenticatedUser.role || 'editor');
-        sessionStorage.setItem('horizon_current_user', JSON.stringify(authenticatedUser));
-        localStorage.setItem('horizon_current_user', JSON.stringify(authenticatedUser));
-      } catch (e) {}
-
-      // Record Activity Log
-      storageService.addActivityLog({
-        staffId: authenticatedUser.id,
-        staffName: authenticatedUser.name,
-        refCode: authenticatedUser.refCode || '',
-        action: 'login',
-        title: 'Đăng nhập hệ thống',
-        details: `Nhân viên ${authenticatedUser.name} (${authenticatedUser.roleName || authenticatedUser.role}) đã đăng nhập thành công.`,
-        type: 'info'
-      });
-      setActivityLogs(storageService.getActivityLogs());
-
-      showToast(`Chào mừng ${authenticatedUser.name} (${authenticatedUser.roleName || authenticatedUser.role})!`, 'success');
-      
-      const destination = customTarget || (currentRoute && currentRoute.startsWith('/admin') ? currentRoute : (authenticatedUser.role === 'admin' ? '/admin' : '/admin/posts'));
-      navigate(destination);
-      return true;
+      showToast(error.message || 'Tài khoản hoặc mật khẩu không chính xác!', 'error');
+      return false;
     }
 
     showToast('Tài khoản hoặc mật khẩu không chính xác!', 'error');
@@ -269,192 +209,281 @@ export const BlogProvider = ({ children }) => {
   };
 
   const logoutAdmin = () => {
+    api.logout();
     setIsAdminAuthenticated(false);
-    setUserRole('admin');
+    setUserRole('editor');
     setCurrentUser(null);
-    sessionStorage.removeItem('horizon_admin_session');
-    localStorage.removeItem('horizon_admin_session');
-    sessionStorage.removeItem('horizon_user_role');
-    localStorage.removeItem('horizon_user_role');
-    sessionStorage.removeItem('horizon_current_user');
-    localStorage.removeItem('horizon_current_user');
     showToast('Đã đăng xuất khỏi trang Quản trị', 'info');
     navigate('/');
   };
 
-  // CRUD Operations
+  // CRUD Operations with Strict Error Propagation (Zero False Success)
   const savePost = async (postData) => {
-    const updated = await storageService.savePost(postData);
-    setPosts(updated);
-    setActivityLogs(storageService.getActivityLogs());
-    showToast(postData.id && !postData.id.startsWith('new-') ? 'Cập nhật bài viết thành công!' : 'Đã xuất bản bài viết mới!');
-    return updated;
+    try {
+      const updated = await storageService.savePost(postData);
+      setPosts(updated);
+      setActivityLogs(storageService.getActivityLogs());
+      showToast(postData.id && !postData.id.startsWith('new-') ? 'Cập nhật bài viết thành công!' : 'Đã xuất bản bài viết mới!', 'success');
+      return updated;
+    } catch (error) {
+      showToast(`❌ Không thể lưu bài viết: ${error.message}`, 'error');
+      throw error;
+    }
   };
 
   const deletePost = async (id) => {
-    const updated = await storageService.deletePost(id);
-    setPosts(updated);
-    showToast('Đã xóa bài viết khỏi hệ thống', 'info');
-    return updated;
+    try {
+      const updated = await storageService.deletePost(id);
+      setPosts(updated);
+      showToast('Đã xóa bài viết khỏi hệ thống', 'info');
+      return updated;
+    } catch (error) {
+      showToast(`❌ Không thể xóa bài viết: ${error.message}`, 'error');
+      throw error;
+    }
   };
 
   const updateSettings = async (newSettings) => {
-    await storageService.saveSettings(newSettings);
-    setSettings(newSettings);
-    showToast('Đã lưu cấu hình Website & AdSense thành công!');
-    return newSettings;
+    try {
+      await storageService.saveSettings(newSettings);
+      setSettings(newSettings);
+      showToast('Đã lưu cấu hình Website & AdSense thành công!', 'success');
+      return newSettings;
+    } catch (error) {
+      showToast(`❌ Không thể lưu cấu hình: ${error.message}`, 'error');
+      throw error;
+    }
   };
 
   const updateCategories = async (newCategories) => {
-    await storageService.saveCategories(newCategories);
-    setCategories(newCategories);
-    showToast('Đã cập nhật danh sách chuyên mục!');
-    return newCategories;
+    try {
+      await storageService.saveCategories(newCategories);
+      setCategories(newCategories);
+      showToast('Đã cập nhật danh sách chuyên mục!', 'success');
+      return newCategories;
+    } catch (error) {
+      showToast(`❌ Không thể cập nhật chuyên mục: ${error.message}`, 'error');
+      throw error;
+    }
   };
 
   const addCategory = async (categoryData) => {
-    const newCat = await storageService.addCategory(categoryData);
-    setCategories(storageService.getCategories());
-    setActivityLogs(storageService.getActivityLogs());
-    showToast(`Đã tạo chuyên mục "${newCat.name}" thành công!`);
-    return newCat;
+    try {
+      const newCat = await storageService.addCategory(categoryData);
+      setCategories(storageService.getCategories());
+      setActivityLogs(storageService.getActivityLogs());
+      showToast(`Đã tạo chuyên mục "${categoryData.name}" thành công!`, 'success');
+      return newCat;
+    } catch (error) {
+      showToast(`❌ Không thể tạo chuyên mục: ${error.message}`, 'error');
+      throw error;
+    }
   };
 
   const deleteCategory = async (id) => {
-    const updated = await storageService.deleteCategory(id);
-    setCategories(updated);
-    showToast('Đã xóa chuyên mục khỏi hệ thống', 'info');
-    return updated;
+    try {
+      const updated = await storageService.deleteCategory(id);
+      setCategories(updated);
+      showToast('Đã xóa chuyên mục khỏi hệ thống', 'info');
+      return updated;
+    } catch (error) {
+      showToast(`❌ Không thể xóa chuyên mục: ${error.message}`, 'error');
+      throw error;
+    }
   };
 
   const updateAuthors = async (newAuthors) => {
-    await storageService.saveAuthors(newAuthors);
-    setAuthors(newAuthors);
-    showToast('Đã cập nhật danh sách tác giả!');
-    return newAuthors;
+    try {
+      await storageService.saveAuthors(newAuthors);
+      setAuthors(newAuthors);
+      showToast('Đã cập nhật danh sách tác giả!', 'success');
+      return newAuthors;
+    } catch (error) {
+      showToast(`❌ Không thể lưu tác giả: ${error.message}`, 'error');
+      throw error;
+    }
   };
 
   const addAuthor = async (authorData) => {
-    const newAuthor = await storageService.addAuthor(authorData);
-    setAuthors(storageService.getAuthors());
-    showToast(`Đã thêm tác giả "${newAuthor.name}" thành công!`, 'success');
-    return newAuthor;
+    try {
+      const newAuthor = await storageService.addAuthor(authorData);
+      setAuthors(storageService.getAuthors());
+      showToast(`Đã thêm tác giả "${authorData.name}" thành công!`, 'success');
+      return newAuthor;
+    } catch (error) {
+      showToast(`❌ Không thể thêm tác giả: ${error.message}`, 'error');
+      throw error;
+    }
   };
 
   const deleteAuthor = async (id) => {
-    const updated = await storageService.deleteAuthor(id);
-    setAuthors(updated);
-    showToast('Đã xóa tác giả khỏi danh sách', 'info');
-    return updated;
+    try {
+      const updated = await storageService.deleteAuthor(id);
+      setAuthors(updated);
+      showToast('Đã xóa tác giả khỏi danh sách', 'info');
+      return updated;
+    } catch (error) {
+      showToast(`❌ Không thể xóa tác giả: ${error.message}`, 'error');
+      throw error;
+    }
   };
 
-  // Staff & Payroll CRUD
-  const saveStaff = async (staffData, customToast = null) => {
-    const isNew = !staffList.some(s => s.id === staffData.id);
-    const updated = await storageService.saveStaff(staffData);
-    setStaffList(updated);
-    if (currentUser && (currentUser.id === staffData.id || currentUser.username === staffData.username)) {
-      setCurrentUser(prev => ({ ...prev, ...staffData }));
+  const saveStaff = async (staffMember) => {
+    try {
+      const updated = await storageService.saveStaff(staffMember);
+      setStaffList(updated);
+      setActivityLogs(storageService.getActivityLogs());
+      showToast(`Đã cập nhật hồ sơ "${staffMember.name}" thành công!`, 'success');
+      return updated;
+    } catch (error) {
+      showToast(`❌ Không thể lưu thông tin nhân sự: ${error.message}`, 'error');
+      throw error;
     }
-    setActivityLogs(storageService.getActivityLogs());
-    if (customToast !== false) {
-      showToast(customToast || (isNew ? `Đã thêm mới nhân sự "${staffData.name}" thành công!` : `Đã lưu cập nhật hồ sơ "${staffData.name}"!`), 'success');
-    }
-    return updated;
   };
 
   const deleteStaff = async (id) => {
-    const updated = await storageService.deleteStaff(id);
-    setStaffList(updated);
-    showToast('Đã xóa nhân sự khỏi danh sách', 'info');
-    return updated;
+    try {
+      const updated = await storageService.deleteStaff(id);
+      setStaffList(updated);
+      showToast('Đã xóa nhân sự khỏi hệ thống', 'info');
+      return updated;
+    } catch (error) {
+      showToast(`❌ Không thể xóa nhân sự: ${error.message}`, 'error');
+      throw error;
+    }
   };
 
   const updateStaffSalary = async (id, salaryData) => {
-    const updated = await storageService.updateStaffSalary(id, salaryData);
-    setStaffList(updated);
-    setActivityLogs(storageService.getActivityLogs());
-    showToast('Đã cập nhật phiếu lương nhân viên thành công!');
-    return updated;
-  };
-
-  const addActivityLog = (logItem) => {
-    const updated = storageService.addActivityLog(logItem);
-    setActivityLogs(updated);
-    return updated;
-  };
-
-  const clearActivityLogs = () => {
-    storageService.clearActivityLogs();
-    setActivityLogs([]);
-    showToast('Đã làm sạch lịch sử hoạt động', 'info');
+    try {
+      const updated = await storageService.updateStaffSalary(id, salaryData);
+      setStaffList(updated);
+      setActivityLogs(storageService.getActivityLogs());
+      showToast('Đã cập nhật phiếu lương thành công!', 'success');
+      return updated;
+    } catch (error) {
+      showToast(`❌ Không thể cập nhật lương: ${error.message}`, 'error');
+      throw error;
+    }
   };
 
   const toggleBookmark = (slug) => {
     const updated = storageService.toggleBookmark(slug);
     setBookmarks(updated);
-    if (updated.includes(slug)) {
-      showToast('Saved to reading list!');
-    } else {
-      showToast('Removed from reading list', 'info');
-    }
-    return updated;
+    const isNowSaved = updated.includes(slug);
+    showToast(isNowSaved ? 'Đã lưu bài viết vào danh sách đọc sau' : 'Đã bỏ lưu bài viết', 'info');
   };
 
-  const resetData = () => {
-    storageService.resetToDefaults();
-    refreshAllData();
-    showToast('Đã khôi phục bộ dữ liệu mẫu chuẩn Mỹ!');
+  const isBookmarked = (slug) => {
+    return bookmarks.includes(slug);
+  };
+
+  const addComment = async (slug, comment) => {
+    try {
+      const newComment = await storageService.addComment(slug, comment);
+      showToast('Bình luận của bạn đã được đăng thành công!', 'success');
+      return newComment;
+    } catch (error) {
+      showToast(`❌ Không thể đăng bình luận: ${error.message}`, 'error');
+      throw error;
+    }
+  };
+
+  const likeComment = async (commentId) => {
+    await storageService.likeComment(commentId);
+  };
+
+  const deleteComment = async (commentId) => {
+    try {
+      await storageService.deleteComment(commentId);
+      showToast('Đã xóa bình luận', 'info');
+    } catch (error) {
+      showToast(`❌ Không thể xóa bình luận: ${error.message}`, 'error');
+    }
+  };
+
+  const addSubscriber = async (email, source) => {
+    try {
+      const res = await storageService.addSubscriber(email, source);
+      if (res.success) {
+        showToast(res.message, 'success');
+      } else {
+        showToast(res.message, 'error');
+      }
+      return res;
+    } catch (error) {
+      showToast(`❌ Lỗi đăng ký: ${error.message}`, 'error');
+      return { success: false, message: error.message };
+    }
+  };
+
+  const deleteSubscriber = async (email) => {
+    try {
+      await storageService.deleteSubscriber(email);
+      showToast(`Đã hủy đăng ký cho ${email}`, 'info');
+    } catch (error) {
+      showToast(`❌ Lỗi: ${error.message}`, 'error');
+    }
+  };
+
+  const resetAllData = async () => {
+    try {
+      await api.resetData();
+      localStorage.clear();
+      sessionStorage.clear();
+      refreshAllData();
+      showToast('Đã khôi phục dữ liệu gốc thành công!', 'warning');
+      navigate('/');
+    } catch (error) {
+      showToast(`❌ Không thể reset dữ liệu: ${error.message}`, 'error');
+    }
   };
 
   return (
-    <BlogContext.Provider
-      value={{
-        posts,
-        categories,
-        authors,
-        settings,
-        bookmarks,
-        toggleBookmark,
-        currentRoute,
-        navigate,
-        searchOpen,
-        setSearchOpen,
-        setIsSearchOpen: setSearchOpen,
-        toasts,
-        showToast,
-        removeToast,
-        dialog,
-        showConfirm,
-        showPrompt,
-        closeDialog,
-        isAdminAuthenticated,
-        userRole,
-        currentUser,
-        hasPermission,
-        loginAdmin,
-        logoutAdmin,
-        savePost,
-        deletePost,
-        updateSettings,
-        updateCategories,
-        addCategory,
-        deleteCategory,
-        updateAuthors,
-        addAuthor,
-        deleteAuthor,
-        staffList,
-        saveStaff,
-        deleteStaff,
-        updateStaffSalary,
-        activityLogs,
-        addActivityLog,
-        clearActivityLogs,
-        resetData,
-        refreshAllData,
-        incrementPostView,
-      }}
-    >
+    <BlogContext.Provider value={{
+      posts,
+      categories,
+      authors,
+      settings,
+      staffList,
+      bookmarks,
+      activityLogs,
+      currentRoute,
+      navigate,
+      searchOpen,
+      setSearchOpen,
+      toasts,
+      showToast,
+      dialog,
+      showDialog,
+      closeDialog,
+      isAdminAuthenticated,
+      userRole,
+      currentUser,
+      hasPermission,
+      loginAdmin,
+      logoutAdmin,
+      savePost,
+      deletePost,
+      updateSettings,
+      updateCategories,
+      addCategory,
+      deleteCategory,
+      updateAuthors,
+      addAuthor,
+      deleteAuthor,
+      saveStaff,
+      deleteStaff,
+      updateStaffSalary,
+      toggleBookmark,
+      isBookmarked,
+      addComment,
+      likeComment,
+      deleteComment,
+      addSubscriber,
+      deleteSubscriber,
+      resetAllData,
+      refreshAllData
+    }}>
       {children}
     </BlogContext.Provider>
   );

@@ -73,7 +73,7 @@ export const AdminStaffEdit = ({ staffId }) => {
       setForm({
         name: targetStaff.name || '',
         username: targetStaff.username || (targetStaff.email ? targetStaff.email.split('@')[0] : 'user'),
-        password: targetStaff.password || '123456',
+        password: '',
         email: targetStaff.email || '',
         phone: targetStaff.phone || '',
         refCode: targetStaff.refCode || '',
@@ -114,7 +114,7 @@ export const AdminStaffEdit = ({ staffId }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.email.trim() || !form.username.trim() || !form.password.trim()) {
+    if (!form.name.trim() || !form.email.trim() || !form.username.trim()) {
       showToast('Vui lòng điền đầy đủ các trường thông tin bắt buộc (*)', 'error');
       return;
     }
@@ -123,7 +123,6 @@ export const AdminStaffEdit = ({ staffId }) => {
       ...targetStaff,
       name: form.name.trim(),
       username: form.username.toLowerCase().trim(),
-      password: form.password.trim(),
       email: form.email.trim(),
       phone: form.phone.trim(),
       refCode: (form.refCode || '').toUpperCase().trim(),
@@ -142,6 +141,10 @@ export const AdminStaffEdit = ({ staffId }) => {
         canManageSettings: true
       } : form.permissions
     };
+
+    if (form.password && form.password.trim()) {
+      payload.password = form.password.trim();
+    }
 
     await saveStaff(payload);
     navigate('/admin/staff');

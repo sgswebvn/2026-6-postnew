@@ -418,8 +418,8 @@ export const AdminStaff = () => {
                             <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">{staff.username || (staff.email ? staff.email.split('@')[0] : 'user')}</span>
                           </div>
                           <div className="flex items-center gap-1 text-[11px] text-neutral-500">
-                            <span>Pass:</span>
-                            <span className="text-neutral-700 bg-neutral-100 px-1.5 py-0.5 rounded border border-neutral-200">{staff.password || '123456'}</span>
+                            <span>Bảo mật:</span>
+                            <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Đã mã hóa</span>
                           </div>
                         </div>
                       </td>

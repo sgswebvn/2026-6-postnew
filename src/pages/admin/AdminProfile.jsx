@@ -131,8 +131,12 @@ export const AdminProfile = () => {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    if (!passForm.newPassword) {
-      showToast('Vui lòng nhập mật khẩu mới', 'error');
+    if (!passForm.currentPassword) {
+      showToast('Vui lòng nhập mật khẩu hiện tại', 'error');
+      return;
+    }
+    if (!passForm.newPassword || passForm.newPassword.length < 6) {
+      showToast('Mật khẩu mới phải có ít nhất 6 ký tự', 'error');
       return;
     }
     if (passForm.newPassword !== passForm.confirmPassword) {
@@ -142,19 +146,9 @@ export const AdminProfile = () => {
 
     try {
       setIsSavingPass(true);
-      const updated = {
-        ...currentStaff,
-        password: passForm.newPassword
-      };
-
-      await saveStaff(updated);
-      try {
-        sessionStorage.setItem('horizon_current_user', JSON.stringify(updated));
-        localStorage.setItem('horizon_current_user', JSON.stringify(updated));
-      } catch (e) {}
-      
+      await api.changePassword(passForm.currentPassword, passForm.newPassword);
       setPassForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      showToast('Đã đổi mật khẩu và lưu lên Cloud Database thành công!', 'success');
+      showToast('Đã đổi mật khẩu an toàn trên máy chủ thành công!', 'success');
     } catch (err) {
       showToast('Lỗi khi đổi mật khẩu: ' + err.message, 'error');
     } finally {

@@ -1,290 +1,56 @@
 // Supabase Storage Client for THE HORI CLICK
-// Direct upload to Supabase Bucket 'postnew' for ultra-fast CDN delivery
+// Secure Frontend Client: ZERO Service Role Secrets, Zero Client Manifest Overwrites
+import { api } from './api.js';
 
 const SUPABASE_URL = 'https://mmltqgekvpdnezqdavvc.supabase.co';
-const SUPABASE_SERVICE_ROLE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tbHRxZ2VrdnBkbmV6cWRhdnZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NzkzMDY3NywiZXhwIjoyMTAzNTA2Njc3fQ.q_cgtmcVGrBeD8eCuov4xHzl4Lahy5bJIAlsZ8Y_ZUo';
 const BUCKET_NAME = 'postnew';
 
 export const supabaseStorage = {
   /**
-   * Upload an image file/blob to Supabase Storage bucket 'postnew'
+   * Upload an image file to Supabase via the secure Backend API
    * @param {File|Blob} file 
    * @param {string} customName 
    * @returns {Promise<{ url: string, key: string }>}
    */
   async uploadImage(file, customName = '') {
     try {
-      const ext = file.name ? file.name.split('.').pop() : 'webp';
-      const cleanName = customName || `img_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
-      const filePath = `uploads/${cleanName}`;
-      const uploadEndpoint = `${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/${filePath}`;
-
-      const response = await fetch(uploadEndpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-          'apikey': SUPABASE_SERVICE_ROLE,
-          'Content-Type': file.type || 'image/webp',
-          'x-upsert': 'true'
-        },
-        body: file
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.warn('Supabase upload response not ok:', errText);
-        throw new Error(`Upload failed: ${response.statusText}`);
+      const res = await api.uploadImage(file, customName);
+      if (res && res.url) {
+        return {
+          url: res.url,
+          key: res.path || `${BUCKET_NAME}/${customName}`
+        };
       }
-
-      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${filePath}`;
-      return {
-        url: publicUrl,
-        key: `${BUCKET_NAME}/${filePath}`
-      };
+      throw new Error(res?.error || 'Upload failed');
     } catch (error) {
-      console.error('Supabase Storage Upload Error:', error);
+      console.error('Image Upload Error:', error);
       throw error;
     }
   },
 
   /**
-   * Save Post metadata JSON to Supabase CDN for resilient Open Graph SSR
-   * @param {Object} post 
-   */
-  async savePostMetadata(post) {
-    if (!post || !post.slug) return null;
-    try {
-      const cleanSlug = post.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-');
-      const filePath = `posts/${cleanSlug}.json`;
-      const uploadEndpoint = `${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/${filePath}`;
-
-      const jsonBlob = new Blob([JSON.stringify(post, null, 2)], { type: 'application/json' });
-      await fetch(uploadEndpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-          'apikey': SUPABASE_SERVICE_ROLE,
-          'Content-Type': 'application/json',
-          'x-upsert': 'true'
-        },
-        body: jsonBlob
-      });
-
-      // Update posts_manifest.json
-      try {
-        let manifest = [];
-        const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/posts_manifest.json`);
-        if (manRes.ok) {
-          const parsed = await manRes.json();
-          if (Array.isArray(parsed)) manifest = parsed;
-        }
-        const updatedManifest = [post, ...manifest.filter(p => p.id !== post.id && p.slug !== post.slug)];
-        const manBlob = new Blob([JSON.stringify(updatedManifest, null, 2)], { type: 'application/json' });
-        await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/posts_manifest.json`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-            'apikey': SUPABASE_SERVICE_ROLE,
-            'Content-Type': 'application/json',
-            'x-upsert': 'true'
-          },
-          body: manBlob
-        });
-      } catch (me) {}
-
-      return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${filePath}`;
-    } catch (e) {
-      console.warn('Could not sync post metadata to Supabase:', e);
-      return null;
-    }
-  },
-
-  /**
-   * Delete post metadata and remove from posts_manifest.json on Supabase
-   * @param {string} id 
+   * Public CDN helper: get public post URL
    * @param {string} slug 
    */
-  async deletePostMetadata(id, slug = '') {
-    try {
-      // 1. Update posts_manifest.json
-      let manifest = [];
-      try {
-        const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/posts_manifest.json`);
-        if (manRes.ok) {
-          const parsed = await manRes.json();
-          if (Array.isArray(parsed)) manifest = parsed;
-        }
-      } catch (e) {}
-
-      const updatedManifest = manifest.filter(p => p.id !== id && (!slug || p.slug !== slug));
-      const manBlob = new Blob([JSON.stringify(updatedManifest, null, 2)], { type: 'application/json' });
-      await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/posts_manifest.json`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-          'apikey': SUPABASE_SERVICE_ROLE,
-          'Content-Type': 'application/json',
-          'x-upsert': 'true'
-        },
-        body: manBlob
-      });
-
-      // 2. Delete individual post JSON if slug is present
-      if (slug) {
-        const cleanSlug = slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-');
-        await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/posts/${cleanSlug}.json`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-            'apikey': SUPABASE_SERVICE_ROLE
-          }
-        });
-      }
-    } catch (err) {
-      console.warn('Failed to delete post from Supabase manifest:', err);
-    }
+  getPublicPostUrl(slug) {
+    if (!slug) return '';
+    const cleanSlug = slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-');
+    return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/posts/${cleanSlug}.json`;
   },
 
   /**
-   * Save and sync Staff list to Supabase Cloud Storage with cloud merge
-   * @param {Array} staffList 
+   * Public CDN helper: get public manifest URL
+   * @param {string} manifestName 
    */
-  async saveStaffManifest(staffList) {
-    if (!Array.isArray(staffList)) return;
-    try {
-      let existingRemote = [];
-      try {
-        const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/staff_manifest.json?t=${Date.now()}`);
-        if (manRes.ok) {
-          const parsed = await manRes.json();
-          if (Array.isArray(parsed)) existingRemote = parsed;
-        }
-      } catch (e) {}
-
-      const merged = [...staffList];
-      for (const rem of existingRemote) {
-        if (!merged.some(m => m.id === rem.id || (m.username && rem.username && m.username === rem.username))) {
-          merged.push(rem);
-        }
-      }
-
-      const blob = new Blob([JSON.stringify(merged, null, 2)], { type: 'application/json' });
-      await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/staff_manifest.json`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-          'apikey': SUPABASE_SERVICE_ROLE,
-          'Content-Type': 'application/json',
-          'x-upsert': 'true'
-        },
-        body: blob
-      });
-      return merged;
-    } catch (err) {
-      console.warn('Failed to save staff manifest to Supabase:', err);
-    }
+  getPublicManifestUrl(manifestName) {
+    return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${manifestName}`;
   },
 
-  /**
-   * Save and sync Categories list to Supabase Cloud Storage with cloud merge
-   * @param {Array} categories 
-   */
-  async saveCategoriesManifest(categories) {
-    if (!Array.isArray(categories)) return;
-    try {
-      let existingRemote = [];
-      try {
-        const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/categories_manifest.json?t=${Date.now()}`);
-        if (manRes.ok) {
-          const parsed = await manRes.json();
-          if (Array.isArray(parsed)) existingRemote = parsed;
-        }
-      } catch (e) {}
-
-      const merged = [...categories];
-      for (const rem of existingRemote) {
-        if (!merged.some(m => m.id === rem.id || (m.slug && rem.slug && m.slug === rem.slug))) {
-          merged.push(rem);
-        }
-      }
-
-      const blob = new Blob([JSON.stringify(merged, null, 2)], { type: 'application/json' });
-      await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/categories_manifest.json`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-          'apikey': SUPABASE_SERVICE_ROLE,
-          'Content-Type': 'application/json',
-          'x-upsert': 'true'
-        },
-        body: blob
-      });
-      return merged;
-    } catch (err) {
-      console.warn('Failed to save categories manifest to Supabase:', err);
-    }
-  },
-
-  /**
-   * Save and sync Authors list to Supabase Cloud Storage with cloud merge
-   * @param {Array} authors 
-   */
-  async saveAuthorsManifest(authors) {
-    if (!Array.isArray(authors)) return;
-    try {
-      let existingRemote = [];
-      try {
-        const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/authors_manifest.json?t=${Date.now()}`);
-        if (manRes.ok) {
-          const parsed = await manRes.json();
-          if (Array.isArray(parsed)) existingRemote = parsed;
-        }
-      } catch (e) {}
-
-      const merged = [...authors];
-      for (const rem of existingRemote) {
-        if (!merged.some(m => m.id === rem.id || (m.slug && rem.slug && m.slug === rem.slug))) {
-          merged.push(rem);
-        }
-      }
-
-      const blob = new Blob([JSON.stringify(merged, null, 2)], { type: 'application/json' });
-      await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/authors_manifest.json`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-          'apikey': SUPABASE_SERVICE_ROLE,
-          'Content-Type': 'application/json',
-          'x-upsert': 'true'
-        },
-        body: blob
-      });
-      return merged;
-    } catch (err) {
-      console.warn('Failed to save authors manifest to Supabase:', err);
-    }
-  },
-
-  /**
-   * Save and sync Settings to Supabase Cloud Storage
-   * @param {Object} settings 
-   */
-  async saveSettingsManifest(settings) {
-    if (!settings) return;
-    try {
-      const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
-      await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/settings.json`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-          'apikey': SUPABASE_SERVICE_ROLE,
-          'Content-Type': 'application/json',
-          'x-upsert': 'true'
-        },
-        body: blob
-      });
-    } catch (err) {
-      console.warn('Failed to save settings to Supabase:', err);
-    }
-  }
+  // Backward compatible no-op stubs (mutations are now performed atomically on Backend API)
+  async savePostMetadata(post) { return null; },
+  async deletePostMetadata(id, slug = '') { return true; },
+  async saveStaffManifest(staffList) { return staffList; },
+  async saveCategoriesManifest(categories) { return categories; },
+  async saveAuthorsManifest(authors) { return authors; },
+  async saveSettingsManifest(settings) { return settings; }
 };

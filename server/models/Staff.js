@@ -1,14 +1,14 @@
 import mongoose from 'mongoose';
 
 const staffSchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true },
+  id: { type: String, required: true, unique: true, index: true },
   name: { type: String, required: true },
-  username: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  username: { type: String, required: true, unique: true, index: true },
+  password: { type: String, required: true }, // Contains scrypt 'salt:hash'
   email: { type: String, required: true },
   phone: { type: String },
-  refCode: { type: String },
-  role: { type: String, default: 'editor' },
+  refCode: { type: String, index: true },
+  role: { type: String, enum: ['admin', 'editor', 'author', 'accountant'], default: 'editor', index: true },
   roleName: { type: String },
   joinDate: { type: String },
   status: { type: String, default: 'active' },
@@ -21,3 +21,4 @@ const staffSchema = new mongoose.Schema({
 });
 
 export const Staff = mongoose.model('Staff', staffSchema);
+

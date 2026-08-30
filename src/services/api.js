@@ -1,6 +1,94 @@
 const API_BASE = '/api';
 
+function getAuthHeaders(extraHeaders = {}) {
+  const token = localStorage.getItem('horizon_auth_token') || sessionStorage.getItem('horizon_auth_token');
+  const headers = { ...extraHeaders };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export const api = {
+  // Authentication & Session
+  async loginAdmin(identifier, password) {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || `Đăng nhập thất bại (${res.status})`);
+    }
+    if (data.token) {
+      localStorage.setItem('horizon_auth_token', data.token);
+      sessionStorage.setItem('horizon_auth_token', data.token);
+    }
+    return data;
+  },
+
+  async getMe() {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        headers: getAuthHeaders()
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async changePassword(currentPassword, newPassword) {
+    const res = await fetch(`${API_BASE}/auth/change-password`, {
+      method: 'POST',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Đổi mật khẩu thất bại');
+    }
+    return data;
+  },
+
+  logout() {
+    localStorage.removeItem('horizon_auth_token');
+    sessionStorage.removeItem('horizon_auth_token');
+    localStorage.removeItem('horizon_admin_session');
+    sessionStorage.removeItem('horizon_admin_session');
+    localStorage.removeItem('horizon_current_user');
+    sessionStorage.removeItem('horizon_current_user');
+  },
+
+  // Image Upload via Backend API
+  async uploadImage(file, customName = '') {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/upload`, {
+            method: 'POST',
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({
+              imageBase64: reader.result,
+              fileName: customName || file.name || 'image.webp',
+              mimeType: file.type || 'image/webp'
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Upload failed');
+          resolve(data);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = (e) => reject(new Error('Failed to read file buffer'));
+      reader.readAsDataURL(file);
+    });
+  },
+
   // Health & Database
   async getStatus() {
     try {
@@ -18,7 +106,7 @@ export const api = {
       if (!res.ok) throw new Error('Failed to fetch posts');
       return await res.json();
     } catch (e) {
-      console.warn('[API Warning] Using local cache for posts:', e);
+      console.warn('[API Warning] Could not fetch posts from API:', e);
       return null;
     }
   },
@@ -26,7 +114,7 @@ export const api = {
   async getPostBySlug(slug) {
     try {
       const res = await fetch(`${API_BASE}/posts/${slug}`);
-      if (!res.ok) throw new Error('Post not found');
+      if (!res.ok) return null;
       return await res.json();
     } catch {
       return null;
@@ -34,57 +122,50 @@ export const api = {
   },
 
   async createPost(postData) {
-    try {
-      const res = await fetch(`${API_BASE}/posts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(postData)
-      });
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      return await res.json();
-    } catch (e) {
-      console.error('[API Error] createPost failed:', e);
-      return postData;
+    const res = await fetch(`${API_BASE}/posts`, {
+      method: 'POST',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(postData)
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Server error: ${res.status}`);
     }
+    return await res.json();
   },
 
   async updatePost(id, postData) {
-    try {
-      const res = await fetch(`${API_BASE}/posts/${encodeURIComponent(id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(postData)
-      });
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      return await res.json();
-    } catch (e) {
-      console.error('[API Error] updatePost failed:', e);
-      return postData;
+    const res = await fetch(`${API_BASE}/posts/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(postData)
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Server error: ${res.status}`);
     }
+    return await res.json();
   },
 
   async savePost(postData, isExplicitNew = false) {
-    try {
-      const isNew = isExplicitNew || !postData.id || postData.id.startsWith('new-');
-      if (isNew) {
-        return await this.createPost(postData);
-      } else {
-        return await this.updatePost(postData.id, postData);
-      }
-    } catch (e) {
-      console.error('[API Error] savePost failed:', e);
-      return postData;
+    const isNew = isExplicitNew || !postData.id || postData.id.startsWith('new-');
+    if (isNew) {
+      return await this.createPost(postData);
+    } else {
+      return await this.updatePost(postData.id, postData);
     }
   },
 
   async deletePost(id) {
-    try {
-      const res = await fetch(`${API_BASE}/posts/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      return await res.json();
-    } catch (e) {
-      console.error('[API Error] deletePost failed:', e);
-      return { success: false };
+    const res = await fetch(`${API_BASE}/posts/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Failed to delete post: ${res.status}`);
     }
+    return { success: true };
   },
 
   async incrementView(slug) {
@@ -108,29 +189,29 @@ export const api = {
   },
 
   async createCategory(catData) {
-    try {
-      const res = await fetch(`${API_BASE}/categories`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(catData)
-      });
-      return await res.json();
-    } catch {
-      return catData;
+    const res = await fetch(`${API_BASE}/categories`, {
+      method: 'POST',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(catData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to create category');
     }
+    return await res.json();
   },
 
   async updateCategory(id, catData) {
-    try {
-      const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(catData)
-      });
-      return await res.json();
-    } catch {
-      return catData;
+    const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(catData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update category');
     }
+    return await res.json();
   },
 
   async saveCategory(catData) {
@@ -141,12 +222,12 @@ export const api = {
   },
 
   async deleteCategory(id) {
-    try {
-      const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      return await res.json();
-    } catch {
-      return { success: false };
-    }
+    const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to delete category');
+    return { success: true };
   },
 
   // Authors
@@ -161,29 +242,29 @@ export const api = {
   },
 
   async createAuthor(authorData) {
-    try {
-      const res = await fetch(`${API_BASE}/authors`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authorData)
-      });
-      return await res.json();
-    } catch {
-      return authorData;
+    const res = await fetch(`${API_BASE}/authors`, {
+      method: 'POST',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(authorData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to create author');
     }
+    return await res.json();
   },
 
   async updateAuthor(id, authorData) {
-    try {
-      const res = await fetch(`${API_BASE}/authors/${encodeURIComponent(id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authorData)
-      });
-      return await res.json();
-    } catch {
-      return authorData;
+    const res = await fetch(`${API_BASE}/authors/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(authorData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update author');
     }
+    return await res.json();
   },
 
   async saveAuthor(authorData) {
@@ -194,12 +275,12 @@ export const api = {
   },
 
   async deleteAuthor(id) {
-    try {
-      const res = await fetch(`${API_BASE}/authors/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      return await res.json();
-    } catch {
-      return { success: false };
-    }
+    const res = await fetch(`${API_BASE}/authors/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to delete author');
+    return { success: true };
   },
 
   // Settings
@@ -214,25 +295,25 @@ export const api = {
   },
 
   async updateSettings(settingsData) {
-    try {
-      const res = await fetch(`${API_BASE}/settings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settingsData)
-      });
-      return await res.json();
-    } catch {
-      return settingsData;
+    const res = await fetch(`${API_BASE}/settings`, {
+      method: 'PUT',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(settingsData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update settings');
     }
+    return await res.json();
   },
 
   async resetData() {
-    try {
-      const res = await fetch(`${API_BASE}/settings/reset`, { method: 'POST' });
-      return await res.json();
-    } catch {
-      return { success: false };
-    }
+    const res = await fetch(`${API_BASE}/settings/reset`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to reset settings');
+    return await res.json();
   },
 
   // Comments
@@ -246,16 +327,13 @@ export const api = {
   },
 
   async addComment(commentData) {
-    try {
-      const res = await fetch(`${API_BASE}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(commentData)
-      });
-      return await res.json();
-    } catch {
-      return commentData;
-    }
+    const res = await fetch(`${API_BASE}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(commentData)
+    });
+    if (!res.ok) throw new Error('Failed to post comment');
+    return await res.json();
   },
 
   async likeComment(id) {
@@ -268,18 +346,20 @@ export const api = {
   },
 
   async deleteComment(id) {
-    try {
-      const res = await fetch(`${API_BASE}/comments/${id}`, { method: 'DELETE' });
-      return await res.json();
-    } catch {
-      return { success: false };
-    }
+    const res = await fetch(`${API_BASE}/comments/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to delete comment');
+    return { success: true };
   },
 
   // Subscribers
   async getSubscribers() {
     try {
-      const res = await fetch(`${API_BASE}/subscribers`);
+      const res = await fetch(`${API_BASE}/subscribers`, {
+        headers: getAuthHeaders()
+      });
       return await res.json();
     } catch {
       return [];
@@ -287,31 +367,30 @@ export const api = {
   },
 
   async addSubscriber(email, source) {
-    try {
-      const res = await fetch(`${API_BASE}/subscribers`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, source })
-      });
-      return await res.json();
-    } catch {
-      return { success: true, email };
-    }
+    const res = await fetch(`${API_BASE}/subscribers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, source })
+    });
+    if (!res.ok) throw new Error('Failed to subscribe');
+    return await res.json();
   },
 
   async deleteSubscriber(email) {
-    try {
-      const res = await fetch(`${API_BASE}/subscribers/${encodeURIComponent(email)}`, { method: 'DELETE' });
-      return await res.json();
-    } catch {
-      return { success: false };
-    }
+    const res = await fetch(`${API_BASE}/subscribers/${encodeURIComponent(email)}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to delete subscriber');
+    return { success: true };
   },
 
   // Referrals
   async getReferrals() {
     try {
-      const res = await fetch(`${API_BASE}/referrals`);
+      const res = await fetch(`${API_BASE}/referrals`, {
+        headers: getAuthHeaders()
+      });
       return await res.json();
     } catch {
       return null;
@@ -327,23 +406,12 @@ export const api = {
     }
   },
 
-  // Auth & Staff
-  async loginAdmin(identifier, password) {
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password })
-      });
-      return await res.json();
-    } catch {
-      return { error: 'Network error' };
-    }
-  },
-
+  // Staff
   async getStaffList() {
     try {
-      const res = await fetch(`${API_BASE}/staff`);
+      const res = await fetch(`${API_BASE}/staff`, {
+        headers: getAuthHeaders()
+      });
       return await res.json();
     } catch {
       return null;
@@ -351,44 +419,46 @@ export const api = {
   },
 
   async addStaff(staffData) {
-    try {
-      const res = await fetch(`${API_BASE}/staff`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(staffData)
-      });
-      return await res.json();
-    } catch {
-      return null;
+    const res = await fetch(`${API_BASE}/staff`, {
+      method: 'POST',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(staffData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to create staff');
     }
+    return await res.json();
   },
 
   async updateStaff(id, staffData) {
-    try {
-      const res = await fetch(`${API_BASE}/staff/${encodeURIComponent(id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(staffData)
-      });
-      return await res.json();
-    } catch {
-      return null;
+    const res = await fetch(`${API_BASE}/staff/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(staffData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update staff');
     }
+    return await res.json();
   },
 
   async deleteStaff(id) {
-    try {
-      await fetch(`${API_BASE}/staff/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      return { success: true };
-    } catch {
-      return { success: false };
-    }
+    const res = await fetch(`${API_BASE}/staff/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to delete staff');
+    return { success: true };
   },
 
   // Activity Logs
   async getActivityLogs() {
     try {
-      const res = await fetch(`${API_BASE}/activity-logs`);
+      const res = await fetch(`${API_BASE}/activity-logs`, {
+        headers: getAuthHeaders()
+      });
       return await res.json();
     } catch {
       return null;
@@ -399,7 +469,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/activity-logs`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(logData)
       });
       return await res.json();
