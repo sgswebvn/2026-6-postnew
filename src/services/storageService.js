@@ -24,12 +24,43 @@ const STORAGE_KEYS = {
   ACTIVITY_LOGS: 'horizon_activity_logs_v2'
 };
 
-// Safe setItem that never throws QuotaExceededError or crashes on big HTML/image content
+// Trim heavy HTML content from browser localStorage cache (full content is loaded from Cloud/Supabase)
+const compressPostsForCache = (postsList) => {
+  if (!Array.isArray(postsList)) return [];
+  return postsList.map(p => {
+    const { content, ...meta } = p;
+    return {
+      ...meta,
+      content: (content && content.length > 500) ? content.slice(0, 500) : content
+    };
+  });
+};
+
+// Safe setItem that never throws QuotaExceededError and optimizes cache footprint
 const safeSetItem = (key, value) => {
   try {
-    localStorage.setItem(key, value);
+    let finalVal = value;
+    if (key === STORAGE_KEYS.POSTS) {
+      try {
+        const parsed = JSON.parse(value);
+        finalVal = JSON.stringify(compressPostsForCache(parsed));
+      } catch (e) {}
+    }
+    localStorage.setItem(key, finalVal);
   } catch (err) {
-    console.warn(`[Storage Quota Exceeded] Could not write key "${key}" to localStorage. Live data is safely preserved on Cloud Database & Supabase.`, err);
+    // If browser localStorage is completely full from old cache, prune and retry
+    try {
+      localStorage.removeItem(STORAGE_KEYS.POSTS);
+      localStorage.removeItem('horizon_telemetry_events_v2');
+      if (key === STORAGE_KEYS.POSTS) {
+        const parsed = JSON.parse(value);
+        localStorage.setItem(key, JSON.stringify(compressPostsForCache(parsed)));
+      } else {
+        localStorage.setItem(key, value);
+      }
+    } catch (fallbackErr) {
+      // Cloud database is always active, silent fallback
+    }
   }
 };
 
