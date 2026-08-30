@@ -19,7 +19,7 @@ import {
 import { ShortLinkModal } from '../../components/admin/ShortLinkModal';
 
 export const AdminPostsList = () => {
-  const { posts, categories, navigate, deletePost, savePost, showToast, showConfirm, userRole, currentUser } = useBlog();
+  const { posts, categories, staffList, authors, navigate, deletePost, savePost, showToast, showConfirm, userRole, currentUser } = useBlog();
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -185,6 +185,7 @@ export const AdminPostsList = () => {
               <tr>
                 <th className="p-3.5 text-center w-12">STT</th>
                 <th className="p-3.5">Bài Viết & Tiêu Đề</th>
+                <th className="p-3.5">Người Tạo</th>
                 <th className="p-3.5">Chuyên Mục</th>
                 <th className="p-3.5">Lượt Xem</th>
                 <th className="p-3.5">Trạng Thái</th>
@@ -195,7 +196,7 @@ export const AdminPostsList = () => {
             <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800 font-sans">
               {paginatedPosts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center text-neutral-400">
+                  <td colSpan={8} className="p-12 text-center text-neutral-400">
                     <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     <p>Không tìm thấy bài viết nào phù hợp với bộ lọc hiện tại.</p>
                   </td>
@@ -204,6 +205,14 @@ export const AdminPostsList = () => {
                 paginatedPosts.map((post, idx) => {
                   const cat = categories.find(c => c.id === post.categoryId);
                   const ordinalNumber = startIndex + idx + 1;
+
+                  const staffCreator = (staffList || []).find(s => 
+                    (post.createdById && s.id === post.createdById) ||
+                    (post.createdByName && (s.name === post.createdByName || s.username === post.createdByName))
+                  );
+                  const authorCreator = (authors || []).find(a => a.id === post.authorId);
+                  const creatorName = post.createdByName || staffCreator?.name || post.authorName || authorCreator?.name || 'Ban Biên Tập';
+                  const refCode = staffCreator?.refCode || (post.createdById ? 'NV' : '');
 
                   return (
                     <tr key={post.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-900/40 transition-colors">
@@ -230,6 +239,25 @@ export const AdminPostsList = () => {
                             <span className="text-[11px] font-mono text-neutral-400 block truncate">
                               /post/{post.slug}
                             </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Creator / Staff Member */}
+                      <td className="p-3.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 font-bold flex items-center justify-center text-[10px] flex-shrink-0">
+                            {creatorName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-semibold text-neutral-900 dark:text-neutral-100 block truncate max-w-[120px]" title={creatorName}>
+                              {creatorName}
+                            </span>
+                            {refCode && (
+                              <span className="inline-block px-1.5 py-0.2 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded text-[9px] font-mono font-bold">
+                                Ref: {refCode}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
