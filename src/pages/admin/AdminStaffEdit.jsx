@@ -112,7 +112,7 @@ export const AdminStaffEdit = ({ staffId }) => {
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim() || !form.email.trim() || !form.username.trim() || !form.password.trim()) {
       showToast('Vui lòng điền đầy đủ các trường thông tin bắt buộc (*)', 'error');
@@ -143,7 +143,7 @@ export const AdminStaffEdit = ({ staffId }) => {
       } : form.permissions
     };
 
-    saveStaff(payload);
+    await saveStaff(payload);
     navigate('/admin/staff');
   };
 
@@ -153,8 +153,8 @@ export const AdminStaffEdit = ({ staffId }) => {
       message: `Bạn có chắc muốn xóa nhân sự "${targetStaff?.name}" khỏi tòa soạn? Toàn bộ quyền hạn và liên kết của nhân viên này sẽ bị xóa.`,
       confirmText: 'Xóa Nhân Sự',
       variant: 'danger',
-      onConfirm: () => {
-        deleteStaff(targetStaff.id);
+      onConfirm: async () => {
+        await deleteStaff(targetStaff.id);
         showToast(`Đã xóa nhân viên "${targetStaff?.name}"`, 'info');
         navigate('/admin/staff');
       }

@@ -91,35 +91,45 @@ export const AdminProfile = () => {
     (profileForm.refCode && log.refCode === profileForm.refCode.toUpperCase())
   );
 
-  const handleUpdateProfile = (e) => {
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingPass, setIsSavingPass] = useState(false);
+
+  const handleUpdateProfile = async (e) => {
     e.preventDefault();
     if (!profileForm.name.trim() || !profileForm.email.trim()) {
       showToast('Vui lòng nhập đầy đủ họ tên và email', 'error');
       return;
     }
 
-    const cleanRefCode = (profileForm.refCode || '').toUpperCase().trim();
-
-    const updated = {
-      ...currentStaff,
-      name: profileForm.name.trim(),
-      email: profileForm.email.trim(),
-      phone: profileForm.phone.trim(),
-      refCode: cleanRefCode,
-      avatar: profileForm.avatar
-    };
-
-    saveStaff(updated);
-    
-    // Update local session
     try {
-      sessionStorage.setItem('horizon_current_user', JSON.stringify(updated));
-      localStorage.setItem('horizon_current_user', JSON.stringify(updated));
-    } catch (e) {}
-    showToast('Đã cập nhật thông tin cá nhân và mã Seeding thành công!', 'success');
+      setIsSavingProfile(true);
+      const cleanRefCode = (profileForm.refCode || '').toUpperCase().trim();
+
+      const updated = {
+        ...currentStaff,
+        name: profileForm.name.trim(),
+        email: profileForm.email.trim(),
+        phone: profileForm.phone.trim(),
+        refCode: cleanRefCode,
+        avatar: profileForm.avatar
+      };
+
+      await saveStaff(updated);
+      
+      // Update local session
+      try {
+        sessionStorage.setItem('horizon_current_user', JSON.stringify(updated));
+        localStorage.setItem('horizon_current_user', JSON.stringify(updated));
+      } catch (e) {}
+      showToast('Đã lưu thông tin cá nhân & mã Seeding lên Cloud Database thành công!', 'success');
+    } catch (err) {
+      showToast('Lỗi khi cập nhật thông tin: ' + err.message, 'error');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
-  const handleChangePassword = (e) => {
+  const handleChangePassword = async (e) => {
     e.preventDefault();
     if (!passForm.newPassword) {
       showToast('Vui lòng nhập mật khẩu mới', 'error');
@@ -130,19 +140,26 @@ export const AdminProfile = () => {
       return;
     }
 
-    const updated = {
-      ...currentStaff,
-      password: passForm.newPassword
-    };
-
-    saveStaff(updated);
     try {
-      sessionStorage.setItem('horizon_current_user', JSON.stringify(updated));
-      localStorage.setItem('horizon_current_user', JSON.stringify(updated));
-    } catch (e) {}
-    
-    setPassForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    showToast('Đã đổi mật khẩu tài khoản thành công!', 'success');
+      setIsSavingPass(true);
+      const updated = {
+        ...currentStaff,
+        password: passForm.newPassword
+      };
+
+      await saveStaff(updated);
+      try {
+        sessionStorage.setItem('horizon_current_user', JSON.stringify(updated));
+        localStorage.setItem('horizon_current_user', JSON.stringify(updated));
+      } catch (e) {}
+      
+      setPassForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      showToast('Đã đổi mật khẩu và lưu lên Cloud Database thành công!', 'success');
+    } catch (err) {
+      showToast('Lỗi khi đổi mật khẩu: ' + err.message, 'error');
+    } finally {
+      setIsSavingPass(false);
+    }
   };
 
   const handleCopyLink = () => {

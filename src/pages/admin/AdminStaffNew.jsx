@@ -85,7 +85,7 @@ export const AdminStaffNew = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim() || !form.email.trim() || !form.username.trim() || !form.password.trim()) {
       showToast('Vui lòng điền đầy đủ các trường thông tin bắt buộc (*)', 'error');
@@ -125,7 +125,7 @@ export const AdminStaffNew = () => {
       }
     };
 
-    saveStaff(payload);
+    await saveStaff(payload);
     navigate('/admin/staff');
   };
 

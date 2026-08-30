@@ -349,10 +349,13 @@ export const BlogProvider = ({ children }) => {
   };
 
   // Staff & Payroll CRUD
-  const saveStaff = (staffData, customToast = null) => {
+  const saveStaff = async (staffData, customToast = null) => {
     const isNew = !staffList.some(s => s.id === staffData.id);
-    const updated = storageService.saveStaff(staffData);
+    const updated = await storageService.saveStaff(staffData);
     setStaffList(updated);
+    if (currentUser && (currentUser.id === staffData.id || currentUser.username === staffData.username)) {
+      setCurrentUser(prev => ({ ...prev, ...staffData }));
+    }
     setActivityLogs(storageService.getActivityLogs());
     if (customToast !== false) {
       showToast(customToast || (isNew ? `Đã thêm mới nhân sự "${staffData.name}" thành công!` : `Đã lưu cập nhật hồ sơ "${staffData.name}"!`), 'success');
@@ -360,15 +363,15 @@ export const BlogProvider = ({ children }) => {
     return updated;
   };
 
-  const deleteStaff = (id) => {
-    const updated = storageService.deleteStaff(id);
+  const deleteStaff = async (id) => {
+    const updated = await storageService.deleteStaff(id);
     setStaffList(updated);
     showToast('Đã xóa nhân sự khỏi danh sách', 'info');
     return updated;
   };
 
-  const updateStaffSalary = (id, salaryData) => {
-    const updated = storageService.updateStaffSalary(id, salaryData);
+  const updateStaffSalary = async (id, salaryData) => {
+    const updated = await storageService.updateStaffSalary(id, salaryData);
     setStaffList(updated);
     setActivityLogs(storageService.getActivityLogs());
     showToast('Đã cập nhật phiếu lương nhân viên thành công!');

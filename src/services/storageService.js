@@ -48,7 +48,6 @@ const safeSetItem = (key, value) => {
     }
     localStorage.setItem(key, finalVal);
   } catch (err) {
-    // If browser localStorage is completely full from old cache, prune and retry
     try {
       localStorage.removeItem(STORAGE_KEYS.POSTS);
       localStorage.removeItem('horizon_telemetry_events_v2');
@@ -59,7 +58,7 @@ const safeSetItem = (key, value) => {
         localStorage.setItem(key, value);
       }
     } catch (fallbackErr) {
-      // Cloud database is always active, silent fallback
+      // Cloud database is always primary, silent fallback
     }
   }
 };
@@ -78,7 +77,7 @@ export const storageService = {
         api.getActivityLogs()
       ]);
 
-      // Fetch Supabase posts manifest as cloud database layer
+      // 1. Fetch Supabase posts manifest
       let supabasePosts = [];
       try {
         const sbRes = await fetch('https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/posts_manifest.json');
@@ -88,22 +87,10 @@ export const storageService = {
         }
       } catch (e) {}
 
-      const localPosts = this.getPosts();
       let mergedPosts = [...(remotePosts || [])];
-
       for (const sp of supabasePosts) {
         if (!mergedPosts.some(rp => rp.id === sp.id || (rp.slug && sp.slug && rp.slug === sp.slug))) {
           mergedPosts.unshift(sp);
-        }
-      }
-      
-      // Preserve any custom posts created locally that are not yet in remote
-      for (const lp of localPosts) {
-        if (!mergedPosts.some(rp => rp.id === lp.id || (rp.slug && lp.slug && rp.slug === lp.slug))) {
-          mergedPosts.unshift(lp);
-          // Try background sync to backend & Supabase
-          try { api.createPost(lp); } catch (e) {}
-          try { supabaseStorage.savePostMetadata(lp); } catch (e) {}
         }
       }
 
@@ -111,7 +98,7 @@ export const storageService = {
         safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(mergedPosts));
       }
 
-      // Fetch Supabase staff manifest as cloud database layer
+      // 2. Fetch Supabase staff manifest
       let supabaseStaff = [];
       try {
         const sbStaffRes = await fetch('https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/staff_manifest.json');
@@ -121,36 +108,40 @@ export const storageService = {
         }
       } catch (e) {}
 
-      const localStaff = this.getStaffList();
       let mergedStaff = [...(staffList || [])];
-
       for (const ss of supabaseStaff) {
         if (!mergedStaff.some(ms => ms.id === ss.id || ms.username === ss.username || (ms.refCode && ss.refCode && ms.refCode === ss.refCode))) {
           mergedStaff.push(ss);
         }
       }
 
-      for (const ls of localStaff) {
-        if (!mergedStaff.some(ms => ms.id === ls.id || ms.username === ls.username || (ms.refCode && ls.refCode && ms.refCode === ls.refCode))) {
-          mergedStaff.push(ls);
-          // Background sync to backend & Supabase
-          try { api.addStaff(ls); } catch (e) {}
-        }
+      if (mergedStaff.length > 0) {
+        safeSetItem(STORAGE_KEYS.STAFF, JSON.stringify(mergedStaff));
       }
 
+      // 3. Categories, Authors, Settings, Logs
       if (categories && categories.length > 0) safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
       if (authors && authors.length > 0) safeSetItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
       if (settings && settings.siteName) safeSetItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
-      if (mergedStaff.length > 0) safeSetItem(STORAGE_KEYS.STAFF, JSON.stringify(mergedStaff));
       if (activityLogs && activityLogs.length > 0) safeSetItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify(activityLogs));
 
-      return { posts: mergedPosts, categories, authors, settings, referrals, staffList: mergedStaff, activityLogs };
+      return { 
+        posts: mergedPosts.length > 0 ? mergedPosts : initialPosts, 
+        categories: (categories && categories.length > 0) ? categories : initialCategories, 
+        authors: (authors && authors.length > 0) ? authors : initialAuthors, 
+        settings: settings || initialSettings, 
+        referrals: referrals || {}, 
+        staffList: mergedStaff.length > 0 ? mergedStaff : initialStaffList, 
+        activityLogs: activityLogs || [] 
+      };
     } catch {
       return null;
     }
   },
 
-  // Posts
+  // ==========================================
+  // POSTS CRUD (Direct Cloud Database & Supabase)
+  // ==========================================
   getPosts() {
     const raw = localStorage.getItem(STORAGE_KEYS.POSTS);
     if (!raw) {
@@ -224,7 +215,7 @@ export const storageService = {
     const targetSlug = target?.slug || '';
 
     // Direct deletion from Supabase Cloud CDN manifest
-    supabaseStorage.deletePostMetadata(id, targetSlug).catch(() => {});
+    await supabaseStorage.deletePostMetadata(id, targetSlug).catch(() => {});
 
     try {
       await api.deletePost(id);
@@ -256,7 +247,9 @@ export const storageService = {
     api.recordSeedingHit(cleanRef).catch(() => {});
   },
 
-  // Categories
+  // ==========================================
+  // CATEGORIES CRUD (Direct Cloud Database & Supabase)
+  // ==========================================
   getCategories() {
     const raw = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
     if (!raw) {
@@ -272,6 +265,7 @@ export const storageService = {
 
   async saveCategories(categories) {
     safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    await supabaseStorage.saveCategoriesManifest(categories).catch(() => {});
     for (const cat of categories) {
       api.saveCategory(cat).catch(() => {});
     }
@@ -294,6 +288,7 @@ export const storageService = {
     }
     const updated = [...categories.filter(c => c.id !== newCat.id), newCat];
     safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(updated));
+    await supabaseStorage.saveCategoriesManifest(updated).catch(() => {});
     this.addActivityLog({
       staffName: 'Quản Trị Viên',
       action: 'category_create',
@@ -312,10 +307,13 @@ export const storageService = {
     }
     const categories = this.getCategories().filter(c => c.id !== id);
     safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    await supabaseStorage.saveCategoriesManifest(categories).catch(() => {});
     return categories;
   },
 
-  // Authors
+  // ==========================================
+  // AUTHORS CRUD (Direct Cloud Database & Supabase)
+  // ==========================================
   getAuthors() {
     const raw = localStorage.getItem(STORAGE_KEYS.AUTHORS);
     if (!raw) {
@@ -331,6 +329,7 @@ export const storageService = {
 
   async saveAuthors(authors) {
     safeSetItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
+    await supabaseStorage.saveAuthorsManifest(authors).catch(() => {});
     for (const author of authors) {
       api.saveAuthor(author).catch(() => {});
     }
@@ -355,6 +354,7 @@ export const storageService = {
     }
     const updated = [...authors.filter(a => a.id !== newAuthor.id), newAuthor];
     safeSetItem(STORAGE_KEYS.AUTHORS, JSON.stringify(updated));
+    await supabaseStorage.saveAuthorsManifest(updated).catch(() => {});
     return newAuthor;
   },
 
@@ -366,10 +366,13 @@ export const storageService = {
     }
     const authors = this.getAuthors().filter(a => a.id !== id);
     safeSetItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
+    await supabaseStorage.saveAuthorsManifest(authors).catch(() => {});
     return authors;
   },
 
-  // Settings
+  // ==========================================
+  // SETTINGS CRUD (Direct Cloud Database & Supabase)
+  // ==========================================
   getSettings() {
     const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     if (!raw) {
@@ -385,6 +388,7 @@ export const storageService = {
 
   async saveSettings(settings) {
     safeSetItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    await supabaseStorage.saveSettingsManifest(settings).catch(() => {});
     try {
       await api.updateSettings(settings);
     } catch (err) {
@@ -392,7 +396,9 @@ export const storageService = {
     }
   },
 
-  // Staff & Payroll Management
+  // ==========================================
+  // STAFF & PROFILE MANAGEMENT (Direct Cloud Database & Supabase)
+  // ==========================================
   getStaffList() {
     const raw = localStorage.getItem(STORAGE_KEYS.STAFF);
     if (!raw) {
@@ -406,9 +412,9 @@ export const storageService = {
     }
   },
 
-  saveStaff(staffMember) {
+  async saveStaff(staffMember) {
     const list = this.getStaffList();
-    const existingIndex = list.findIndex(s => s.id === staffMember.id);
+    const existingIndex = list.findIndex(s => s.id === staffMember.id || (s.username && staffMember.username && s.username === staffMember.username));
     let updated;
     
     if (existingIndex === -1) {
@@ -438,7 +444,8 @@ export const storageService = {
         }
       };
       updated = [newStaff, ...list];
-      api.addStaff(newStaff).catch(() => {});
+      try { await api.addStaff(newStaff); } catch (e) {}
+      await supabaseStorage.saveStaffManifest(updated).catch(() => {});
       this.addActivityLog({
         staffName: 'Quản Trị Viên',
         action: 'staff_add',
@@ -447,8 +454,9 @@ export const storageService = {
         type: 'success'
       });
     } else {
-      updated = list.map(s => s.id === staffMember.id ? { ...s, ...staffMember } : s);
-      api.updateStaff(staffMember.id, staffMember).catch(() => {});
+      updated = list.map(s => (s.id === staffMember.id || s.username === staffMember.username) ? { ...s, ...staffMember } : s);
+      try { await api.updateStaff(staffMember.id, staffMember); } catch (e) {}
+      await supabaseStorage.saveStaffManifest(updated).catch(() => {});
       this.addActivityLog({
         staffName: 'Quản Trị Viên',
         action: 'staff_update',
@@ -461,14 +469,15 @@ export const storageService = {
     return updated;
   },
 
-  deleteStaff(id) {
+  async deleteStaff(id) {
     const list = this.getStaffList().filter(s => s.id !== id);
     safeSetItem(STORAGE_KEYS.STAFF, JSON.stringify(list));
-    api.deleteStaff(id).catch(() => {});
+    try { await api.deleteStaff(id); } catch (e) {}
+    await supabaseStorage.saveStaffManifest(list).catch(() => {});
     return list;
   },
 
-  updateStaffSalary(id, salaryData) {
+  async updateStaffSalary(id, salaryData) {
     const list = this.getStaffList();
     let targetStaffName = 'Nhân sự';
     let targetStaff = null;
@@ -496,7 +505,8 @@ export const storageService = {
     });
     safeSetItem(STORAGE_KEYS.STAFF, JSON.stringify(updated));
     if (targetStaff) {
-      api.updateStaff(targetStaff.id, targetStaff).catch(() => {});
+      try { await api.updateStaff(targetStaff.id, targetStaff); } catch (e) {}
+      await supabaseStorage.saveStaffManifest(updated).catch(() => {});
     }
     this.addActivityLog({
       staffName: 'Kế Toán / Quản Trị',
@@ -508,7 +518,9 @@ export const storageService = {
     return updated;
   },
 
-  // Activity Logs
+  // ==========================================
+  // ACTIVITY LOGS
+  // ==========================================
   getActivityLogs() {
     const raw = localStorage.getItem(STORAGE_KEYS.ACTIVITY_LOGS);
     if (!raw) {
@@ -542,7 +554,9 @@ export const storageService = {
     return [];
   },
 
-  // Comments
+  // ==========================================
+  // COMMENTS
+  // ==========================================
   getAllComments() {
     const raw = localStorage.getItem(STORAGE_KEYS.COMMENTS);
     if (!raw) {
@@ -595,7 +609,9 @@ export const storageService = {
     return all;
   },
 
-  // Subscribers
+  // ==========================================
+  // SUBSCRIBERS
+  // ==========================================
   getSubscribers() {
     const raw = localStorage.getItem(STORAGE_KEYS.SUBSCRIBERS);
     if (!raw) {
@@ -626,7 +642,9 @@ export const storageService = {
     return list;
   },
 
-  // Bookmarks
+  // ==========================================
+  // BOOKMARKS
+  // ==========================================
   getBookmarks() {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEYS.BOOKMARKS) || '[]');

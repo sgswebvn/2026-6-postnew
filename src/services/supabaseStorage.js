@@ -143,5 +143,97 @@ export const supabaseStorage = {
     } catch (err) {
       console.warn('Failed to delete post from Supabase manifest:', err);
     }
+  },
+
+  /**
+   * Save and sync Staff list to Supabase Cloud Storage
+   * @param {Array} staffList 
+   */
+  async saveStaffManifest(staffList) {
+    if (!Array.isArray(staffList)) return;
+    try {
+      const blob = new Blob([JSON.stringify(staffList, null, 2)], { type: 'application/json' });
+      await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/staff_manifest.json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+          'apikey': SUPABASE_SERVICE_ROLE,
+          'Content-Type': 'application/json',
+          'x-upsert': 'true'
+        },
+        body: blob
+      });
+    } catch (err) {
+      console.warn('Failed to save staff manifest to Supabase:', err);
+    }
+  },
+
+  /**
+   * Save and sync Categories list to Supabase Cloud Storage
+   * @param {Array} categories 
+   */
+  async saveCategoriesManifest(categories) {
+    if (!Array.isArray(categories)) return;
+    try {
+      const blob = new Blob([JSON.stringify(categories, null, 2)], { type: 'application/json' });
+      await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/categories_manifest.json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+          'apikey': SUPABASE_SERVICE_ROLE,
+          'Content-Type': 'application/json',
+          'x-upsert': 'true'
+        },
+        body: blob
+      });
+    } catch (err) {
+      console.warn('Failed to save categories manifest to Supabase:', err);
+    }
+  },
+
+  /**
+   * Save and sync Authors list to Supabase Cloud Storage
+   * @param {Array} authors 
+   */
+  async saveAuthorsManifest(authors) {
+    if (!Array.isArray(authors)) return;
+    try {
+      const blob = new Blob([JSON.stringify(authors, null, 2)], { type: 'application/json' });
+      await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/authors_manifest.json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+          'apikey': SUPABASE_SERVICE_ROLE,
+          'Content-Type': 'application/json',
+          'x-upsert': 'true'
+        },
+        body: blob
+      });
+    } catch (err) {
+      console.warn('Failed to save authors manifest to Supabase:', err);
+    }
+  },
+
+  /**
+   * Save and sync Settings to Supabase Cloud Storage
+   * @param {Object} settings 
+   */
+  async saveSettingsManifest(settings) {
+    if (!settings) return;
+    try {
+      const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+      await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/settings.json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+          'apikey': SUPABASE_SERVICE_ROLE,
+          'Content-Type': 'application/json',
+          'x-upsert': 'true'
+        },
+        body: blob
+      });
+    } catch (err) {
+      console.warn('Failed to save settings to Supabase:', err);
+    }
   }
 };

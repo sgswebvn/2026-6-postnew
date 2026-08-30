@@ -37,6 +37,56 @@ const AdminStaffEdit = React.lazy(() => import('./pages/admin/AdminStaffEdit').t
 const AdminStaffSalary = React.lazy(() => import('./pages/admin/AdminStaffSalary').then(module => ({ default: module.AdminStaffSalary })));
 const AdminAccessDenied = React.lazy(() => import('./pages/admin/AdminAccessDenied').then(module => ({ default: module.AdminAccessDenied })));
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('[Global ErrorBoundary Caught]', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#faf9f6] dark:bg-[#0c1017] p-6 font-sans text-center">
+          <div className="max-w-md p-8 bg-white dark:bg-[#111622] rounded-3xl border border-neutral-200 dark:border-neutral-800 shadow-xl space-y-4">
+            <div className="w-14 h-14 bg-amber-50 dark:bg-amber-950/60 text-amber-600 rounded-2xl flex items-center justify-center mx-auto text-2xl">
+              ⚠️
+            </div>
+            <h2 className="text-xl font-serif font-bold text-neutral-900 dark:text-neutral-100">
+              Đã Xảy Ra Sự Cố Hiển Thị
+            </h2>
+            <p className="text-xs text-neutral-600 dark:text-neutral-400">
+              Hệ thống vừa bảo vệ trang web khỏi việc sập giao diện. Vui lòng tải lại hoặc quay về trang chủ.
+            </p>
+            <div className="pt-2 flex justify-center gap-3">
+              <button
+                onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold font-mono transition-all cursor-pointer"
+              >
+                🔄 Tải Lại Trang
+              </button>
+              <button
+                onClick={() => { this.setState({ hasError: false }); window.location.href = '/'; }}
+                className="px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer"
+              >
+                🏠 Về Trang Chủ
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const AppContent = () => {
   const { currentRoute, isAdminAuthenticated, userRole, currentUser, hasPermission } = useBlog();
 
@@ -317,8 +367,10 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <BlogProvider>
-      <AppContent />
-    </BlogProvider>
+    <ErrorBoundary>
+      <BlogProvider>
+        <AppContent />
+      </BlogProvider>
+    </ErrorBoundary>
   );
 }
