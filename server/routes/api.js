@@ -77,14 +77,9 @@ async function getSupabasePostsManifest() {
   return [];
 }
 
-async function deletePostFromSupabase(postId) {
+async function syncStaffToSupabase(staffList) {
   try {
-    let currentManifest = [];
-    const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/postnew/posts_manifest.json`);
-    if (manRes.ok) currentManifest = await manRes.json();
-
-    const updatedManifest = currentManifest.filter(p => p.id !== postId && p.slug !== postId);
-    await fetch(`${SUPABASE_URL}/storage/v1/object/postnew/posts_manifest.json`, {
+    await fetch(`${SUPABASE_URL}/storage/v1/object/postnew/staff_manifest.json`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
@@ -92,9 +87,20 @@ async function deletePostFromSupabase(postId) {
         'Content-Type': 'application/json',
         'x-upsert': 'true'
       },
-      body: JSON.stringify(updatedManifest)
+      body: JSON.stringify(staffList)
     });
   } catch (e) {}
+}
+
+async function getSupabaseStaffManifest() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/public/postnew/staff_manifest.json`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (e) {}
+  return [];
 }
 
 // ==========================================
@@ -744,9 +750,17 @@ router.get('/staff', async (req, res) => {
   try {
     if (isMongooseReady()) {
       const staff = await Staff.find().sort({ createdAt: -1 });
-      return res.json(staff);
+      if (staff && staff.length > 0) return res.json(staff);
     }
-    return res.json(memoryStore.staff || []);
+    const cloudStaff = await getSupabaseStaffManifest();
+    const memoryStaff = memoryStore.staff || [];
+    const merged = [...cloudStaff];
+    for (const ms of memoryStaff) {
+      if (!merged.some(s => s.id === ms.id || s.username === ms.username || (s.refCode && ms.refCode && s.refCode === ms.refCode))) {
+        merged.push(ms);
+      }
+    }
+    return res.json(merged.length > 0 ? merged : memoryStaff);
   } catch (error) {
     return res.json(memoryStore.staff || []);
   }
@@ -758,12 +772,25 @@ router.post('/staff', async (req, res) => {
       ...req.body,
       id: req.body.id || `staff-${Date.now()}`
     };
+
+    // Update memory & Supabase
+    if (!memoryStore.staff) memoryStore.staff = [];
+    const existingIdx = memoryStore.staff.findIndex(s => s.id === newStaff.id || s.username === newStaff.username);
+    if (existingIdx !== -1) {
+      memoryStore.staff[existingIdx] = newStaff;
+    } else {
+      memoryStore.staff.unshift(newStaff);
+    }
+
+    const cloudStaff = await getSupabaseStaffManifest();
+    const updatedCloud = [newStaff, ...cloudStaff.filter(s => s.id !== newStaff.id && s.username !== newStaff.username)];
+    syncStaffToSupabase(updatedCloud).catch(() => {});
+
     if (isMongooseReady()) {
       const created = await Staff.create(newStaff);
       return res.status(201).json(created);
     }
-    if (!memoryStore.staff) memoryStore.staff = [];
-    memoryStore.staff.push(newStaff);
+
     return res.status(201).json(newStaff);
   } catch (error) {
     return res.status(400).json({ error: error.message });
@@ -773,17 +800,26 @@ router.post('/staff', async (req, res) => {
 router.put('/staff/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    const updatedData = { ...req.body, id };
+
+    if (!memoryStore.staff) memoryStore.staff = [];
+    const idx = memoryStore.staff.findIndex(s => s.id === id);
+    if (idx !== -1) {
+      memoryStore.staff[idx] = { ...memoryStore.staff[idx], ...updatedData };
+    } else {
+      memoryStore.staff.unshift(updatedData);
+    }
+
+    const cloudStaff = await getSupabaseStaffManifest();
+    const updatedCloud = cloudStaff.map(s => s.id === id ? { ...s, ...updatedData } : s);
+    syncStaffToSupabase(updatedCloud).catch(() => {});
+
     if (isMongooseReady()) {
       const updated = await Staff.findOneAndUpdate({ id }, req.body, { new: true });
       if (updated) return res.json(updated);
     }
-    if (!memoryStore.staff) memoryStore.staff = [];
-    const idx = memoryStore.staff.findIndex(s => s.id === id);
-    if (idx !== -1) {
-      memoryStore.staff[idx] = { ...memoryStore.staff[idx], ...req.body };
-      return res.json(memoryStore.staff[idx]);
-    }
-    return res.status(404).json({ error: 'Staff not found' });
+
+    return res.json(updatedData);
   } catch (error) {
     return res.status(400).json({ error: error.message });
   }
@@ -792,12 +828,16 @@ router.put('/staff/:id', async (req, res) => {
 router.delete('/staff/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    if (isMongooseReady()) {
-      await Staff.findOneAndDelete({ id });
-      return res.status(204).send();
-    }
     if (!memoryStore.staff) memoryStore.staff = [];
     memoryStore.staff = memoryStore.staff.filter(s => s.id !== id);
+
+    const cloudStaff = await getSupabaseStaffManifest();
+    const updatedCloud = cloudStaff.filter(s => s.id !== id);
+    syncStaffToSupabase(updatedCloud).catch(() => {});
+
+    if (isMongooseReady()) {
+      await Staff.findOneAndDelete({ id });
+    }
     return res.status(204).send();
   } catch (error) {
     return res.status(500).json({ error: error.message });
@@ -815,8 +855,17 @@ router.post('/auth/login', async (req, res) => {
           { email: identifier, password: password }
         ]
       });
-    } else {
+    }
+
+    if (!staffMember) {
       staffMember = (memoryStore.staff || []).find(
+        s => (s.username === identifier || s.email === identifier) && s.password === password
+      );
+    }
+
+    if (!staffMember) {
+      const cloudStaff = await getSupabaseStaffManifest();
+      staffMember = cloudStaff.find(
         s => (s.username === identifier || s.email === identifier) && s.password === password
       );
     }

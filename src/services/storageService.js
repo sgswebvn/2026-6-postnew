@@ -63,13 +63,41 @@ export const storageService = {
       if (mergedPosts.length > 0) {
         localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(mergedPosts));
       }
+
+      // Fetch Supabase staff manifest as cloud database layer
+      let supabaseStaff = [];
+      try {
+        const sbStaffRes = await fetch('https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/staff_manifest.json');
+        if (sbStaffRes.ok) {
+          const parsed = await sbStaffRes.json();
+          if (Array.isArray(parsed)) supabaseStaff = parsed;
+        }
+      } catch (e) {}
+
+      const localStaff = this.getStaffList();
+      let mergedStaff = [...(staffList || [])];
+
+      for (const ss of supabaseStaff) {
+        if (!mergedStaff.some(ms => ms.id === ss.id || ms.username === ss.username || (ms.refCode && ss.refCode && ms.refCode === ss.refCode))) {
+          mergedStaff.push(ss);
+        }
+      }
+
+      for (const ls of localStaff) {
+        if (!mergedStaff.some(ms => ms.id === ls.id || ms.username === ls.username || (ms.refCode && ls.refCode && ms.refCode === ls.refCode))) {
+          mergedStaff.push(ls);
+          // Background sync to backend & Supabase
+          try { api.addStaff(ls); } catch (e) {}
+        }
+      }
+
       if (categories && categories.length > 0) localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
       if (authors && authors.length > 0) localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
       if (settings && settings.siteName) localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
-      if (staffList && staffList.length > 0) localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(staffList));
+      if (mergedStaff.length > 0) localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(mergedStaff));
       if (activityLogs && activityLogs.length > 0) localStorage.setItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify(activityLogs));
 
-      return { posts: mergedPosts, categories, authors, settings, referrals, staffList, activityLogs };
+      return { posts: mergedPosts, categories, authors, settings, referrals, staffList: mergedStaff, activityLogs };
     } catch {
       return null;
     }
