@@ -219,12 +219,19 @@ export const storageService = {
   },
 
   async deletePost(id) {
+    const currentPosts = this.getPosts();
+    const target = currentPosts.find(p => p.id === id);
+    const targetSlug = target?.slug || '';
+
+    // Direct deletion from Supabase Cloud CDN manifest
+    supabaseStorage.deletePostMetadata(id, targetSlug).catch(() => {});
+
     try {
       await api.deletePost(id);
     } catch (err) {
       console.warn('Backend deletePost fallback:', err);
     }
-    const posts = this.getPosts().filter(p => p.id !== id);
+    const posts = currentPosts.filter(p => p.id !== id && (!targetSlug || p.slug !== targetSlug));
     safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
     return posts;
   },

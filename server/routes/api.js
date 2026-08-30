@@ -77,6 +77,44 @@ async function getSupabasePostsManifest() {
   return [];
 }
 
+async function deletePostFromSupabase(id, slug = '') {
+  try {
+    let manifest = [];
+    try {
+      const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/postnew/posts_manifest.json`);
+      if (manRes.ok) {
+        const data = await manRes.json();
+        if (Array.isArray(data)) manifest = data;
+      }
+    } catch (e) {}
+
+    const updated = manifest.filter(p => p.id !== id && (!slug || p.slug !== slug));
+    await fetch(`${SUPABASE_URL}/storage/v1/object/postnew/posts_manifest.json`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+        'apikey': SUPABASE_SERVICE_ROLE,
+        'Content-Type': 'application/json',
+        'x-upsert': 'true'
+      },
+      body: JSON.stringify(updated)
+    });
+
+    if (slug) {
+      const cleanSlug = slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-');
+      await fetch(`${SUPABASE_URL}/storage/v1/object/postnew/posts/${cleanSlug}.json`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+          'apikey': SUPABASE_SERVICE_ROLE
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('[Supabase Delete Warning]', err.message);
+  }
+}
+
 async function syncStaffToSupabase(staffList) {
   try {
     await fetch(`${SUPABASE_URL}/storage/v1/object/postnew/staff_manifest.json`, {
@@ -334,12 +372,18 @@ router.put('/posts/:id', async (req, res) => {
 router.delete('/posts/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    deletePostFromSupabase(id).catch(() => {});
+    let targetSlug = '';
+    const memPost = memoryStore.posts.find(p => p.id === id || p.slug === id);
+    if (memPost) targetSlug = memPost.slug;
 
     if (isMongooseReady()) {
-      await Post.deleteOne({ id });
+      const dbPost = await Post.findOne({ $or: [{ id }, { slug: id }] });
+      if (dbPost && dbPost.slug) targetSlug = dbPost.slug;
+      await Post.deleteMany({ $or: [{ id }, { slug: id }] });
     }
-    memoryStore.posts = memoryStore.posts.filter(p => p.id !== id);
+
+    deletePostFromSupabase(id, targetSlug).catch(() => {});
+    memoryStore.posts = memoryStore.posts.filter(p => p.id !== id && p.slug !== id);
     return res.json({ success: true, message: 'Article deleted' });
   } catch (error) {
     return res.status(500).json({ error: error.message });

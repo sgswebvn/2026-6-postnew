@@ -97,5 +97,51 @@ export const supabaseStorage = {
       console.warn('Could not sync post metadata to Supabase:', e);
       return null;
     }
+  },
+
+  /**
+   * Delete post metadata and remove from posts_manifest.json on Supabase
+   * @param {string} id 
+   * @param {string} slug 
+   */
+  async deletePostMetadata(id, slug = '') {
+    try {
+      // 1. Update posts_manifest.json
+      let manifest = [];
+      try {
+        const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/posts_manifest.json`);
+        if (manRes.ok) {
+          const parsed = await manRes.json();
+          if (Array.isArray(parsed)) manifest = parsed;
+        }
+      } catch (e) {}
+
+      const updatedManifest = manifest.filter(p => p.id !== id && (!slug || p.slug !== slug));
+      const manBlob = new Blob([JSON.stringify(updatedManifest, null, 2)], { type: 'application/json' });
+      await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/posts_manifest.json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+          'apikey': SUPABASE_SERVICE_ROLE,
+          'Content-Type': 'application/json',
+          'x-upsert': 'true'
+        },
+        body: manBlob
+      });
+
+      // 2. Delete individual post JSON if slug is present
+      if (slug) {
+        const cleanSlug = slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-');
+        await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/posts/${cleanSlug}.json`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+            'apikey': SUPABASE_SERVICE_ROLE
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to delete post from Supabase manifest:', err);
+    }
   }
 };
