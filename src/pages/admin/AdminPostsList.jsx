@@ -187,7 +187,6 @@ export const AdminPostsList = () => {
                 <th className="p-3.5">Bài Viết & Tiêu Đề</th>
                 <th className="p-3.5">Người Tạo</th>
                 <th className="p-3.5">Chuyên Mục</th>
-                <th className="p-3.5">Lượt Xem</th>
                 <th className="p-3.5">Trạng Thái</th>
                 <th className="p-3.5">AdSense Ads</th>
                 <th className="p-3.5 text-right">Thao Tác</th>
@@ -196,7 +195,7 @@ export const AdminPostsList = () => {
             <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800 font-sans">
               {paginatedPosts.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-12 text-center text-neutral-400">
+                  <td colSpan={7} className="p-12 text-center text-neutral-400">
                     <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     <p>Không tìm thấy bài viết nào phù hợp với bộ lọc hiện tại.</p>
                   </td>
@@ -265,14 +264,6 @@ export const AdminPostsList = () => {
                       {/* Category */}
                       <td className="p-3.5">
                         <Badge label={cat?.name || 'Category'} color={cat?.color || 'blue'} size="xs" />
-                      </td>
-
-                      {/* Views Count */}
-                      <td className="p-3.5 font-mono text-neutral-600 dark:text-neutral-300">
-                        <div className="flex items-center gap-1">
-                          <Eye className="w-3.5 h-3.5 text-neutral-400" />
-                          <span>{(post.views || 0).toLocaleString()}</span>
-                        </div>
                       </td>
 
                       {/* Status Toggle */}
