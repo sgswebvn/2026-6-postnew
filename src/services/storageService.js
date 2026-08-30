@@ -1,4 +1,5 @@
 import { api } from './api.js';
+import { supabaseStorage } from './supabaseStorage.js';
 import { initialPosts, initialCategories, initialAuthors, initialSettings, initialComments, initialSubscribers } from '../../server/seedData.js';
 
 const STORAGE_KEYS = {
@@ -100,6 +101,7 @@ export const storageService = {
         details: `Đã xuất bản: "${newPost.title}"`,
         type: 'success'
       });
+      supabaseStorage.savePostMetadata(newPost).catch(() => {});
     } else {
       const updatedPost = { ...post, updatedAt: new Date().toISOString() };
       try {
@@ -118,6 +120,7 @@ export const storageService = {
         details: `Cập nhật bài: "${post.title}"`,
         type: 'neutral'
       });
+      supabaseStorage.savePostMetadata(updatedPost).catch(() => {});
     }
 
     localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(updated));

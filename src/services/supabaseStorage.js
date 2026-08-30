@@ -45,5 +45,35 @@ export const supabaseStorage = {
       console.error('Supabase Storage Upload Error:', error);
       throw error;
     }
+  },
+
+  /**
+   * Save Post metadata JSON to Supabase CDN for resilient Open Graph SSR
+   * @param {Object} post 
+   */
+  async savePostMetadata(post) {
+    if (!post || !post.slug) return null;
+    try {
+      const cleanSlug = post.slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-');
+      const filePath = `posts/${cleanSlug}.json`;
+      const uploadEndpoint = `${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/${filePath}`;
+
+      const jsonBlob = new Blob([JSON.stringify(post, null, 2)], { type: 'application/json' });
+      await fetch(uploadEndpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+          'apikey': SUPABASE_SERVICE_ROLE,
+          'Content-Type': 'application/json',
+          'x-upsert': 'true'
+        },
+        body: jsonBlob
+      });
+
+      return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${filePath}`;
+    } catch (e) {
+      console.warn('Could not sync post metadata to Supabase:', e);
+      return null;
+    }
   }
 };

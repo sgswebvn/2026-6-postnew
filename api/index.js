@@ -131,6 +131,33 @@ const handlePostCrawler = async (req, res) => {
       );
     }
 
+    // 2. Try fetching from Supabase CDN
+    if (!post && slug) {
+      try {
+        const supabaseRes = await fetch(`https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/posts/${slug}.json`);
+        if (supabaseRes.ok) {
+          post = await supabaseRes.json();
+        }
+      } catch (sbErr) {
+        console.warn('Supabase post lookup failed:', sbErr);
+      }
+    }
+
+    // 3. Fallback: Generate smart title from slug if post not in DB
+    if (!post && slug) {
+      const generatedTitle = slug
+        .split('-')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+
+      post = {
+        title: generatedTitle,
+        slug: slug,
+        excerpt: `Read the full investigative coverage and analysis for "${generatedTitle}" on THE HORI CLICK.`,
+        coverImage: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_24.jpg'
+      };
+    }
+
     if (post) {
       const html = buildPostHtml(post, req.originalUrl, refCode);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -138,7 +165,15 @@ const handlePostCrawler = async (req, res) => {
       return res.send(html);
     }
 
-    return res.redirect(302, 'https://www.thehori.click/');
+    const defaultHtml = buildPostHtml({
+      title: 'THE HORI CLICK | Independent US Finance, Tech & Modern Lifestyle Journal',
+      slug: slug || '',
+      excerpt: 'In-depth analysis, expert guides, and daily insights on personal finance, emerging AI, and modern digital lifestyle.',
+      coverImage: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200'
+    }, req.originalUrl, refCode);
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(defaultHtml);
   } catch (err) {
     console.error('[OG Serverless Error]', err);
     return res.redirect(302, 'https://www.thehori.click/');
