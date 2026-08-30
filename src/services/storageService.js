@@ -530,5 +530,58 @@ export const storageService = {
   isBookmarked(postSlug) {
     const bookmarks = this.getBookmarks();
     return bookmarks.includes(postSlug);
+  },
+
+  // ==========================================
+  // INITIALIZE FROM CLOUD DATABASE (MONGODB ATLAS)
+  // ==========================================
+  async initializeFromDB() {
+    try {
+      const [posts, categories, authors, staffList, settings, comments, subscribers] = await Promise.all([
+        api.getPosts().catch(() => null),
+        api.getCategories().catch(() => null),
+        api.getAuthors().catch(() => null),
+        api.getStaffList().catch(() => null),
+        api.getSettings().catch(() => null),
+        api.getComments().catch(() => null),
+        api.getSubscribers().catch(() => null)
+      ]);
+
+      const result = {};
+
+      if (Array.isArray(posts) && posts.length > 0) {
+        safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+        result.posts = posts;
+      }
+      if (Array.isArray(categories) && categories.length > 0) {
+        safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+        result.categories = categories;
+      }
+      if (Array.isArray(authors) && authors.length > 0) {
+        safeSetItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
+        result.authors = authors;
+      }
+      if (Array.isArray(staffList) && staffList.length > 0) {
+        safeSetItem(STORAGE_KEYS.STAFF, JSON.stringify(staffList));
+        result.staffList = staffList;
+      }
+      if (settings && typeof settings === 'object') {
+        safeSetItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+        result.settings = settings;
+      }
+      if (Array.isArray(comments) && comments.length > 0) {
+        safeSetItem(STORAGE_KEYS.COMMENTS, JSON.stringify(comments));
+        result.comments = comments;
+      }
+      if (Array.isArray(subscribers) && subscribers.length > 0) {
+        safeSetItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(subscribers));
+        result.subscribers = subscribers;
+      }
+
+      return result;
+    } catch (e) {
+      console.warn('initializeFromDB warning:', e);
+      return null;
+    }
   }
 };
