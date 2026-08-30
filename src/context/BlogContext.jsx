@@ -332,6 +332,17 @@ export const BlogProvider = ({ children }) => {
     try {
       const updated = await storageService.saveStaff(staffMember);
       setStaffList(updated);
+
+      // Immediately sync currentUser in state and localStorage if updating own profile
+      if (currentUser && (currentUser.id === staffMember.id || (currentUser.username && currentUser.username === staffMember.username))) {
+        const syncedUser = { ...currentUser, ...staffMember };
+        setCurrentUser(syncedUser);
+        try {
+          localStorage.setItem('horizon_current_user', JSON.stringify(syncedUser));
+          sessionStorage.setItem('horizon_current_user', JSON.stringify(syncedUser));
+        } catch (e) {}
+      }
+
       setActivityLogs(storageService.getActivityLogs());
       showToast(`Đã cập nhật hồ sơ "${staffMember.name}" thành công!`, 'success');
       return updated;

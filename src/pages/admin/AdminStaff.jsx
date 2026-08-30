@@ -86,7 +86,7 @@ export const AdminStaff = () => {
     paymentDate: new Date().toISOString().split('T')[0]
   });
 
-  const displayStaffList = staffList.filter(s => s.id !== 'staff-1');
+  const displayStaffList = staffList || [];
 
   const filteredStaff = displayStaffList.filter(s => 
     s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -401,11 +401,18 @@ export const AdminStaff = () => {
                             className="w-10 h-10 rounded-2xl object-cover border border-neutral-200 shadow-xs flex-shrink-0"
                           />
                           <div>
-                            <span className="font-bold text-neutral-900 block text-sm">
-                              {staff.name}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-neutral-900 block text-sm">
+                                {staff.name}
+                              </span>
+                              {staff.role === 'admin' && (
+                                <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-300 font-bold text-[9px] font-mono">
+                                  👑 ROOT
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[11px] text-neutral-500">
-                              {staff.roleName || staff.role}
+                              {staff.roleName || (staff.role === 'admin' ? 'Quản Lý Tổng Biên Tập' : staff.role)}
                             </span>
                           </div>
                         </div>
@@ -488,23 +495,29 @@ export const AdminStaff = () => {
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => {
-                              showConfirm({
-                                title: 'Xóa Nhân Sự Khỏi Tòa Soạn',
-                                message: `Bạn có chắc chắn muốn xóa nhân sự "${staff.name}"? Quyền truy cập CMS và liên kết của người này sẽ bị xóa bỏ.`,
-                                confirmText: 'Xóa Nhân Sự',
-                                variant: 'danger',
-                                onConfirm: () => {
-                                  deleteStaff(staff.id);
-                                }
-                              });
-                            }}
-                            className="p-1.5 hover:bg-rose-50 rounded-lg text-rose-600 hover:text-rose-800 transition-colors"
-                            title="Xóa nhân sự"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {staff.id !== 'staff-1' && staff.role !== 'admin' ? (
+                            <button
+                              onClick={() => {
+                                showConfirm({
+                                  title: 'Xóa Nhân Sự Khỏi Tòa Soạn',
+                                  message: `Bạn có chắc chắn muốn xóa nhân sự "${staff.name}"? Quyền truy cập CMS và liên kết của người này sẽ bị xóa bỏ.`,
+                                  confirmText: 'Xóa Nhân Sự',
+                                  variant: 'danger',
+                                  onConfirm: () => {
+                                    deleteStaff(staff.id);
+                                  }
+                                });
+                              }}
+                              className="p-1.5 hover:bg-rose-50 rounded-lg text-rose-600 hover:text-rose-800 transition-colors"
+                              title="Xóa nhân sự"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <span className="p-1.5 text-neutral-300 cursor-not-allowed" title="Tài khoản Quản Trị Viên Gốc không thể xóa">
+                              <ShieldCheck className="w-4 h-4 text-amber-500" />
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>

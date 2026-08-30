@@ -14,7 +14,9 @@ import {
   FileText, 
   Copy, 
   Link2, 
-  Zap 
+  Zap,
+  Calendar,
+  Clock 
 } from 'lucide-react';
 import { ShortLinkModal } from '../../components/admin/ShortLinkModal';
 
@@ -187,6 +189,7 @@ export const AdminPostsList = () => {
                 <th className="p-3.5">Bài Viết & Tiêu Đề</th>
                 <th className="p-3.5">Người Tạo</th>
                 <th className="p-3.5">Chuyên Mục</th>
+                <th className="p-3.5">Thời Gian Đăng</th>
                 <th className="p-3.5">Trạng Thái</th>
                 <th className="p-3.5">AdSense Ads</th>
                 <th className="p-3.5 text-right">Thao Tác</th>
@@ -195,7 +198,7 @@ export const AdminPostsList = () => {
             <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800 font-sans">
               {paginatedPosts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center text-neutral-400">
+                  <td colSpan={8} className="p-12 text-center text-neutral-400">
                     <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     <p>Không tìm thấy bài viết nào phù hợp với bộ lọc hiện tại.</p>
                   </td>
@@ -212,6 +215,18 @@ export const AdminPostsList = () => {
                   const authorCreator = (authors || []).find(a => a.id === post.authorId);
                   const creatorName = post.createdByName || staffCreator?.name || post.authorName || authorCreator?.name || 'Ban Biên Tập';
                   const refCode = staffCreator?.refCode || (post.createdById ? 'NV' : '');
+
+                  // Date formatting
+                  const postDateRaw = post.publishedAt || post.createdAt || post.date || new Date().toISOString();
+                  let displayDate = 'N/A';
+                  let displayTime = '';
+                  try {
+                    const d = new Date(postDateRaw);
+                    if (!isNaN(d.getTime())) {
+                      displayDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                      displayTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    }
+                  } catch (e) {}
 
                   return (
                     <tr key={post.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-900/40 transition-colors">
@@ -264,6 +279,20 @@ export const AdminPostsList = () => {
                       {/* Category */}
                       <td className="p-3.5">
                         <Badge label={cat?.name || 'Category'} color={cat?.color || 'blue'} size="xs" />
+                      </td>
+
+                      {/* Published / Created Date */}
+                      <td className="p-3.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 text-neutral-700 dark:text-neutral-300 font-mono text-xs font-semibold">
+                          <Calendar className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                          <span>{displayDate}</span>
+                        </div>
+                        {displayTime && (
+                          <div className="flex items-center gap-1 text-[11px] text-neutral-400 font-mono mt-0.5">
+                            <Clock className="w-3 h-3 text-neutral-400 flex-shrink-0" />
+                            <span>{displayTime}</span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Status Toggle */}

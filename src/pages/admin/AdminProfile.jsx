@@ -63,12 +63,25 @@ export const AdminProfile = () => {
   
   // Profile Form state
   const [profileForm, setProfileForm] = useState({
-    name: currentStaff.name || '',
-    email: currentStaff.email || '',
-    phone: currentStaff.phone || '',
-    refCode: currentStaff.refCode || '',
-    avatar: currentStaff.avatar || AVATAR_PRESETS[0]
+    name: currentStaff?.name || '',
+    email: currentStaff?.email || '',
+    phone: currentStaff?.phone || '',
+    refCode: currentStaff?.refCode || '',
+    avatar: currentStaff?.avatar || AVATAR_PRESETS[0]
   });
+
+  // Keep profileForm synced with currentStaff whenever data is loaded from MongoDB
+  useEffect(() => {
+    if (currentStaff) {
+      setProfileForm({
+        name: currentStaff.name || '',
+        email: currentStaff.email || '',
+        phone: currentStaff.phone || '',
+        refCode: currentStaff.refCode || '',
+        avatar: currentStaff.avatar || AVATAR_PRESETS[0]
+      });
+    }
+  }, [currentStaff?.id, currentStaff?.name, currentStaff?.email, currentStaff?.phone, currentStaff?.refCode, currentStaff?.avatar]);
 
   // Password change state
   const [passForm, setPassForm] = useState({
@@ -86,13 +99,28 @@ export const AdminProfile = () => {
 
   // Filter personal activity logs
   const myLogs = (activityLogs || []).filter(log => 
-    log.staffId === currentStaff.id || 
-    log.staffName === currentStaff.name ||
+    log.staffId === currentStaff?.id || 
+    log.staffName === currentStaff?.name ||
     (profileForm.refCode && log.refCode === profileForm.refCode.toUpperCase())
   );
 
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingPass, setIsSavingPass] = useState(false);
+
+  const handleCustomAvatar = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('Kích thước ảnh tối đa là 2MB', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProfileForm(prev => ({ ...prev, avatar: reader.result }));
+      showToast('Đã chọn ảnh đại diện mới!', 'success');
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -107,6 +135,7 @@ export const AdminProfile = () => {
 
       const updated = {
         ...currentStaff,
+        id: currentStaff.id || 'staff-1',
         name: profileForm.name.trim(),
         email: profileForm.email.trim(),
         phone: profileForm.phone.trim(),
@@ -116,11 +145,6 @@ export const AdminProfile = () => {
 
       await saveStaff(updated);
       
-      // Update local session
-      try {
-        sessionStorage.setItem('horizon_current_user', JSON.stringify(updated));
-        localStorage.setItem('horizon_current_user', JSON.stringify(updated));
-      } catch (e) {}
       showToast('Đã lưu thông tin cá nhân & mã Seeding lên Cloud Database thành công!', 'success');
     } catch (err) {
       showToast('Lỗi khi cập nhật thông tin: ' + err.message, 'error');
@@ -300,15 +324,15 @@ export const AdminProfile = () => {
           {/* Avatar Selector */}
           <div>
             <label className="block text-xs font-bold text-neutral-300 mb-2">
-              Chọn Ảnh Đại Diện (Avatar)
+              Chọn Ảnh Đại Diện (Avatar) hoặc Tải Ảnh Lên
             </label>
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-3">
               <img 
                 src={profileForm.avatar} 
                 alt="Avatar Preview" 
                 className="w-14 h-14 rounded-2xl object-cover border-2 border-blue-500 shadow-md flex-shrink-0"
               />
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 items-center">
                 {AVATAR_PRESETS.map((preset, idx) => (
                   <img
                     key={idx}
@@ -320,6 +344,17 @@ export const AdminProfile = () => {
                     }`}
                   />
                 ))}
+
+                <label className="px-3 py-2 bg-[#182234] hover:bg-[#202e46] text-blue-400 hover:text-blue-300 border border-[#2a3a54] rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Tải ảnh riêng</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleCustomAvatar}
+                    className="hidden"
+                  />
+                </label>
               </div>
             </div>
           </div>
