@@ -255,18 +255,23 @@ router.post('/upload', requireAuth, async (req, res) => {
 // 3. AUTHENTICATION & SESSION MANAGEMENT
 // ==========================================
 router.post('/auth/login', async (req, res) => {
-  const { identifier, password } = req.body;
-  if (!identifier || !password) {
-    return res.status(400).json({ error: 'Tên đăng nhập và mật khẩu là bắt buộc' });
+  const rawId = req.body?.identifier;
+  const rawPass = req.body?.password;
+
+  if (typeof rawId !== 'string' || typeof rawPass !== 'string' || !rawId.trim() || !rawPass.trim()) {
+    return res.status(400).json({ error: 'Tên đăng nhập và mật khẩu là bắt buộc và phải là chuỗi hợp lệ' });
   }
+
+  const identifier = rawId.trim();
+  const password = rawPass.trim();
 
   try {
     let staffMember = null;
     if (isMongooseReady()) {
       staffMember = await Staff.findOne({
         $or: [
-          { username: identifier.trim() },
-          { email: identifier.trim() }
+          { username: identifier },
+          { email: identifier }
         ]
       });
     }
@@ -914,29 +919,41 @@ router.post('/staff', requireAuth, requireRole(['admin']), async (req, res) => {
 
 router.put('/staff/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
+  const targetId = String(id).trim();
+
   // Non-admin can only update their own profile
-  if (req.user.role !== 'admin' && req.user.id !== id) {
+  if (req.user.role !== 'admin' && req.user.id !== targetId) {
     return res.status(403).json({ error: 'Forbidden: You can only update your own profile' });
   }
 
   try {
-    const updatedData = { ...req.body, id };
+    const updatedData = { ...req.body, id: targetId };
+
+    // Mass Assignment Protection: Non-admins cannot alter role, permissions, or salary
+    if (req.user.role !== 'admin') {
+      delete updatedData.role;
+      delete updatedData.roleName;
+      delete updatedData.permissions;
+      delete updatedData.salary;
+      delete updatedData.status;
+    }
+
     // If password provided, hash it with Scrypt
-    if (updatedData.password) {
-      updatedData.password = hashPassword(updatedData.password);
+    if (updatedData.password && typeof updatedData.password === 'string' && updatedData.password.trim()) {
+      updatedData.password = hashPassword(updatedData.password.trim());
     } else {
       delete updatedData.password; // Do not overwrite existing password with undefined
     }
 
     let updated = updatedData;
     if (isMongooseReady()) {
-      const query = { $or: [{ id }] };
-      if (updatedData.username) query.$or.push({ username: updatedData.username });
-      updated = await Staff.findOneAndUpdate(query, updatedData, { new: true, upsert: true });
+      const query = { $or: [{ id: targetId }] };
+      if (updatedData.username) query.$or.push({ username: String(updatedData.username).trim() });
+      updated = await Staff.findOneAndUpdate(query, updatedData, { returnDocument: 'after', upsert: true });
     }
 
     if (!memoryStore.staff) memoryStore.staff = [];
-    const idx = memoryStore.staff.findIndex(s => s.id === id || (s.username && updatedData.username && s.username === updatedData.username));
+    const idx = memoryStore.staff.findIndex(s => s.id === targetId || (s.username && updatedData.username && s.username === updatedData.username));
     if (idx !== -1) {
       memoryStore.staff[idx] = { ...memoryStore.staff[idx], ...updatedData };
     } else {
