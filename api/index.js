@@ -211,6 +211,16 @@ app.get('/s/:code', async (req, res) => {
       shortLink = (memoryStore.shortLinks || []).find(l => l.code === code);
     }
 
+    // Lookup in Supabase CDN
+    if (!shortLink) {
+      try {
+        const sbRes = await fetch(`https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/shortlinks/${code}.json`);
+        if (sbRes.ok) {
+          shortLink = await sbRes.json();
+        }
+      } catch (e) {}
+    }
+
     if (shortLink) {
       // Increment click count
       try {
@@ -231,6 +241,15 @@ app.get('/s/:code', async (req, res) => {
         }
       }
 
+      if (!post && shortLink.postTitle) {
+        post = {
+          title: shortLink.postTitle,
+          slug: shortLink.postSlug || code,
+          coverImage: shortLink.coverImage || 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_24.jpg',
+          excerpt: `Read the full analysis for "${shortLink.postTitle}" on THE HORI CLICK.`
+        };
+      }
+
       if (isCrawler && post) {
         const html = buildPostHtml(post, req.originalUrl, shortLink.staffCode);
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -241,7 +260,7 @@ app.get('/s/:code', async (req, res) => {
       return res.redirect(302, targetUrl);
     }
 
-    // Fallback: Check if code matches a staff refCode directly (e.g. /s/qb -> /?ref=QB)
+    // Fallback: If code is not found, check if code matches a staff refCode directly (e.g. /s/qb -> /?ref=QB)
     return res.redirect(302, `https://www.thehori.click/?ref=${code.toUpperCase()}`);
   } catch (err) {
     console.error('[ShortLink Error]', err);

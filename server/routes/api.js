@@ -794,6 +794,22 @@ router.post('/shortlinks', async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
+    // Sync shortlink metadata to Supabase CDN
+    try {
+      const SUPABASE_URL = 'https://mmltqgekvpdnezqdavvc.supabase.co';
+      const SUPABASE_SERVICE_ROLE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tbHRxZ2VrdnBkbmV6cWRhdnZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NzkzMDY3NywiZXhwIjoyMTAzNTA2Njc3fQ.q_cgtmcVGrBeD8eCuov4xHzl4Lahy5bJIAlsZ8Y_ZUo';
+      fetch(`${SUPABASE_URL}/storage/v1/object/postnew/shortlinks/${code}.json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
+          'apikey': SUPABASE_SERVICE_ROLE,
+          'Content-Type': 'application/json',
+          'x-upsert': 'true'
+        },
+        body: JSON.stringify(newLink)
+      }).catch(() => {});
+    } catch (e) {}
+
     if (isMongooseReady()) {
       // Upsert
       const saved = await ShortLink.findOneAndUpdate(
