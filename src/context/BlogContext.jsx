@@ -236,12 +236,14 @@ export const BlogProvider = ({ children }) => {
       setUserRole(authenticatedUser.role || 'editor');
       setCurrentUser(authenticatedUser);
       
-      sessionStorage.setItem('horizon_admin_session', 'true');
-      localStorage.setItem('horizon_admin_session', 'true');
-      sessionStorage.setItem('horizon_user_role', authenticatedUser.role || 'editor');
-      localStorage.setItem('horizon_user_role', authenticatedUser.role || 'editor');
-      sessionStorage.setItem('horizon_current_user', JSON.stringify(authenticatedUser));
-      localStorage.setItem('horizon_current_user', JSON.stringify(authenticatedUser));
+      try {
+        sessionStorage.setItem('horizon_admin_session', 'true');
+        localStorage.setItem('horizon_admin_session', 'true');
+        sessionStorage.setItem('horizon_user_role', authenticatedUser.role || 'editor');
+        localStorage.setItem('horizon_user_role', authenticatedUser.role || 'editor');
+        sessionStorage.setItem('horizon_current_user', JSON.stringify(authenticatedUser));
+        localStorage.setItem('horizon_current_user', JSON.stringify(authenticatedUser));
+      } catch (e) {}
 
       // Record Activity Log
       storageService.addActivityLog({

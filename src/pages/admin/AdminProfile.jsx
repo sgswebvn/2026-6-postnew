@@ -112,8 +112,10 @@ export const AdminProfile = () => {
     saveStaff(updated);
     
     // Update local session
-    sessionStorage.setItem('horizon_current_user', JSON.stringify(updated));
-    localStorage.setItem('horizon_current_user', JSON.stringify(updated));
+    try {
+      sessionStorage.setItem('horizon_current_user', JSON.stringify(updated));
+      localStorage.setItem('horizon_current_user', JSON.stringify(updated));
+    } catch (e) {}
     showToast('Đã cập nhật thông tin cá nhân và mã Seeding thành công!', 'success');
   };
 
@@ -134,8 +136,10 @@ export const AdminProfile = () => {
     };
 
     saveStaff(updated);
-    sessionStorage.setItem('horizon_current_user', JSON.stringify(updated));
-    localStorage.setItem('horizon_current_user', JSON.stringify(updated));
+    try {
+      sessionStorage.setItem('horizon_current_user', JSON.stringify(updated));
+      localStorage.setItem('horizon_current_user', JSON.stringify(updated));
+    } catch (e) {}
     
     setPassForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     showToast('Đã đổi mật khẩu tài khoản thành công!', 'success');

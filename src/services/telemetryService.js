@@ -5,6 +5,14 @@ const TELEMETRY_KEY = 'horizon_telemetry_events_v2';
 const SESSION_KEY = 'horizon_reader_session_v2';
 const REFERRALS_KEY = 'horizon_staff_referrals_v2';
 
+const safeSetItem = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    console.warn(`[Telemetry Warning] Exceeded quota on key "${key}"`, err);
+  }
+};
+
 export const telemetryService = {
   // Capture Referral Code from query parameter (?ref=QB or ?utm_source=QB)
   getReferralCode() {
@@ -43,7 +51,7 @@ export const telemetryService = {
         bookmarkedCount: 0,
         referralCode: this.getReferralCode()
       };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      safeSetItem(SESSION_KEY, JSON.stringify(session));
     } else {
       // Check if this is a new session (e.g., >30 min since last visit)
       const lastVisitTime = new Date(session.lastVisit).getTime();
@@ -51,7 +59,7 @@ export const telemetryService = {
       if (now - lastVisitTime > 30 * 60 * 1000) {
         session.visitCount = (session.visitCount || 1) + 1;
         session.lastVisit = new Date().toISOString();
-        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+        safeSetItem(SESSION_KEY, JSON.stringify(session));
       }
     }
     return session;
@@ -83,9 +91,9 @@ export const telemetryService = {
 
     try {
       const stored = JSON.parse(localStorage.getItem(TELEMETRY_KEY) || '[]');
-      // Keep last 100 events to manage storage
-      const updated = [event, ...stored].slice(0, 100);
-      localStorage.setItem(TELEMETRY_KEY, JSON.stringify(updated));
+      // Keep last 50 events to manage storage
+      const updated = [event, ...stored].slice(0, 50);
+      safeSetItem(TELEMETRY_KEY, JSON.stringify(updated));
     } catch (e) {
       console.warn('[Telemetry Warning] Failed to persist event:', e);
     }
@@ -115,7 +123,7 @@ export const telemetryService = {
 
     if (!session.articlesRead.includes(postSlug)) {
       session.articlesRead.push(postSlug);
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      safeSetItem(SESSION_KEY, JSON.stringify(session));
     }
 
     // Forward to GA4 with staff attribution
@@ -222,7 +230,7 @@ export const telemetryService = {
         const currentSession = telemetryService.getSessionInfo();
         if (currentSession) {
           currentSession.totalDwellSeconds = (currentSession.totalDwellSeconds || 0) + activeDwellSeconds;
-          localStorage.setItem(SESSION_KEY, JSON.stringify(currentSession));
+          safeSetItem(SESSION_KEY, JSON.stringify(currentSession));
         }
       } catch {}
     };
