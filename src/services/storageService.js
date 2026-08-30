@@ -1,6 +1,15 @@
 import { api } from './api.js';
 import { supabaseStorage } from './supabaseStorage.js';
-import { initialPosts, initialCategories, initialAuthors, initialSettings, initialComments, initialSubscribers } from '../../server/seedData.js';
+import { 
+  initialPosts, 
+  initialCategories, 
+  initialAuthors, 
+  initialSettings, 
+  initialComments, 
+  initialSubscribers,
+  initialStaffList,
+  initialActivityLogs
+} from '../../server/seedData.js';
 
 const STORAGE_KEYS = {
   POSTS: 'horizon_posts_v2',
@@ -15,10 +24,17 @@ const STORAGE_KEYS = {
   ACTIVITY_LOGS: 'horizon_activity_logs_v2'
 };
 
-// initialStaffList and initialActivityLogs moved to server/seedData.js
+// Safe setItem that never throws QuotaExceededError or crashes on big HTML/image content
+const safeSetItem = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    console.warn(`[Storage Quota Exceeded] Could not write key "${key}" to localStorage. Live data is safely preserved on Cloud Database & Supabase.`, err);
+  }
+};
 
 export const storageService = {
-  // Sync all with MongoDB on boot
+  // Sync all with Cloud Database & Supabase on boot
   async initializeFromDB() {
     try {
       const [remotePosts, categories, authors, settings, referrals, staffList, activityLogs] = await Promise.all([
@@ -61,7 +77,7 @@ export const storageService = {
       }
 
       if (mergedPosts.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(mergedPosts));
+        safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(mergedPosts));
       }
 
       // Fetch Supabase staff manifest as cloud database layer
@@ -91,11 +107,11 @@ export const storageService = {
         }
       }
 
-      if (categories && categories.length > 0) localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
-      if (authors && authors.length > 0) localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
-      if (settings && settings.siteName) localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
-      if (mergedStaff.length > 0) localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(mergedStaff));
-      if (activityLogs && activityLogs.length > 0) localStorage.setItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify(activityLogs));
+      if (categories && categories.length > 0) safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+      if (authors && authors.length > 0) safeSetItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
+      if (settings && settings.siteName) safeSetItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+      if (mergedStaff.length > 0) safeSetItem(STORAGE_KEYS.STAFF, JSON.stringify(mergedStaff));
+      if (activityLogs && activityLogs.length > 0) safeSetItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify(activityLogs));
 
       return { posts: mergedPosts, categories, authors, settings, referrals, staffList: mergedStaff, activityLogs };
     } catch {
@@ -107,7 +123,7 @@ export const storageService = {
   getPosts() {
     const raw = localStorage.getItem(STORAGE_KEYS.POSTS);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(initialPosts));
+      safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(initialPosts));
       return initialPosts;
     }
     try {
@@ -127,8 +143,7 @@ export const storageService = {
       const newPost = {
         ...post,
         id: `post-${Date.now()}`,
-        publishedAt: post.publishedAt || new Date().toISOString(),
-        views: post.views || 0
+        publishedAt: post.publishedAt || new Date().toISOString()
       };
       try {
         const saved = await api.createPost(newPost);
@@ -168,7 +183,7 @@ export const storageService = {
       supabaseStorage.savePostMetadata(updatedPost).catch(() => {});
     }
 
-    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(updated));
+    safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(updated));
     return updated;
   },
 
@@ -179,120 +194,15 @@ export const storageService = {
       console.warn('Backend deletePost fallback:', err);
     }
     const posts = this.getPosts().filter(p => p.id !== id);
-    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+    safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
     return posts;
-  },
-
-  async incrementView(slug) {
-    if (!slug) return this.getPosts();
-    const posts = this.getPosts();
-    const target = posts.find(p => p.slug === slug);
-    if (target) {
-      target.views = (target.views || 0) + 1;
-      localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
-      api.incrementView(slug).catch(() => {});
-    }
-    return posts;
-  },
-
-  getReferralHits() {
-    try {
-      return JSON.parse(localStorage.getItem('horizon_staff_referrals_v2') || '{"QB": 18, "MINH": 12, "AN": 9, "LINH": 6}');
-    } catch {
-      return { "QB": 18, "MINH": 12, "AN": 9, "LINH": 6 };
-    }
-  },
-
-  async recordSeedingHit(refCode, path = '/') {
-    if (!refCode) return;
-    const cleanRef = refCode.toUpperCase().trim();
-    
-    // Call Backend API to increment globally
-    let globalRefs = await api.recordSeedingHit(cleanRef);
-    
-    // Fallback or update local map
-    const REFERRALS_KEY = 'horizon_staff_referrals_v2';
-    let referrals = {};
-    if (globalRefs) {
-      referrals = globalRefs;
-    } else {
-      try {
-        referrals = JSON.parse(localStorage.getItem(REFERRALS_KEY) || '{"QB": 18, "MINH": 12, "AN": 9, "LINH": 6}');
-      } catch {
-        referrals = { "QB": 18, "MINH": 12, "AN": 9, "LINH": 6 };
-      }
-      referrals[cleanRef] = (referrals[cleanRef] || 0) + 1;
-    }
-    localStorage.setItem(REFERRALS_KEY, JSON.stringify(referrals));
-
-    // 2. Find matching staff and update direct referral hits & KPI bonus
-    const staffList = this.getStaffList();
-    let matchedStaff = null;
-    const updatedStaffList = staffList.map(s => {
-      if (s.refCode && s.refCode.toUpperCase() === cleanRef) {
-        matchedStaff = s;
-        const hits = referrals[cleanRef] || (s.seedingHits || 0) + 1;
-        const currentBase = Number(s.salary?.baseSalary || 10000000);
-        const currentDeduction = Number(s.salary?.deduction || 0);
-        const currentKpi = (s.salary?.kpiBonus || 0) + 500;
-        return {
-          ...s,
-          seedingHits: hits,
-          salary: {
-            ...s.salary,
-            baseSalary: currentBase,
-            kpiBonus: currentKpi,
-            deduction: currentDeduction,
-            netSalary: Math.max(0, currentBase + currentKpi - currentDeduction)
-          }
-        };
-      }
-      return s;
-    });
-    localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(updatedStaffList));
-
-    // 3. If on a post, increment post views
-    let targetPost = null;
-    let postSlug = '';
-    if (path.includes('/post/')) {
-      postSlug = path.split('/post/')[1]?.split('?')[0];
-    }
-    if (postSlug) {
-      const posts = this.getPosts();
-      targetPost = posts.find(p => p.slug === postSlug);
-      if (targetPost) {
-        targetPost.views = (targetPost.views || 0) + 1;
-        localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
-        api.incrementView(postSlug).catch(() => {});
-      }
-    }
-
-    // 4. Record Activity Log
-    this.addActivityLog({
-      staffId: matchedStaff?.id || 'seeding-visitor',
-      staffName: matchedStaff?.name || `Mã Ref: ${cleanRef}`,
-      refCode: cleanRef,
-      action: 'seeding',
-      title: `Ghi nhận +1 lượt đọc Seeding (?ref=${cleanRef})`,
-      details: targetPost 
-        ? `Độc giả đọc bài "${targetPost.title.slice(0, 45)}..." qua link của ${matchedStaff?.name || cleanRef}` 
-        : `Độc giả truy cập trang ${path} qua link Seeding của ${matchedStaff?.name || cleanRef}`,
-      type: 'success'
-    });
-
-    return { 
-      referrals, 
-      posts: this.getPosts(), 
-      staffList: updatedStaffList, 
-      activityLogs: this.getActivityLogs() 
-    };
   },
 
   // Categories
   getCategories() {
     const raw = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(initialCategories));
+      safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(initialCategories));
       return initialCategories;
     }
     try {
@@ -303,7 +213,7 @@ export const storageService = {
   },
 
   async saveCategories(categories) {
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
     for (const cat of categories) {
       api.saveCategory(cat).catch(() => {});
     }
@@ -325,7 +235,7 @@ export const storageService = {
       console.warn('Backend createCategory fallback:', err);
     }
     const updated = [...categories.filter(c => c.id !== newCat.id), newCat];
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(updated));
+    safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(updated));
     this.addActivityLog({
       staffName: 'Quản Trị Viên',
       action: 'category_create',
@@ -343,7 +253,7 @@ export const storageService = {
       console.warn('Backend deleteCategory fallback:', err);
     }
     const categories = this.getCategories().filter(c => c.id !== id);
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
     return categories;
   },
 
@@ -351,7 +261,7 @@ export const storageService = {
   getAuthors() {
     const raw = localStorage.getItem(STORAGE_KEYS.AUTHORS);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(initialAuthors));
+      safeSetItem(STORAGE_KEYS.AUTHORS, JSON.stringify(initialAuthors));
       return initialAuthors;
     }
     try {
@@ -362,7 +272,7 @@ export const storageService = {
   },
 
   async saveAuthors(authors) {
-    localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
+    safeSetItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
     for (const author of authors) {
       api.saveAuthor(author).catch(() => {});
     }
@@ -386,7 +296,7 @@ export const storageService = {
       console.warn('Backend createAuthor fallback:', err);
     }
     const updated = [...authors.filter(a => a.id !== newAuthor.id), newAuthor];
-    localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(updated));
+    safeSetItem(STORAGE_KEYS.AUTHORS, JSON.stringify(updated));
     return newAuthor;
   },
 
@@ -397,7 +307,7 @@ export const storageService = {
       console.warn('Backend deleteAuthor fallback:', err);
     }
     const authors = this.getAuthors().filter(a => a.id !== id);
-    localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
+    safeSetItem(STORAGE_KEYS.AUTHORS, JSON.stringify(authors));
     return authors;
   },
 
@@ -405,7 +315,7 @@ export const storageService = {
   getSettings() {
     const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(initialSettings));
+      safeSetItem(STORAGE_KEYS.SETTINGS, JSON.stringify(initialSettings));
       return initialSettings;
     }
     try {
@@ -416,7 +326,7 @@ export const storageService = {
   },
 
   async saveSettings(settings) {
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    safeSetItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
     try {
       await api.updateSettings(settings);
     } catch (err) {
@@ -442,10 +352,8 @@ export const storageService = {
     const list = this.getStaffList();
     const existingIndex = list.findIndex(s => s.id === staffMember.id);
     let updated;
-    let isNew = false;
     
     if (existingIndex === -1) {
-      isNew = true;
       const newStaff = {
         ...staffMember,
         id: staffMember.id || `staff-${Date.now()}`,
@@ -491,13 +399,13 @@ export const storageService = {
         type: 'neutral'
       });
     }
-    localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(updated));
+    safeSetItem(STORAGE_KEYS.STAFF, JSON.stringify(updated));
     return updated;
   },
 
   deleteStaff(id) {
     const list = this.getStaffList().filter(s => s.id !== id);
-    localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(list));
+    safeSetItem(STORAGE_KEYS.STAFF, JSON.stringify(list));
     api.deleteStaff(id).catch(() => {});
     return list;
   },
@@ -528,7 +436,7 @@ export const storageService = {
       }
       return s;
     });
-    localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(updated));
+    safeSetItem(STORAGE_KEYS.STAFF, JSON.stringify(updated));
     if (targetStaff) {
       api.updateStaff(targetStaff.id, targetStaff).catch(() => {});
     }
@@ -565,13 +473,13 @@ export const storageService = {
       ...logItem
     };
     const updated = [newLog, ...logs].slice(0, 100);
-    localStorage.setItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify(updated));
+    safeSetItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify(updated));
     api.addActivityLog(newLog).catch(() => {});
     return updated;
   },
 
   clearActivityLogs() {
-    localStorage.setItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify([]));
+    safeSetItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify([]));
     api.deleteActivityLogs && api.deleteActivityLogs().catch(() => {});
     return [];
   },
@@ -580,7 +488,7 @@ export const storageService = {
   getAllComments() {
     const raw = localStorage.getItem(STORAGE_KEYS.COMMENTS);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(initialComments));
+      safeSetItem(STORAGE_KEYS.COMMENTS, JSON.stringify(initialComments));
       return initialComments;
     }
     try {
@@ -609,7 +517,7 @@ export const storageService = {
       createdAt: new Date().toISOString()
     };
     const updated = [newComm, ...all];
-    localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(updated));
+    safeSetItem(STORAGE_KEYS.COMMENTS, JSON.stringify(updated));
     api.addComment(newComm).catch(() => {});
     return newComm;
   },
@@ -617,14 +525,14 @@ export const storageService = {
   likeComment(id) {
     const all = this.getAllComments();
     const updated = all.map(c => c.id === id ? { ...c, likes: (c.likes || 1) + 1 } : c);
-    localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(updated));
+    safeSetItem(STORAGE_KEYS.COMMENTS, JSON.stringify(updated));
     api.likeComment(id).catch(() => {});
     return updated;
   },
 
   deleteComment(id) {
     const all = this.getAllComments().filter(c => c.id !== id);
-    localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(all));
+    safeSetItem(STORAGE_KEYS.COMMENTS, JSON.stringify(all));
     api.deleteComment(id).catch(() => {});
     return all;
   },
@@ -633,7 +541,7 @@ export const storageService = {
   getSubscribers() {
     const raw = localStorage.getItem(STORAGE_KEYS.SUBSCRIBERS);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(initialSubscribers));
+      safeSetItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(initialSubscribers));
       return initialSubscribers;
     }
     try {
@@ -647,7 +555,7 @@ export const storageService = {
     const list = this.getSubscribers();
     if (!list.some(s => s.email.toLowerCase() === email.toLowerCase())) {
       const updated = [{ email: email.toLowerCase(), date: new Date().toISOString(), source }, ...list];
-      localStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(updated));
+      safeSetItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(updated));
       api.addSubscriber(email, source).catch(() => {});
     }
     return true;
@@ -655,7 +563,7 @@ export const storageService = {
 
   deleteSubscriber(email) {
     const list = this.getSubscribers().filter(s => s.email.toLowerCase() !== email.toLowerCase());
-    localStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(list));
+    safeSetItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(list));
     api.deleteSubscriber(email).catch(() => {});
     return list;
   },
@@ -677,20 +585,20 @@ export const storageService = {
     } else {
       updated = [...current, slug];
     }
-    localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(updated));
+    safeSetItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(updated));
     return updated;
   },
 
   // Reset Data
   resetToDefaults() {
-    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(initialPosts));
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(initialCategories));
-    localStorage.setItem(STORAGE_KEYS.AUTHORS, JSON.stringify(initialAuthors));
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(initialSettings));
-    localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify(initialComments));
-    localStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(initialSubscribers));
-    localStorage.setItem(STORAGE_KEYS.STAFF, JSON.stringify(initialStaffList));
-    localStorage.setItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify(initialActivityLogs));
+    safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(initialPosts));
+    safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(initialCategories));
+    safeSetItem(STORAGE_KEYS.AUTHORS, JSON.stringify(initialAuthors));
+    safeSetItem(STORAGE_KEYS.SETTINGS, JSON.stringify(initialSettings));
+    safeSetItem(STORAGE_KEYS.COMMENTS, JSON.stringify(initialComments));
+    safeSetItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(initialSubscribers));
+    safeSetItem(STORAGE_KEYS.STAFF, JSON.stringify(initialStaffList));
+    safeSetItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify(initialActivityLogs));
     api.resetData().catch(() => {});
   },
 
@@ -700,6 +608,6 @@ export const storageService = {
   },
 
   setAdminAuth(val) {
-    localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, val ? 'true' : 'false');
+    safeSetItem(STORAGE_KEYS.ADMIN_AUTH, val ? 'true' : 'false');
   }
 };
