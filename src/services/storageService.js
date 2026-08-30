@@ -198,6 +198,26 @@ export const storageService = {
     return posts;
   },
 
+  incrementView(slug) {
+    if (!slug) return this.getPosts();
+    api.incrementView(slug).catch(() => {});
+    return this.getPosts();
+  },
+
+  getReferralHits() {
+    try {
+      return JSON.parse(localStorage.getItem('horizon_staff_referrals_v2') || '{}');
+    } catch {
+      return {};
+    }
+  },
+
+  async recordSeedingHit(refCode, path = '/') {
+    if (!refCode) return;
+    const cleanRef = refCode.toUpperCase().trim();
+    api.recordSeedingHit(cleanRef).catch(() => {});
+  },
+
   // Categories
   getCategories() {
     const raw = localStorage.getItem(STORAGE_KEYS.CATEGORIES);

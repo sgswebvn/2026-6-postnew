@@ -388,7 +388,7 @@ export const AdminStaff = () => {
               </thead>
               <tbody className="divide-y divide-neutral-200 font-sans">
                 {filteredStaff.map(staff => {
-                  const refHits = staff.seedingHits || (staff.refCode ? storageService.getReferralHits()[staff.refCode] || 0 : 0);
+                  const refHits = staff.seedingHits || (staff.refCode && typeof storageService.getReferralHits === 'function' ? (storageService.getReferralHits()?.[staff.refCode] || 0) : 0);
                   const bonusEarned = refHits * 500;
 
                   return (
