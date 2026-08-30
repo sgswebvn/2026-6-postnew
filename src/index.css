@@ -294,6 +294,22 @@
   margin: 1.75rem auto;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
   display: block;
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: cover;
+}
+
+.editorial-prose figure {
+  margin: 1.75rem 0;
+  max-width: 100% !important;
+}
+
+.editorial-prose iframe,
+.editorial-prose video {
+  max-width: 100% !important;
+  border-radius: 0.75rem;
+  margin: 1.5rem auto;
+  display: block;
 }
 
 .editorial-prose table {
@@ -302,7 +318,9 @@
   margin: 1.75rem 0;
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem;
-  overflow: hidden;
+  overflow-x: auto;
+  display: block;
+  max-width: 100%;
 }
 
 :is(.dark .editorial-prose table) {
@@ -315,6 +333,7 @@
   padding: 0.75rem 1rem;
   border: 1px solid #e2e8f0;
   text-align: left;
+  white-space: nowrap;
 }
 
 :is(.dark .editorial-prose table th) {
@@ -330,6 +349,13 @@
 
 :is(.dark .editorial-prose table td) {
   border-color: #334155;
+}
+
+.editorial-prose pre,
+.editorial-prose code {
+  max-width: 100%;
+  overflow-x: auto;
+  word-break: break-word;
 }
 
 /* Custom Scrollbar */

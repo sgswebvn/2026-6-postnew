@@ -847,7 +847,7 @@ router.put('/staff/:id', async (req, res) => {
     const updatedData = { ...req.body, id };
 
     if (!memoryStore.staff) memoryStore.staff = [];
-    const idx = memoryStore.staff.findIndex(s => s.id === id);
+    const idx = memoryStore.staff.findIndex(s => s.id === id || (s.username && updatedData.username && s.username === updatedData.username));
     if (idx !== -1) {
       memoryStore.staff[idx] = { ...memoryStore.staff[idx], ...updatedData };
     } else {
@@ -855,11 +855,23 @@ router.put('/staff/:id', async (req, res) => {
     }
 
     const cloudStaff = await getSupabaseStaffManifest();
-    const updatedCloud = cloudStaff.map(s => s.id === id ? { ...s, ...updatedData } : s);
+    let foundInCloud = false;
+    const updatedCloud = cloudStaff.map(s => {
+      if (s.id === id || (s.username && updatedData.username && s.username === updatedData.username)) {
+        foundInCloud = true;
+        return { ...s, ...updatedData };
+      }
+      return s;
+    });
+    if (!foundInCloud) {
+      updatedCloud.unshift(updatedData);
+    }
     syncStaffToSupabase(updatedCloud).catch(() => {});
 
     if (isMongooseReady()) {
-      const updated = await Staff.findOneAndUpdate({ id }, req.body, { new: true });
+      const query = { $or: [{ id }] };
+      if (updatedData.username) query.$or.push({ username: updatedData.username });
+      const updated = await Staff.findOneAndUpdate(query, updatedData, { new: true, upsert: true });
       if (updated) return res.json(updated);
     }
 

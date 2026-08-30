@@ -52,29 +52,33 @@ export const PostDetailPage = ({ slug }) => {
   );
 
   const [fetchedPost, setFetchedPost] = useState(null);
-  const [isLoading, setIsLoading] = useState(!localPost);
+  const [isLoading, setIsLoading] = useState(!localPost || !localPost.content || localPost.content.length <= 500);
 
   useEffect(() => {
-    if (!localPost && slug) {
-      setIsLoading(true);
-      fetch(`/api/posts/${encodeURIComponent(cleanSlug || slug)}`)
-        .then(res => {
-          if (res.ok) return res.json();
-          // Direct Supabase CDN fetch fallback
-          return fetch(`https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/posts/${encodeURIComponent(cleanSlug || slug)}.json`)
-            .then(sb => sb.ok ? sb.json() : null);
-        })
-        .then(data => {
-          if (data) setFetchedPost(data);
-        })
-        .catch(() => {})
-        .finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
+    if (slug) {
+      // Check if localPost is missing or its content was compressed/truncated for local cache
+      const needsFullLoad = !localPost || !localPost.content || localPost.content.length <= 500;
+      if (needsFullLoad) {
+        setIsLoading(true);
+        fetch(`/api/posts/${encodeURIComponent(cleanSlug || slug)}`)
+          .then(res => {
+            if (res.ok) return res.json();
+            // Direct Supabase CDN fetch fallback
+            return fetch(`https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/posts/${encodeURIComponent(cleanSlug || slug)}.json?t=${Date.now()}`)
+              .then(sb => sb.ok ? sb.json() : null);
+          })
+          .then(data => {
+            if (data && data.content) setFetchedPost(data);
+          })
+          .catch(() => {})
+          .finally(() => setIsLoading(false));
+      } else {
+        setIsLoading(false);
+      }
     }
   }, [slug, localPost, cleanSlug]);
 
-  const post = localPost || fetchedPost;
+  const post = fetchedPost || localPost;
   const isSaved = post ? bookmarks.includes(post.slug || slug) : false;
   const recordedSlugRef = React.useRef('');
 
@@ -269,16 +273,16 @@ export const PostDetailPage = ({ slug }) => {
       />
 
       <ReadingProgressBar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn font-sans">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 animate-fadeIn font-sans overflow-x-hidden">
         {/* Top Breadcrumbs */}
-        <div className="flex items-center space-x-2 text-xs text-neutral-500 font-mono mb-6 overflow-x-auto no-scrollbar">
+        <div className="flex items-center space-x-2 text-xs text-neutral-500 font-mono mb-4 sm:mb-6 overflow-x-auto no-scrollbar whitespace-nowrap">
           <button onClick={() => navigate('/')} className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">Home</button>
-          <ChevronRight className="w-3.5 h-3.5" />
+          <ChevronRight className="w-3.5 h-3.5 shrink-0" />
           <button onClick={() => navigate(`/category/${category?.slug}`)} className="hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors">
             {category?.name || 'Category'}
           </button>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-neutral-400 truncate max-w-[200px] sm:max-w-md">{post.title}</span>
+          <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+          <span className="text-neutral-400 truncate max-w-[160px] sm:max-w-md">{post.title}</span>
         </div>
 
         {/* Top Header Leaderboard Ad (Desktop only to protect mobile dwell time) */}
@@ -287,7 +291,7 @@ export const PostDetailPage = ({ slug }) => {
         )}
 
         {/* Article Header */}
-        <header className="max-w-4xl mx-auto space-y-4 text-left mb-8">
+        <header className="max-w-4xl mx-auto space-y-3 sm:space-y-4 text-left mb-6 sm:mb-8">
           <div className="flex flex-wrap items-center gap-2">
             <Badge label={category?.name || 'Article'} size="sm" />
             <span className="text-xs text-neutral-500 font-mono">
@@ -295,7 +299,7 @@ export const PostDetailPage = ({ slug }) => {
             </span>
           </div>
 
-          <h1 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-extrabold text-neutral-950 dark:text-neutral-50 leading-[1.2] tracking-tight">
+          <h1 className="font-serif text-xl sm:text-3xl lg:text-4xl font-extrabold text-neutral-950 dark:text-neutral-50 leading-snug sm:leading-[1.2] tracking-tight break-words">
             {post.title}
           </h1>
 
@@ -304,38 +308,38 @@ export const PostDetailPage = ({ slug }) => {
           </p>
 
           {/* Reading Toolbar */}
-          <div className="p-2.5 bg-neutral-100/60 dark:bg-neutral-900/40 rounded-xl border border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+          <div className="p-2 sm:p-2.5 bg-neutral-100/60 dark:bg-neutral-900/40 rounded-xl border border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-2 text-xs">
             {/* Audio Reader */}
             <button
               onClick={handleToggleSpeech}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg font-medium transition-all cursor-pointer ${
                 isPlayingAudio 
                   ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-xs' 
                   : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200'
               }`}
             >
               {isPlayingAudio ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-neutral-600 dark:text-neutral-400" />}
-              <span>{isPlayingAudio ? 'Stop Audio' : 'Listen to Article'}</span>
+              <span>{isPlayingAudio ? 'Stop' : 'Listen'}</span>
             </button>
 
             {/* Font Size Adjuster */}
             <div className="flex items-center space-x-1 bg-white dark:bg-neutral-800 p-0.5 rounded-lg border border-neutral-200 dark:border-neutral-700">
-              <span className="text-[11px] font-mono px-1.5 text-neutral-400">Text:</span>
+              <span className="text-[10px] sm:text-[11px] font-mono px-1 text-neutral-400">Text:</span>
               <button
                 onClick={() => setFontSize('sm')}
-                className={`px-1.5 py-0.5 rounded text-xs ${fontSize === 'sm' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
+                className={`px-1.5 py-0.5 rounded text-xs cursor-pointer ${fontSize === 'sm' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
               >
                 A-
               </button>
               <button
                 onClick={() => setFontSize('base')}
-                className={`px-1.5 py-0.5 rounded text-xs ${fontSize === 'base' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
+                className={`px-1.5 py-0.5 rounded text-xs cursor-pointer ${fontSize === 'base' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
               >
                 A
               </button>
               <button
                 onClick={() => setFontSize('lg')}
-                className={`px-1.5 py-0.5 rounded text-xs ${fontSize === 'lg' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
+                className={`px-1.5 py-0.5 rounded text-xs cursor-pointer ${fontSize === 'lg' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
               >
                 A+
               </button>
@@ -344,7 +348,7 @@ export const PostDetailPage = ({ slug }) => {
             {/* Bookmark Action */}
             <button
               onClick={() => toggleBookmark(post.slug)}
-              className={`flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all ${
+              className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-lg font-medium transition-all cursor-pointer ${
                 isSaved
                   ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 shadow-xs'
                   : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200'
@@ -356,25 +360,25 @@ export const PostDetailPage = ({ slug }) => {
           </div>
 
           {/* Author Byline and Meta */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-neutral-200 dark:border-neutral-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 sm:pt-4 border-t border-neutral-200 dark:border-neutral-800">
             <div className="flex items-center space-x-3">
               <img 
                 src={author?.avatar} 
                 alt={author?.name}
-                className="w-12 h-12 rounded-full object-cover ring-2 ring-blue-500/30" 
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0" 
               />
               <div className="text-left">
-                <span className="font-bold text-sm text-neutral-900 dark:text-neutral-100 block">
+                <span className="font-bold text-xs sm:text-sm text-neutral-900 dark:text-neutral-100 block">
                   {author?.name}
                 </span>
-                <span className="text-xs text-neutral-500 block">
+                <span className="text-[11px] sm:text-xs text-neutral-500 block">
                   {author?.role} • <span className="font-mono text-neutral-400">{formattedDate}</span>
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3 text-xs text-neutral-400 font-mono">
+            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3">
+              <div className="flex items-center space-x-2 text-xs text-neutral-400 font-mono">
                 <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {post.readTime}</span>
               </div>
               <SocialShareBar title={post.title} />
@@ -383,7 +387,7 @@ export const PostDetailPage = ({ slug }) => {
         </header>
 
         {/* Feature Cover Image */}
-        <div className="max-w-4xl mx-auto mb-10 rounded-3xl overflow-hidden shadow-2xl border border-neutral-200 dark:border-neutral-800 aspect-[16/9] bg-neutral-100 dark:bg-neutral-800">
+        <div className="max-w-4xl mx-auto mb-6 sm:mb-10 rounded-2xl sm:rounded-3xl overflow-hidden shadow-lg sm:shadow-2xl border border-neutral-200 dark:border-neutral-800 aspect-[16/9] bg-neutral-100 dark:bg-neutral-800">
           <img 
             src={getOptimizedImageUrl(post.coverImage, 1200)} 
             alt={post.title}
@@ -393,9 +397,9 @@ export const PostDetailPage = ({ slug }) => {
         </div>
 
         {/* Main Grid: Content (8 cols) + Sticky Sidebar (4 cols) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start max-w-7xl mx-auto">
           {/* Article Main Body (Left 8 cols) */}
-          <article className="lg:col-span-8 space-y-8">
+          <article className="lg:col-span-8 space-y-6 sm:space-y-8 w-full max-w-full overflow-hidden">
             {/* Table of Contents */}
             <TableOfContents contentHtml={post.content} />
 
@@ -406,7 +410,7 @@ export const PostDetailPage = ({ slug }) => {
 
             {/* Main Editorial HTML Content Body */}
             <div 
-              className={`editorial-prose font-sans ${fontSizeClasses[fontSize]}`}
+              className={`editorial-prose font-sans w-full max-w-full break-words overflow-hidden ${fontSizeClasses[fontSize]}`}
               dangerouslySetInnerHTML={{ 
                 __html: (post.content && /<(p|div|h[1-6]|ul|ol|table|blockquote|figure)\b[^>]*>/i.test(post.content))
                   ? post.content 

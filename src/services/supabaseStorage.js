@@ -146,13 +146,29 @@ export const supabaseStorage = {
   },
 
   /**
-   * Save and sync Staff list to Supabase Cloud Storage
+   * Save and sync Staff list to Supabase Cloud Storage with cloud merge
    * @param {Array} staffList 
    */
   async saveStaffManifest(staffList) {
     if (!Array.isArray(staffList)) return;
     try {
-      const blob = new Blob([JSON.stringify(staffList, null, 2)], { type: 'application/json' });
+      let existingRemote = [];
+      try {
+        const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/staff_manifest.json?t=${Date.now()}`);
+        if (manRes.ok) {
+          const parsed = await manRes.json();
+          if (Array.isArray(parsed)) existingRemote = parsed;
+        }
+      } catch (e) {}
+
+      const merged = [...staffList];
+      for (const rem of existingRemote) {
+        if (!merged.some(m => m.id === rem.id || (m.username && rem.username && m.username === rem.username))) {
+          merged.push(rem);
+        }
+      }
+
+      const blob = new Blob([JSON.stringify(merged, null, 2)], { type: 'application/json' });
       await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/staff_manifest.json`, {
         method: 'POST',
         headers: {
@@ -163,19 +179,36 @@ export const supabaseStorage = {
         },
         body: blob
       });
+      return merged;
     } catch (err) {
       console.warn('Failed to save staff manifest to Supabase:', err);
     }
   },
 
   /**
-   * Save and sync Categories list to Supabase Cloud Storage
+   * Save and sync Categories list to Supabase Cloud Storage with cloud merge
    * @param {Array} categories 
    */
   async saveCategoriesManifest(categories) {
     if (!Array.isArray(categories)) return;
     try {
-      const blob = new Blob([JSON.stringify(categories, null, 2)], { type: 'application/json' });
+      let existingRemote = [];
+      try {
+        const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/categories_manifest.json?t=${Date.now()}`);
+        if (manRes.ok) {
+          const parsed = await manRes.json();
+          if (Array.isArray(parsed)) existingRemote = parsed;
+        }
+      } catch (e) {}
+
+      const merged = [...categories];
+      for (const rem of existingRemote) {
+        if (!merged.some(m => m.id === rem.id || (m.slug && rem.slug && m.slug === rem.slug))) {
+          merged.push(rem);
+        }
+      }
+
+      const blob = new Blob([JSON.stringify(merged, null, 2)], { type: 'application/json' });
       await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/categories_manifest.json`, {
         method: 'POST',
         headers: {
@@ -186,19 +219,36 @@ export const supabaseStorage = {
         },
         body: blob
       });
+      return merged;
     } catch (err) {
       console.warn('Failed to save categories manifest to Supabase:', err);
     }
   },
 
   /**
-   * Save and sync Authors list to Supabase Cloud Storage
+   * Save and sync Authors list to Supabase Cloud Storage with cloud merge
    * @param {Array} authors 
    */
   async saveAuthorsManifest(authors) {
     if (!Array.isArray(authors)) return;
     try {
-      const blob = new Blob([JSON.stringify(authors, null, 2)], { type: 'application/json' });
+      let existingRemote = [];
+      try {
+        const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/authors_manifest.json?t=${Date.now()}`);
+        if (manRes.ok) {
+          const parsed = await manRes.json();
+          if (Array.isArray(parsed)) existingRemote = parsed;
+        }
+      } catch (e) {}
+
+      const merged = [...authors];
+      for (const rem of existingRemote) {
+        if (!merged.some(m => m.id === rem.id || (m.slug && rem.slug && m.slug === rem.slug))) {
+          merged.push(rem);
+        }
+      }
+
+      const blob = new Blob([JSON.stringify(merged, null, 2)], { type: 'application/json' });
       await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/authors_manifest.json`, {
         method: 'POST',
         headers: {
@@ -209,6 +259,7 @@ export const supabaseStorage = {
         },
         body: blob
       });
+      return merged;
     } catch (err) {
       console.warn('Failed to save authors manifest to Supabase:', err);
     }
