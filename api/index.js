@@ -88,21 +88,47 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
 // ==========================================
 // 1. Dynamic Open Graph for /post/:slug (Bot Crawlers)
 // ==========================================
-app.get('/post/:slug', async (req, res) => {
+const handlePostCrawler = async (req, res) => {
   try {
-    const slug = req.params.slug;
+    let rawPath = req.path || req.url || req.originalUrl || '';
+    let extractedSlug = req.params.slug;
+    
+    if (!extractedSlug) {
+      const match = rawPath.match(/\/post\/([^/?#]+)/i);
+      if (match) {
+        extractedSlug = match[1];
+      }
+    }
+
+    const slug = decodeURIComponent(extractedSlug || '')
+      .toLowerCase()
+      .trim()
+      .replace(/^\/+|\/+$/g, '')
+      .replace(/-+$/, '');
+
     const refCode = (req.query.ref || req.query.utm_source || '').toUpperCase();
 
     let post = null;
     try {
       if (Post) {
-        post = await Post.findOne({ $or: [{ slug }, { id: slug }] });
+        post = await Post.findOne({
+          $or: [
+            { slug: slug },
+            { slug: new RegExp(`^${slug}$`, 'i') },
+            { id: slug }
+          ]
+        });
       }
     } catch (e) {}
 
     if (!post) {
-      post = (memoryStore.posts || []).find(p => p.slug === slug || p.id === slug) ||
-             initialPosts.find(p => p.slug === slug || p.id === slug);
+      post = (memoryStore.posts || []).find(p => 
+        (p.slug && p.slug.toLowerCase().trim() === slug) || 
+        (p.id && p.id.toLowerCase().trim() === slug)
+      ) || initialPosts.find(p => 
+        (p.slug && p.slug.toLowerCase().trim() === slug) || 
+        (p.id && p.id.toLowerCase().trim() === slug)
+      );
     }
 
     if (post) {
@@ -117,7 +143,10 @@ app.get('/post/:slug', async (req, res) => {
     console.error('[OG Serverless Error]', err);
     return res.redirect(302, 'https://www.thehori.click/');
   }
-});
+};
+
+app.get('/post/:slug', handlePostCrawler);
+app.get('/post/*', handlePostCrawler);
 
 // ==========================================
 // 2. Short Link Resolver for /s/:code

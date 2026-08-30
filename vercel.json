@@ -12,6 +12,17 @@
       "destination": "/api/index.js"
     },
     {
+      "source": "/post/(.*)",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|FacebookBot|Zalo|Twitterbot|TelegramBot|WhatsApp|LinkedInBot|Pinterest|Discordbot).*"
+        }
+      ],
+      "destination": "/api/index.js"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
