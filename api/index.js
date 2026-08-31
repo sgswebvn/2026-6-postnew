@@ -14,8 +14,15 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Non-blocking database connection in background
-connectDB().catch(() => {});
+// Database connection middleware for Serverless (ensures connection is established before routing)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error('[Vercel Serverless DB Error]', err);
+  }
+  next();
+});
 
 // Helper: Escape HTML
 const escapeHtml = (unsafe = '') => {

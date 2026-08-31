@@ -36,31 +36,28 @@ export const memoryStore = {
 };
 
 export async function connectDB() {
-  if (isConnected || isInMemoryFallback) {
-    return { isConnected, isInMemoryFallback };
-  }
-
   if (mongoose.connection && mongoose.connection.readyState === 1) {
     isConnected = true;
-    return { isConnected, isInMemoryFallback: false };
+    isInMemoryFallback = false;
+    return { isConnected: true, isInMemoryFallback: false };
+  }
+
+  if (connectionPromise && mongoose.connection && mongoose.connection.readyState === 2) {
+    return connectionPromise;
   }
 
   const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
     isConnected = false;
     isInMemoryFallback = true;
-    return { isConnected, isInMemoryFallback };
-  }
-
-  if (connectionPromise) {
-    return connectionPromise;
+    return { isConnected: false, isInMemoryFallback: true };
   }
 
   connectionPromise = (async () => {
     try {
       await mongoose.connect(mongoUri, {
-        serverSelectionTimeoutMS: 3000,
-        connectTimeoutMS: 3000,
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 5000,
       });
 
       isConnected = true;
@@ -71,6 +68,8 @@ export async function connectDB() {
       console.warn(`[MongoDB Warning] Could not connect to MongoDB (${err.message}). Auth and writes are unavailable.`);
       isConnected = false;
       isInMemoryFallback = true;
+    } finally {
+      connectionPromise = null;
     }
     return { isConnected, isInMemoryFallback };
   })();
