@@ -59,15 +59,16 @@ export function extractPasswordUpdate(body) {
   return { change: true, password: trimmed };
 }
 
-export function publicPostProjection(post) {
+export function publicPostProjection(post, options = {}) {
   if (!post) return null;
   const obj = post.toObject ? post.toObject() : { ...post };
+  const includeContent = options.includeContent !== false;
   return {
     id: obj.id,
     title: obj.title,
     slug: obj.slug,
     excerpt: obj.excerpt || '',
-    content: obj.content || '',
+    content: includeContent ? (obj.content || '') : '',
     coverImage: obj.coverImage || '',
     categoryId: obj.categoryId,
     authorId: obj.authorId,
@@ -80,6 +81,7 @@ export function publicPostProjection(post) {
     tags: Array.isArray(obj.tags) ? obj.tags : [],
     metaTitle: obj.metaTitle || '',
     metaDescription: obj.metaDescription || '',
+    enableAds: obj.enableAds !== false,
     publishedAt: obj.publishedAt,
     updatedAt: obj.updatedAt
   };

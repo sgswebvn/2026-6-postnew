@@ -266,7 +266,7 @@ export const PostDetailPage = ({ slug }) => {
         </div>
 
         {/* Top Header Leaderboard Ad (Desktop only to protect mobile dwell time) */}
-        {post.enableAds && (
+        {post.enableAds !== false && (
           <AdSenseUnit slotType="headerLeaderboard" customClass="hidden md:flex" customLabel="Sponsored Executive Leaderboard" />
         )}
 
@@ -391,7 +391,7 @@ export const PostDetailPage = ({ slug }) => {
             <TableOfContents contentHtml={post.content} />
 
             {/* In-Article Top High-Impact Ad */}
-            {post.enableAds && (
+            {post.enableAds !== false && (
               <AdSenseUnit slotType="inArticleTop" customLabel="Sponsored Executive Intelligence" />
             )}
 
@@ -411,7 +411,7 @@ export const PostDetailPage = ({ slug }) => {
             />
 
             {/* In-Article Mid Ad Unit */}
-            {post.enableAds && (
+            {post.enableAds !== false && (
               <AdSenseUnit slotType="inArticleMid" customLabel="Strategic Market Insights" />
             )}
 
@@ -507,7 +507,7 @@ export const PostDetailPage = ({ slug }) => {
             <AuthorBioCard author={author} factChecker={factChecker} />
 
             {/* Multiplex / Matched Content Ad Unit */}
-            {post.enableAds && (
+            {post.enableAds !== false && (
               <AdSenseUnit slotType="multiplexBottom" customLabel="Recommended Partner Intelligence (Multiplex)" />
             )}
 
@@ -530,7 +530,7 @@ export const PostDetailPage = ({ slug }) => {
           {/* Right 4 Cols: Sticky Sidebar with High RPM Ad Unit */}
           <aside className="lg:col-span-4 space-y-8 sticky top-24">
             {/* Sticky High-RPM Half-Page Ad (300x600) */}
-            {post.enableAds && (
+            {post.enableAds !== false && (
               <div className="bg-white dark:bg-[#111622] p-4 rounded-3xl border border-neutral-200 dark:border-neutral-800 shadow-sm">
                 <AdSenseUnit slotType="sidebarSticky" customLabel="AdSense Sticky Unit (300x600)" />
               </div>

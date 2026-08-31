@@ -10,6 +10,7 @@
     "test": "node scripts/test-suite.js",
     "test:staff": "node scripts/test-staff-and-post-detail.js",
     "test:shortlink": "node scripts/test-shortlink.js",
+    "test:posts": "node scripts/test-post-pages.js",
     "test:10000": "node scripts/stress-test-10000.js",
     "test:all": "node scripts/test-staff-and-post-detail.js && node scripts/test-suite.js && node scripts/test-shortlink.js && node scripts/stress-test-10000.js",
     "lint": "oxlint",

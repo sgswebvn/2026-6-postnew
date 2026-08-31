@@ -16,11 +16,14 @@ export const HeroFeatured = () => {
   const leadCategory = categories.find(c => c.id === leadPost.categoryId);
   const leadAuthor = authors.find(a => a.id === leadPost.authorId);
 
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(new Date(leadPost.publishedAt));
+  const leadDate = new Date(leadPost.publishedAt || Date.now());
+  const formattedDate = Number.isNaN(leadDate.getTime())
+    ? ''
+    : new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(leadDate);
 
   return (
     <section className="mb-10">

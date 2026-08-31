@@ -444,11 +444,13 @@ router.get('/posts', optionalAuth, async (req, res) => {
 
     const allowDrafts = req.user && canSeeDrafts(req.user.role);
     const query = allowDrafts ? {} : { status: 'published' };
-    const posts = await Post.find(query).sort({ publishedAt: -1 });
+    let find = Post.find(query).sort({ publishedAt: -1 });
+    if (!allowDrafts) find = find.select('-content');
+    const posts = await find;
     if (allowDrafts) {
       return res.json(posts);
     }
-    return res.json(posts.map(publicPostProjection));
+    return res.json(posts.map((p) => publicPostProjection(p, { includeContent: false })));
   } catch (error) {
     return mongoUnavailable(res);
   }
@@ -459,8 +461,8 @@ router.get('/posts/published', async (req, res) => {
     if (!isMongooseReady()) {
       return mongoUnavailable(res);
     }
-    const posts = await Post.find({ status: 'published' }).sort({ publishedAt: -1 });
-    return res.json(posts.map(publicPostProjection));
+    const posts = await Post.find({ status: 'published' }).sort({ publishedAt: -1 }).select('-content');
+    return res.json(posts.map((p) => publicPostProjection(p, { includeContent: false })));
   } catch (error) {
     return mongoUnavailable(res);
   }

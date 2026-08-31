@@ -109,9 +109,13 @@ export const HomePage = () => {
           {currentFeedPosts.length === 0 ? (
             <div className="p-12 text-center bg-white dark:bg-[#111622] rounded-3xl border border-neutral-200 dark:border-neutral-800 space-y-3">
               <Bookmark className="w-10 h-10 text-neutral-400 mx-auto opacity-40" />
-              <h3 className="font-serif text-lg font-bold">No Saved Articles Found</h3>
+              <h3 className="font-serif text-lg font-bold">
+                {filterTab === 'bookmarks' ? 'No Saved Articles Found' : 'No Articles Found'}
+              </h3>
               <p className="text-xs text-neutral-500">
-                Click the Bookmark icon on any article card to save insightful analyses for later reading.
+                {filterTab === 'bookmarks'
+                  ? 'Click the Bookmark icon on any article card to save insightful analyses for later reading.'
+                  : 'Published articles will appear in this feed when they are available.'}
               </p>
             </div>
           ) : (
