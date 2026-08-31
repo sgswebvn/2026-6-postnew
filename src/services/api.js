@@ -19,6 +19,16 @@ function persistAuthUser(user) {
   sessionStorage.setItem('horizon_user_role', role);
 }
 
+function omitMongoMeta(doc) {
+  if (!doc || typeof doc !== 'object') return {};
+  const rest = { ...doc };
+  delete rest._id;
+  delete rest.__v;
+  delete rest.createdAt;
+  delete rest.updatedAt;
+  return rest;
+}
+
 export const api = {
   // Authentication & Session
   async loginAdmin(identifier, password) {
@@ -225,7 +235,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/categories`, {
       method: 'POST',
       headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(catData)
+      body: JSON.stringify(omitMongoMeta(catData))
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -238,7 +248,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(id)}`, {
       method: 'PUT',
       headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(catData)
+      body: JSON.stringify(omitMongoMeta(catData))
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

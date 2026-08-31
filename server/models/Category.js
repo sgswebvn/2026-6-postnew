@@ -10,7 +10,9 @@ const categorySchema = new mongoose.Schema({
   featured: { type: Boolean, default: false },
   postCount: { type: Number, default: 0 },
 }, {
-  timestamps: true
+  timestamps: true,
+  // Keep the string `id` path; do not alias it to Mongo `_id`.
+  id: false
 });
 
 export const Category = mongoose.model('Category', categorySchema);

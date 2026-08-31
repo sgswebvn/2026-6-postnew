@@ -108,18 +108,22 @@ export const AdminPostEditor = ({ postId }) => {
       showToast('Vui lòng nhập tên chuyên mục', 'error');
       return;
     }
-    const created = await addCategory({
-      name: newCatName.trim(),
-      slug: generateSlug(newCatName),
-      description: newCatDesc.trim(),
-      color: 'blue'
-    });
-    if (created && created.id) {
-      setFormData(prev => ({ ...prev, categoryId: created.id }));
+    try {
+      const created = await addCategory({
+        name: newCatName.trim(),
+        slug: generateSlug(newCatName),
+        description: newCatDesc.trim(),
+        color: 'blue'
+      });
+      if (created && created.id) {
+        setFormData(prev => ({ ...prev, categoryId: created.id }));
+      }
+      setShowCatModal(false);
+      setNewCatName('');
+      setNewCatDesc('');
+    } catch {
+      // Toast is shown by addCategory
     }
-    setShowCatModal(false);
-    setNewCatName('');
-    setNewCatDesc('');
   };
 
   useEffect(() => {

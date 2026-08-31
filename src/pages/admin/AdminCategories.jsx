@@ -3,11 +3,23 @@ import { useBlog } from '../../context/BlogContext';
 import { Badge } from '../../components/common/Badge';
 import { FolderTree, Plus, Edit2, Trash2, Check, Sparkles } from 'lucide-react';
 
+const slugifyCategory = (text = '') => {
+  return String(text || '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+};
+
 export const AdminCategories = () => {
   const { categories, addCategory, updateCategories, deleteCategory, posts, showToast, showConfirm } = useBlog();
   const [editingId, setEditingId] = useState(null);
   const [newCat, setNewCat] = useState({ name: '', slug: '', description: '', color: 'blue' });
   const [editForm, setEditForm] = useState({ name: '', slug: '', description: '', color: 'blue' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const colors = [
     { key: 'emerald', label: 'Xanh Lá (Emerald)' },
@@ -20,29 +32,29 @@ export const AdminCategories = () => {
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    if (!newCat.name.trim()) return;
+    if (!newCat.name.trim() || isSubmitting) return;
 
-    const slug = newCat.slug || newCat.name
-      .toLowerCase()
-      .trim()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[đĐ]/g, 'd')
-      .replace(/[^a-z0-9]/g, '-');
+    const slug = slugifyCategory(newCat.slug || newCat.name) || `cat-${Date.now()}`;
 
     const created = {
-      id: `cat-${Date.now()}`,
-      name: newCat.name,
+      name: newCat.name.trim(),
       slug,
-      description: newCat.description || 'Chuyên mục phân tích chuyên sâu về chủ đề này.',
+      description: newCat.description.trim() || 'Chuyên mục phân tích chuyên sâu về chủ đề này.',
       color: newCat.color,
       icon: 'Layers',
       featured: true,
       postCount: 0
     };
 
-    await addCategory(created);
-    setNewCat({ name: '', slug: '', description: '', color: 'blue' });
+    setIsSubmitting(true);
+    try {
+      await addCategory(created);
+      setNewCat({ name: '', slug: '', description: '', color: 'blue' });
+    } catch {
+      // Toast is shown by addCategory
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleStartEdit = (cat) => {
@@ -51,9 +63,14 @@ export const AdminCategories = () => {
   };
 
   const handleSaveEdit = async (id) => {
-    const updated = categories.map(c => c.id === id ? { ...c, ...editForm } : c);
-    await updateCategories(updated);
-    setEditingId(null);
+    const slug = slugifyCategory(editForm.slug || editForm.name);
+    const updated = categories.map(c => c.id === id ? { ...c, ...editForm, slug } : c);
+    try {
+      await updateCategories(updated);
+      setEditingId(null);
+    } catch {
+      // Toast is shown by updateCategories
+    }
   };
 
   const handleDelete = (id, name) => {
@@ -155,9 +172,10 @@ export const AdminCategories = () => {
         <div className="flex justify-end">
           <button
             type="submit"
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow active:scale-95 transition-all"
+            disabled={isSubmitting}
+            className="px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow active:scale-95 transition-all"
           >
-            <span>Tạo Chuyên Mục</span>
+            <span>{isSubmitting ? 'Đang tạo...' : 'Tạo Chuyên Mục'}</span>
             <Plus className="w-3.5 h-3.5" />
           </button>
         </div>

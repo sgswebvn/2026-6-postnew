@@ -168,13 +168,20 @@ export const storageService = {
   async addCategory(category) {
     const categories = this.getCategories();
     const newCat = {
-      ...category,
-      id: category.id || `cat-${Date.now()}`
+      name: category.name,
+      slug: category.slug,
+      description: category.description || '',
+      color: category.color || 'blue',
+      icon: category.icon || 'Layers',
+      featured: Boolean(category.featured),
+      postCount: 0,
+      id: category.id && !String(category.id).startsWith('new-') ? category.id : `cat-${Date.now()}`
     };
     const saved = await api.createCategory(newCat);
-    const updated = [...categories, saved || newCat];
+    const record = saved || newCat;
+    const updated = [...categories.filter((c) => c.id !== record.id), record];
     safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(updated));
-    return updated;
+    return record;
   },
 
   async deleteCategory(id) {

@@ -63,6 +63,73 @@ function isHexObjectId(value) {
   return typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value);
 }
 
+function asObjectBody(body) {
+  if (Buffer.isBuffer(body)) {
+    try { return JSON.parse(body.toString('utf8')); } catch { return {}; }
+  }
+  if (typeof body === 'string') {
+    try { return JSON.parse(body); } catch { return {}; }
+  }
+  if (body && typeof body === 'object' && !Array.isArray(body)) return body;
+  return {};
+}
+
+function slugifyCategory(input) {
+  return String(input || '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+function pickCategoryFields(body) {
+  const src = asObjectBody(body);
+  const out = {};
+  if (typeof src.name === 'string') out.name = src.name.trim();
+  if (typeof src.slug === 'string') out.slug = slugifyCategory(src.slug);
+  else if (typeof src.name === 'string') out.slug = slugifyCategory(src.name);
+  if (typeof src.description === 'string') out.description = src.description.trim();
+  if (typeof src.color === 'string' && src.color.trim()) out.color = src.color.trim().slice(0, 32);
+  if (typeof src.icon === 'string' && src.icon.trim()) out.icon = src.icon.trim().slice(0, 64);
+  if (typeof src.featured === 'boolean') out.featured = src.featured;
+  if (typeof src.id === 'string') {
+    const id = src.id.trim();
+    if (id && !id.startsWith('new-')) out.id = id;
+  }
+  return out;
+}
+
+async function allocateUniqueCategorySlug(baseSlug, excludeId = null) {
+  const base = slugifyCategory(baseSlug) || `cat-${Date.now()}`;
+  for (let n = 0; n < 50; n++) {
+    const slug = n === 0 ? base : `${base}-${n + 1}`;
+    const query = { slug };
+    if (excludeId) query.id = { $ne: excludeId };
+    const taken = await Category.exists(query);
+    if (!taken) return slug;
+  }
+  return `${base}-${Date.now()}`;
+}
+
+function mapCategoryWriteError(error, fallback) {
+  if (error?.code === 11000) {
+    const key = Object.keys(error.keyPattern || error.keyValue || {})[0] || 'slug';
+    return { status: 409, error: `Category ${key} already exists` };
+  }
+  if (error?.name === 'ValidationError') {
+    const msg = Object.values(error.errors || {}).map((e) => e.message).join('; ') || error.message;
+    return { status: 400, error: msg };
+  }
+  if (error?.name === 'CastError') {
+    return { status: 400, error: `Invalid ${error.path || 'field'}` };
+  }
+  return { status: 400, error: fallback };
+}
+
 export async function resolveActorFromToken(token) {
   const decoded = verifyToken(token);
   if (!decoded || !decoded.id) return { error: 401 };
@@ -540,22 +607,66 @@ router.get('/categories', async (req, res) => {
 
 router.post('/categories', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
   try {
-    const newCat = { ...req.body, id: req.body.id || req.body.slug || `cat-${Date.now()}` };
-    const created = await Category.create(newCat);
+    if (!isMongooseReady()) return mongoUnavailable(res);
+
+    const fields = pickCategoryFields(req.body);
+    if (!fields.name) {
+      return res.status(400).json({ error: 'Category name is required' });
+    }
+
+    const slug = await allocateUniqueCategorySlug(fields.slug || fields.name);
+    let id = fields.id || `cat-${Date.now()}`;
+    if (await Category.exists({ id })) {
+      id = `cat-${Date.now()}`;
+    }
+
+    const created = await Category.create({
+      id,
+      name: fields.name,
+      slug,
+      description: fields.description || 'Chuyên mục phân tích chuyên sâu về chủ đề này.',
+      color: fields.color || 'blue',
+      icon: fields.icon || 'Layers',
+      featured: fields.featured === true,
+      postCount: 0
+    });
     return res.status(201).json(created);
   } catch (error) {
-    return res.status(400).json({ error: 'Failed to create category' });
+    console.error('[POST /categories]', error);
+    const mapped = mapCategoryWriteError(error, 'Failed to create category');
+    return res.status(mapped.status).json({ error: mapped.error });
   }
 });
 
 router.put('/categories/:id', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
   const { id } = req.params;
   try {
-    const updated = await Category.findOneAndUpdate({ id }, req.body, { new: true, upsert: false });
+    if (!isMongooseReady()) return mongoUnavailable(res);
+
+    const fields = pickCategoryFields(req.body);
+    const update = {};
+    if (fields.name) update.name = fields.name;
+    if (fields.slug) update.slug = await allocateUniqueCategorySlug(fields.slug, id);
+    if (Object.prototype.hasOwnProperty.call(fields, 'description')) update.description = fields.description;
+    if (fields.color) update.color = fields.color;
+    if (fields.icon) update.icon = fields.icon;
+    if (Object.prototype.hasOwnProperty.call(fields, 'featured')) update.featured = fields.featured;
+
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ error: 'No valid category fields to update' });
+    }
+
+    const updated = await Category.findOneAndUpdate(
+      { id },
+      { $set: update },
+      { new: true, upsert: false, runValidators: true }
+    );
     if (!updated) return res.status(404).json({ error: 'Category not found' });
     return res.json(updated);
   } catch (error) {
-    return res.status(400).json({ error: 'Failed to update category' });
+    console.error('[PUT /categories]', error);
+    const mapped = mapCategoryWriteError(error, 'Failed to update category');
+    return res.status(mapped.status).json({ error: mapped.error });
   }
 });
 
