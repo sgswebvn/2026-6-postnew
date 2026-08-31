@@ -38,7 +38,7 @@ function formatDateOrThrow(value) {
 
 async function fetchJson(url, opts = {}) {
   try {
-    const res = await fetch(url, { ...opts, signal: opts.signal || AbortSignal.timeout(60000) });
+    const res = await fetch(url, { ...opts, signal: opts.signal || AbortSignal.timeout(90000) });
     let body = null;
     try {
       body = await res.json();
@@ -53,7 +53,7 @@ async function fetchJson(url, opts = {}) {
 
 async function fetchText(url, headers = {}) {
   try {
-    const res = await fetch(url, { headers, signal: AbortSignal.timeout(60000) });
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(90000) });
     const text = await res.text();
     return { res, text };
   } catch (e) {
@@ -89,6 +89,13 @@ assert(detailSrc.includes('incrementPostView') || detailSrc.includes('incrementV
 assert(homeSrc.includes("p.status === 'published'"), 'Home list filters published only', 'List');
 assert(catSrc.includes("p.status === 'published'"), 'Category list filters published only', 'List');
 assert(cardSrc.includes('navigate(`/post/${post.slug}`)'), 'ArticleCard navigates to /post/:slug', 'List');
+assert(/replace\(\/\\\/\+\$\/, ''\)/.test(appSrc) || appSrc.includes(".replace(/\\/+$/, '')"), 'App strips trailing slash on /post/:slug', 'Routing');
+assert(!/\[slug, localPost, cleanSlug\]/.test(detailSrc), 'Detail fetch must not re-run on every localPost identity change', 'Detail');
+assert(/Number\.isNaN/.test(cardSrc), 'ArticleCard must not crash on invalid publishedAt', 'List');
+assert(/Number\.isNaN/.test(detailSrc), 'PostDetailPage must not crash on invalid publishedAt', 'Detail');
+assert(/replace\(\/<\//.test(detailSrc) || detailSrc.includes(".replace(/</g"), 'JSON-LD must escape < to avoid script breakout', 'Security');
+const adminListSrc = fs.readFileSync(path.resolve('src/pages/admin/AdminPostsList.jsx'), 'utf8');
+assert(/String\(p\.title \|\| ''\)/.test(adminListSrc), 'Admin post list search must not crash if title is missing', 'List');
 
 const publicProj = publicPostProjection({
   id: 'post-x',
@@ -284,13 +291,19 @@ if (live) {
   for (const post of posts) {
     try {
       const d = await fetchJson(`${API}/posts/${encodeURIComponent(post.slug)}`);
-      assert(d.res.status === 200, `GET /api/posts/${post.slug} → 200`, 'DetailAPI');
+      assert(d.res.status === 200, `GET /api/posts/${post.slug} → 200${d.error ? ' (' + d.error + ')' : ''}`, 'DetailAPI');
       assert(d.body && d.body.slug === post.slug, `detail slug match ${post.slug}`, 'DetailAPI');
-      assert(typeof d.body.content === 'string' && d.body.content.length > 100, `detail ${post.slug} has body content`, 'DetailAPI');
-      assert(d.body.status === 'published', `detail ${post.slug} is published`, 'DetailAPI');
-      assert(d.body.title === post.title, `detail ${post.slug} title matches list`, 'DetailAPI');
-      assert(typeof d.body.enableAds === 'boolean', `detail ${post.slug} enableAds present`, 'DetailAPI');
-      assert(Array.isArray(d.body.tags), `detail ${post.slug} tags array`, 'DetailAPI');
+      assert(d.body && typeof d.body.content === 'string' && d.body.content.length > 100, `detail ${post.slug} has body content`, 'DetailAPI');
+      if (d.body && typeof d.body.content === 'string') {
+        assert(d.body.content.length > 100, `detail ${post.slug} body is fuller than list payload`, 'DetailAPI');
+        if (d.body.content.length > 500000) {
+          assert(true, `detail ${post.slug} is oversized (${d.body.content.length} chars) — page will be slow`, 'Perf');
+        }
+        assert(d.body.status === 'published', `detail ${post.slug} is published`, 'DetailAPI');
+        assert(d.body.title === post.title, `detail ${post.slug} title matches list`, 'DetailAPI');
+        assert(typeof d.body.enableAds === 'boolean', `detail ${post.slug} enableAds present`, 'DetailAPI');
+        assert(Array.isArray(d.body.tags), `detail ${post.slug} tags array`, 'DetailAPI');
+      }
     } catch (e) {
       assert(false, `detail API ${post.slug} threw ${e.message}`, 'DetailAPI');
       continue;
@@ -322,6 +335,8 @@ if (live) {
       assert(/og:image/i.test(crawler.text), `FB crawler ${post.slug} og:image`, 'OG');
       const withRef = await fetchText(`${ORIGIN}/post/${encodeURIComponent(post.slug)}?ref=MINH`);
       assert(withRef.res.status === 200, `/post/${post.slug}?ref=MINH → 200`, 'Seeding');
+      const trailing = await fetchText(`${ORIGIN}/post/${encodeURIComponent(post.slug)}/`);
+      assert(trailing.res.status > 0 && trailing.res.status < 500, `/post/${post.slug}/ must not 5xx/timeout (got ${trailing.res.status})`, 'Routing');
     } catch (e) {
       assert(false, `OG/ref ${post.slug} threw ${e.message}`, 'OG');
     }

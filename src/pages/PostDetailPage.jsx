@@ -45,38 +45,52 @@ export const PostDetailPage = ({ slug }) => {
     deepdive: 42
   });
 
-  const cleanSlug = (slug || '').trim().replace(/-+$/, '');
+  const cleanSlug = (slug || '').trim().replace(/\/+$/, '').replace(/-+$/, '');
   const localPost = posts.find(p => 
     p.slug === slug || 
     p.id === slug || 
     p.slug === cleanSlug || 
-    (p.slug && p.slug.toLowerCase() === (slug || '').toLowerCase())
+    (p.slug && p.slug.toLowerCase() === (slug || '').toLowerCase()) ||
+    (p.slug && p.slug.toLowerCase() === cleanSlug.toLowerCase())
   );
 
   const [fetchedPost, setFetchedPost] = useState(null);
   const [isLoading, setIsLoading] = useState(!localPost || !localPost.content || localPost.content.length <= 500);
 
   useEffect(() => {
-    if (slug) {
-      // Check if localPost is missing or its content was compressed/truncated for local cache
-      const needsFullLoad = !localPost || !localPost.content || localPost.content.length <= 500;
-      if (needsFullLoad) {
-        setIsLoading(true);
-        fetch(`/api/posts/${encodeURIComponent(cleanSlug || slug)}`)
-          .then(res => {
-            if (res.ok) return res.json();
-            return null;
-          })
-          .then(data => {
-            if (data && data.content) setFetchedPost(data);
-          })
-          .catch(() => {})
-          .finally(() => setIsLoading(false));
-      } else {
-        setIsLoading(false);
-      }
+    const key = (slug || '').trim().replace(/\/+$/, '').replace(/-+$/, '');
+    if (!key) return undefined;
+
+    setFetchedPost(null);
+
+    const local = posts.find(p =>
+      p.slug === key ||
+      p.id === key ||
+      (p.slug && p.slug.toLowerCase() === key.toLowerCase())
+    );
+    const hasFullLocal = Boolean(local && local.content && local.content.length > 500);
+    if (hasFullLocal) {
+      setIsLoading(false);
+      return undefined;
     }
-  }, [slug, localPost, cleanSlug]);
+
+    let cancelled = false;
+    setIsLoading(true);
+    fetch(`/api/posts/${encodeURIComponent(key)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data && data.content) setFetchedPost(data);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
 
   const post = fetchedPost || localPost;
   const isSaved = post ? bookmarks.includes(post.slug || slug) : false;
@@ -185,11 +199,14 @@ export const PostDetailPage = ({ slug }) => {
   const textContent = (post.content || '').replace(/<[^>]*>/g, ' ');
   const wordCount = textContent.trim().split(/\s+/).filter(Boolean).length;
 
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(new Date(post.publishedAt || Date.now()));
+  const publishedDate = new Date(post.publishedAt || Date.now());
+  const formattedDate = Number.isNaN(publishedDate.getTime())
+    ? ''
+    : new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(publishedDate);
 
   // Google JSON-LD NewsArticle Structured Data
   const jsonLdSchema = {
@@ -249,7 +266,7 @@ export const PostDetailPage = ({ slug }) => {
       {/* Dynamic JSON-LD Structured Data Schema for Google Search Engine */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema).replace(/</g, '\\u003c') }}
       />
 
       <ReadingProgressBar />

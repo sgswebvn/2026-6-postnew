@@ -10,11 +10,14 @@ export const ArticleCard = ({ post, variant = 'standard' }) => {
   const author = authors.find(a => a.id === post.authorId);
   const isSaved = bookmarks.includes(post.slug);
 
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(new Date(post.publishedAt || Date.now()));
+  const cardDate = new Date(post.publishedAt || Date.now());
+  const formattedDate = Number.isNaN(cardDate.getTime())
+    ? ''
+    : new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(cardDate);
 
   const handleClick = () => {
     navigate(`/post/${post.slug}`);

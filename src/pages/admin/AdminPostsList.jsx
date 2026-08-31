@@ -59,8 +59,8 @@ export const AdminPostsList = () => {
 
   const filteredPosts = visiblePosts.filter(p => {
     const matchesSearch = 
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      p.slug.toLowerCase().includes(search.toLowerCase());
+      String(p.title || '').toLowerCase().includes(search.toLowerCase()) ||
+      String(p.slug || '').toLowerCase().includes(search.toLowerCase());
     const matchesCat = selectedCat === 'all' || p.categoryId === selectedCat;
     const matchesStatus = selectedStatus === 'all' || p.status === selectedStatus;
     return matchesSearch && matchesCat && matchesStatus;
