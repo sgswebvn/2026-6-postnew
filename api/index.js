@@ -28,18 +28,33 @@ const escapeHtml = (unsafe = '') => {
     .replace(/'/g, '&#039;');
 };
 
-// Helper: Build Full Open Graph HTML for Social Crawlers
+// Helper: Build Full Rich Editorial HTML for Mobile Readers & Social Crawlers
 const buildPostHtml = (post, reqUrl, refCode = '') => {
   const title = `${escapeHtml(post.title)} | THE HORI CLICK`;
   const cleanExcerpt = escapeHtml(post.excerpt || post.metaDescription || post.title);
   const imageUrl = post.coverImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200';
   const postUrl = `https://www.thehori.click/post/${post.slug}${refCode ? `?ref=${refCode}` : ''}`;
+  const authorName = escapeHtml(post.authorName || post.createdByName || 'Ban Biên Tập THE HORI CLICK');
+  const authorAvatar = post.authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200';
+  const categoryName = escapeHtml(post.category || 'Tin Tiêu Điểm');
+  
+  // Format Date
+  const rawDate = post.publishedAt || post.createdAt || post.date || new Date().toISOString();
+  let formattedDate = '31/08/2026';
+  try {
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) {
+      formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    }
+  } catch(e) {}
+
+  const fullContent = post.content || `<p>${cleanExcerpt}</p>`;
 
   return `<!doctype html>
 <html lang="vi" prefix="og: https://ogp.me/ns#">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
   <title>${title}</title>
   <meta name="title" content="${title}" />
   <meta name="description" content="${cleanExcerpt}" />
@@ -64,7 +79,232 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
   <meta name="twitter:description" content="${cleanExcerpt}" />
   <meta name="twitter:image" content="${imageUrl}" />
 
-  <!-- Google Analytics Tracking -->
+  <!-- Fonts & Responsive Styles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #faf9f6;
+      color: #1a1a1a;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .header-nav {
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+    .brand-link {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+    }
+    .brand-badge {
+      background: #2563eb;
+      color: #ffffff;
+      font-weight: 900;
+      border-radius: 8px;
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .brand-title {
+      font-weight: 900;
+      color: #0f172a;
+      font-size: 17px;
+      letter-spacing: -0.5px;
+    }
+    .home-btn {
+      background: #f1f5f9;
+      color: #1e293b;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      border: 1px solid #e2e8f0;
+      transition: all 0.2s;
+    }
+    .home-btn:hover { background: #e2e8f0; }
+    .main-container {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 4rem;
+    }
+    .category-badge {
+      display: inline-block;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+    .article-title {
+      font-family: 'Merriweather', Georgia, serif;
+      font-size: 1.85rem;
+      font-weight: 900;
+      line-height: 1.35;
+      color: #0f172a;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 640px) {
+      .article-title { font-size: 1.45rem; line-height: 1.3; }
+    }
+    .author-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding-bottom: 1.25rem;
+      margin-bottom: 1.25rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .author-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #e2e8f0;
+    }
+    .author-name {
+      font-weight: 700;
+      color: #1e293b;
+      font-size: 13px;
+      display: block;
+    }
+    .meta-date {
+      font-size: 11px;
+      color: #64748b;
+    }
+    .lead-excerpt {
+      font-size: 1.05rem;
+      line-height: 1.65;
+      color: #334155;
+      font-style: italic;
+      border-left: 3px solid #2563eb;
+      padding-left: 1rem;
+      margin-bottom: 1.5rem;
+      background: #f8fafc;
+      padding: 0.75rem 1rem;
+      border-radius: 0 8px 8px 0;
+    }
+    .cover-img-wrapper {
+      margin-bottom: 2rem;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      background: #e2e8f0;
+    }
+    .cover-img {
+      width: 100%;
+      max-height: 460px;
+      object-fit: cover;
+      display: block;
+    }
+    .article-content {
+      font-family: 'Merriweather', Georgia, serif;
+      font-size: 1.08rem;
+      line-height: 1.85;
+      color: #1e293b;
+    }
+    .article-content p {
+      margin-bottom: 1.4rem;
+    }
+    .article-content h2, .article-content h3 {
+      font-family: 'Inter', sans-serif;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 2rem 0 1rem;
+      line-height: 1.35;
+    }
+    .article-content h2 { font-size: 1.4rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.4rem; }
+    .article-content h3 { font-size: 1.2rem; }
+    .article-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 10px;
+      margin: 1.5rem auto;
+      display: block;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .article-content blockquote {
+      border-left: 4px solid #3b82f6;
+      padding: 0.75rem 1.25rem;
+      background: #eff6ff;
+      border-radius: 0 8px 8px 0;
+      margin: 1.5rem 0;
+      font-style: italic;
+      color: #1e40af;
+    }
+    .share-bar {
+      margin: 2.5rem 0;
+      padding: 1.25rem;
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .share-title { font-size: 13px; font-weight: 700; color: #475569; }
+    .share-btns { display: flex; gap: 0.5rem; }
+    .share-btn {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      color: #ffffff;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .share-zalo { background: #0068ff; }
+    .share-fb { background: #1877f2; }
+    .cta-explore {
+      display: block;
+      text-align: center;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #ffffff;
+      padding: 14px;
+      border-radius: 12px;
+      font-weight: 800;
+      text-decoration: none;
+      margin-top: 2rem;
+      box-shadow: 0 4px 12px rgba(37,99,235,0.25);
+    }
+    .footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: 12px;
+      color: #94a3b8;
+      border-top: 1px solid #e2e8f0;
+      background: #ffffff;
+      margin-top: 3rem;
+    }
+  </style>
+
+  <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-MZ34K70519"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -74,16 +314,63 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
     ${refCode ? `gtag('event', 'seeding_referral_click', { staff_code: '${refCode}', post_slug: '${post.slug}' });` : ''}
   </script>
 </head>
-<body style="font-family: sans-serif; padding: 2rem; text-align: center; background: #faf9f6; color: #111;">
-  <h1 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem;">${escapeHtml(post.title)}</h1>
-  <p style="font-size: 1rem; color: #555; max-width: 600px; margin: 0 auto 1.5rem;">${cleanExcerpt}</p>
-  <img src="${imageUrl}" alt="${escapeHtml(post.title)}" style="max-width: 600px; width: 100%; border-radius: 12px; margin: 0 auto; display: block;" />
+<body>
+  <!-- Header -->
+  <header class="header-nav">
+    <a href="/" class="brand-link">
+      <span class="brand-badge">H</span>
+      <span class="brand-title">THE HORI CLICK</span>
+    </a>
+    <a href="/" class="home-btn">🏠 Trang Chủ</a>
+  </header>
+
+  <!-- Main Article Body -->
+  <main class="main-container">
+    <span class="category-badge">${categoryName}</span>
+    <h1 class="article-title">${escapeHtml(post.title)}</h1>
+
+    <div class="author-meta">
+      <img src="${authorAvatar}" alt="${authorName}" class="author-avatar" />
+      <div>
+        <span class="author-name">${authorName}</span>
+        <span class="meta-date">Xuất bản: ${formattedDate} • 5 phút đọc</span>
+      </div>
+    </div>
+
+    ${cleanExcerpt ? `<div class="lead-excerpt">${cleanExcerpt}</div>` : ''}
+
+    <div class="cover-img-wrapper">
+      <img src="${imageUrl}" alt="${escapeHtml(post.title)}" class="cover-img" />
+    </div>
+
+    <article class="article-content">
+      ${fullContent}
+    </article>
+
+    <!-- Social Share Tools -->
+    <div class="share-bar">
+      <span class="share-title">Chia sẻ bài viết:</span>
+      <div class="share-btns">
+        <a href="https://zalo.me/share?url=${encodeURIComponent(postUrl)}" target="_blank" rel="noopener" class="share-btn share-zalo">Zalo</a>
+        <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}" target="_blank" rel="noopener" class="share-btn share-fb">Facebook</a>
+      </div>
+    </div>
+
+    <!-- Explore More -->
+    <a href="/" class="cta-explore">
+      Khám Phá Thêm Nhiều Bài Viết Mới Trên THE HORI CLICK →
+    </a>
+  </main>
+
+  <footer class="footer">
+    <p>© 2026 THE HORI CLICK. Tạp chí Tài Chính, Công Nghệ & Phong Cách Sống.</p>
+  </footer>
 </body>
 </html>`;
 };
 
 // ==========================================
-// 1. Dynamic Open Graph for /post/:slug (Bot Crawlers)
+// 1. Dynamic Open Graph & Fast Reader for /post/:slug
 // ==========================================
 const handlePostCrawler = async (req, res) => {
   try {
@@ -106,18 +393,35 @@ const handlePostCrawler = async (req, res) => {
     const refCode = (req.query.ref || req.query.utm_source || '').toUpperCase();
 
     let post = null;
-    try {
-      if (Post) {
-        post = await Post.findOne({
-          $or: [
-            { slug: slug },
-            { slug: new RegExp(`^${slug}$`, 'i') },
-            { id: slug }
-          ]
-        });
-      }
-    } catch (e) {}
 
+    // 1. Fast look-up: Supabase CDN (Ultra-fast <50ms response)
+    if (slug) {
+      try {
+        const supabaseRes = await fetch(`https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/posts/${slug}.json`, {
+          signal: AbortSignal.timeout(1500)
+        });
+        if (supabaseRes.ok) {
+          post = await supabaseRes.json();
+        }
+      } catch (e) {}
+    }
+
+    // 2. Fallback to MongoDB Atlas
+    if (!post) {
+      try {
+        if (Post) {
+          post = await Post.findOne({
+            $or: [
+              { slug: slug },
+              { slug: new RegExp(`^${slug}$`, 'i') },
+              { id: slug }
+            ]
+          }).maxTimeMS(2000);
+        }
+      } catch (e) {}
+    }
+
+    // 3. Fallback to In-Memory Seed Store
     if (!post) {
       post = (memoryStore.posts || []).find(p => 
         (p.slug && p.slug.toLowerCase().trim() === slug) || 
@@ -128,19 +432,7 @@ const handlePostCrawler = async (req, res) => {
       );
     }
 
-    // 2. Try fetching from Supabase CDN
-    if (!post && slug) {
-      try {
-        const supabaseRes = await fetch(`https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/posts/${slug}.json`);
-        if (supabaseRes.ok) {
-          post = await supabaseRes.json();
-        }
-      } catch (sbErr) {
-        console.warn('Supabase post lookup failed:', sbErr);
-      }
-    }
-
-    // 3. Fallback: Generate smart title from slug if post not in DB
+    // 4. Fallback: Generate smart title from slug if post not found
     if (!post && slug) {
       const generatedTitle = slug
         .split('-')
@@ -150,7 +442,7 @@ const handlePostCrawler = async (req, res) => {
       post = {
         title: generatedTitle,
         slug: slug,
-        excerpt: `Read the full investigative coverage and analysis for "${generatedTitle}" on THE HORI CLICK.`,
+        excerpt: `Đọc bài viết phân tích chi tiết "${generatedTitle}" trên THE HORI CLICK.`,
         coverImage: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_24.jpg'
       };
     }
@@ -158,21 +450,21 @@ const handlePostCrawler = async (req, res) => {
     if (post) {
       const html = buildPostHtml(post, req.originalUrl, refCode);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300');
+      res.setHeader('Cache-Control', 'public, max-age=120, s-maxage=600, stale-while-revalidate=86400');
       return res.send(html);
     }
 
     const defaultHtml = buildPostHtml({
-      title: 'THE HORI CLICK | Independent US Finance, Tech & Modern Lifestyle Journal',
+      title: 'THE HORI CLICK | Tạp chí Tài Chính, Công Nghệ & Phong Cách Sống',
       slug: slug || '',
-      excerpt: 'In-depth analysis, expert guides, and daily insights on personal finance, emerging AI, and modern digital lifestyle.',
+      excerpt: 'Phân tích chuyên sâu, tin tức độc quyền và kiến thức hữu ích hàng ngày.',
       coverImage: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200'
     }, req.originalUrl, refCode);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.send(defaultHtml);
   } catch (err) {
-    console.error('[OG Serverless Error]', err);
+    console.error('[Post Serverless Error]', err);
     return res.redirect(302, 'https://www.thehori.click/');
   }
 };

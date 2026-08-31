@@ -318,7 +318,12 @@ router.post('/auth/login', async (req, res) => {
 router.get('/auth/me', requireAuth, async (req, res) => {
   try {
     if (isMongooseReady()) {
-      const staffMember = await Staff.findOne({ id: req.user.id });
+      const staffMember = await Staff.findOne({
+        $or: [
+          { id: req.user.id },
+          { username: req.user.username }
+        ]
+      });
       if (staffMember) {
         return res.json(sanitizeStaffForAdmin(staffMember));
       }

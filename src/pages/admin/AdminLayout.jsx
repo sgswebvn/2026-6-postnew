@@ -42,7 +42,7 @@ export const AdminLayout = ({ children, currentTab = 'dashboard' }) => {
     { id: 'posts', label: 'Quản Lý Bài Viết', icon: FileText, path: '/admin/posts', count: posts.length, perm: 'canManagePosts' },
     { id: 'new-post', label: 'Soạn Thảo Bài Mới', icon: PlusCircle, path: '/admin/posts/new', perm: 'canManagePosts' },
     { id: 'categories', label: 'Chuyên Mục & Desks', icon: FolderTree, path: '/admin/categories', perm: 'canManageCategories' },
-    { id: 'staff', label: 'Nhân Sự & Bảng Lương', icon: Users, path: '/admin/staff', count: staffList?.length || 4, perm: 'canManageStaff' },
+    { id: 'staff', label: 'Nhân Sự & Bảng Lương', icon: Users, path: '/admin/staff', count: staffList?.length || 0, perm: 'canManageStaff' },
     { id: 'adsense', label: 'Google AdSense Ads', icon: DollarSign, path: '/admin/adsense', highlight: true, perm: 'canViewRevenue' },
     { id: 'profile', label: 'Hồ Sơ & Tiếp Thị Seeding', icon: User, path: '/admin/profile' },
     { id: 'subscribers', label: 'Email Đăng Ký Tin', icon: Mail, path: '/admin/subscribers', perm: 'canManageSettings' },

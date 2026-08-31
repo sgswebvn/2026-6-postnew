@@ -91,19 +91,48 @@ export const BlogProvider = ({ children }) => {
     }
 
     // Async sync with MongoDB Backend
-    storageService.initializeFromDB().then(() => {
+    storageService.initializeFromDB().then((freshData) => {
+      if (freshData) {
+        if (Array.isArray(freshData.posts)) setPosts(freshData.posts);
+        if (Array.isArray(freshData.categories)) setCategories(freshData.categories);
+        if (Array.isArray(freshData.authors)) setAuthors(freshData.authors);
+        if (Array.isArray(freshData.staffList)) setStaffList(freshData.staffList);
+        if (freshData.settings) setSettings(freshData.settings);
+      }
       refreshAllData();
     });
   }, []);
 
   const refreshAllData = () => {
-    setPosts(storageService.getPosts());
-    setCategories(storageService.getCategories());
-    setAuthors(storageService.getAuthors());
-    setSettings(storageService.getSettings());
-    setStaffList(storageService.getStaffList());
-    setBookmarks(storageService.getBookmarks());
-    setActivityLogs(storageService.getActivityLogs());
+    const freshPosts = storageService.getPosts();
+    const freshCategories = storageService.getCategories();
+    const freshAuthors = storageService.getAuthors();
+    const freshSettings = storageService.getSettings();
+    const freshStaff = storageService.getStaffList();
+    const freshBookmarks = storageService.getBookmarks();
+    const freshLogs = storageService.getActivityLogs();
+
+    setPosts(freshPosts);
+    setCategories(freshCategories);
+    setAuthors(freshAuthors);
+    setSettings(freshSettings);
+    setStaffList(freshStaff);
+    setBookmarks(freshBookmarks);
+    setActivityLogs(freshLogs);
+
+    // Sync currentUser if updated in staffList
+    try {
+      const savedUserStr = localStorage.getItem('horizon_current_user') || sessionStorage.getItem('horizon_current_user');
+      const savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
+      if (savedUser && Array.isArray(freshStaff)) {
+        const found = freshStaff.find(s => s.id === savedUser.id || (s.username && s.username === savedUser.username));
+        if (found) {
+          const merged = { ...savedUser, ...found };
+          setCurrentUser(merged);
+          localStorage.setItem('horizon_current_user', JSON.stringify(merged));
+        }
+      }
+    } catch (e) {}
   };
 
   // Sync route on popstate
