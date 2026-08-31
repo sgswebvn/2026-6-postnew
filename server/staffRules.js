@@ -13,7 +13,9 @@ export function canMutatePost(actor, post) {
   if (!actor || !isCmsWriter(actor.role)) return false;
   if (actor.role === 'admin' || actor.role === 'editor') return true;
   if (!post) return true;
-  return post.createdById === actor.id;
+  const actorId = String(actor.id || '').trim();
+  const createdBy = String(post.createdById || '').trim();
+  return Boolean(actorId && createdBy && createdBy === actorId);
 }
 
 export function staffPutAuthorization(actor, paramId) {

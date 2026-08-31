@@ -74,14 +74,20 @@ export const AdminPostsList = () => {
   const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
   const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
 
-  const handleDelete = (id, title) => {
+  const handleDelete = (post) => {
+    const postId = post?.id || post?.slug;
+    const title = post?.title || 'bài viết này';
+    if (!postId) {
+      showToast('Không xác định được bài viết cần xóa', 'error');
+      return;
+    }
     showConfirm({
       title: 'Xóa Bài Viết Khỏi Tòa Soạn',
       message: `Bạn có chắc chắn muốn xóa bài viết "${title}" không? Dữ liệu bài viết này sẽ bị gỡ bỏ hoàn toàn khỏi hệ thống.`,
       confirmText: 'Xóa Bài Viết',
       variant: 'danger',
       onConfirm: async () => {
-        await deletePost(id);
+        await deletePost(postId);
       }
     });
   };
@@ -368,7 +374,12 @@ export const AdminPostsList = () => {
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDelete(post.id, post.title)}
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDelete(post);
+                            }}
                             className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded text-rose-500 hover:text-rose-600"
                             title="Xóa bài viết"
                           >

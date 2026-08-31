@@ -165,17 +165,50 @@ export const BlogProvider = ({ children }) => {
     }, duration);
   };
 
-  const showDialog = ({ title, message, type = 'danger', confirmText = 'Xác nhận', cancelText = 'Hủy', onConfirm }) => {
-    setDialog({
+  const showDialog = (options = {}) => {
+    const {
       title,
       message,
       type,
+      variant,
+      confirmText = 'Xác nhận',
+      cancelText = 'Hủy',
+      onConfirm,
+      inputLabel,
+      placeholder,
+      defaultValue,
+      showCancel
+    } = options;
+
+    const resolvedType = type || (variant === 'danger' ? 'danger' : variant) || 'danger';
+
+    setDialog({
+      title,
+      message,
+      type: resolvedType,
+      variant: variant || resolvedType,
       confirmText,
       cancelText,
-      onConfirm: () => {
-        if (onConfirm) onConfirm();
-        setDialog(null);
-      }
+      onConfirm,
+      inputLabel,
+      placeholder,
+      defaultValue,
+      showCancel
+    });
+  };
+
+  const showConfirm = (options = {}) => {
+    showDialog({
+      ...options,
+      type: options.type || options.variant || 'danger',
+      variant: options.variant || options.type || 'danger'
+    });
+  };
+
+  const showPrompt = (options = {}) => {
+    showDialog({
+      ...options,
+      type: 'prompt'
     });
   };
 
@@ -495,6 +528,8 @@ export const BlogProvider = ({ children }) => {
       showToast,
       dialog,
       showDialog,
+      showConfirm,
+      showPrompt,
       closeDialog,
       isAdminAuthenticated,
       userRole,

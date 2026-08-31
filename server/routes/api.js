@@ -474,6 +474,10 @@ router.put('/posts/:id', requireAuth, requireRole(['admin', 'editor', 'author'])
 router.delete('/posts/:id', requireAuth, requireRole(['admin', 'editor', 'author']), async (req, res) => {
   const { id } = req.params;
   try {
+    if (!isMongooseReady()) {
+      return mongoUnavailable(res);
+    }
+
     const found = await Post.findOne({ $or: [{ id }, { slug: id }] });
     if (!found) {
       return res.status(404).json({ error: 'Post not found' });
@@ -482,7 +486,7 @@ router.delete('/posts/:id', requireAuth, requireRole(['admin', 'editor', 'author
       return res.status(403).json({ error: 'Forbidden: You can only delete your own posts' });
     }
 
-    await Post.deleteOne({ id: found.id });
+    await Post.deleteOne({ _id: found._id });
     await deletePostFromSupabase(found.id, found.slug).catch(() => {});
     return res.status(204).send();
   } catch (error) {

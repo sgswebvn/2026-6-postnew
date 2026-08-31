@@ -1,24 +1,44 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { AlertTriangle, HelpCircle, CheckCircle2, Info, X } from 'lucide-react';
 
 export const CustomDialog = () => {
   const { dialog, closeDialog } = useBlog();
 
+  useEffect(() => {
+    if (!dialog) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') closeDialog();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [dialog, closeDialog]);
+
   if (!dialog) return null;
 
   const isPrompt = dialog.type === 'prompt';
   const isDanger = dialog.variant === 'danger' || dialog.type === 'danger';
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    const callback = dialog.onConfirm;
+    let promptValue = '';
     if (isPrompt) {
       const inputEl = document.getElementById('custom-dialog-input');
-      const val = inputEl ? inputEl.value : '';
-      if (dialog.onConfirm) dialog.onConfirm(val);
-    } else {
-      if (dialog.onConfirm) dialog.onConfirm();
+      promptValue = inputEl ? inputEl.value : '';
     }
+
     closeDialog();
+
+    if (typeof callback !== 'function') return;
+    try {
+      if (isPrompt) {
+        await callback(promptValue);
+      } else {
+        await callback();
+      }
+    } catch {
+      // Callers (deletePost, etc.) already surface errors via toast.
+    }
   };
 
   return (

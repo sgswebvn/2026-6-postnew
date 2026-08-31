@@ -102,13 +102,19 @@ export const storageService = {
 
   async deletePost(id) {
     const currentPosts = this.getPosts();
-    const target = currentPosts.find(p => p.id === id);
-    const targetSlug = target?.slug || '';
+    const sid = String(id || '').trim();
+    const target = currentPosts.find(p => String(p.id) === sid || String(p.slug) === sid);
+    const deleteKey = (target && (target.id || target.slug)) || sid;
 
     // Primary delete from MongoDB via API (Throws error if database fails)
-    await api.deletePost(id);
+    await api.deletePost(deleteKey);
 
-    const posts = currentPosts.filter(p => p.id !== id && (!targetSlug || p.slug !== targetSlug));
+    const posts = currentPosts.filter(p => {
+      if (target) {
+        return String(p.id) !== String(target.id) && (!target.slug || p.slug !== target.slug);
+      }
+      return String(p.id) !== sid && String(p.slug) !== sid;
+    });
     safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
     return posts;
   },
