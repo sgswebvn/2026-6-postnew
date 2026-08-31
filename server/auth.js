@@ -111,11 +111,21 @@ export function verifyToken(token) {
   return null;
 }
 
+export function getStaffId(staff) {
+  if (!staff) return '';
+  if (typeof staff.get === 'function') {
+    const custom = staff.get('id');
+    if (custom) return String(custom);
+  }
+  if (staff.id) return String(staff.id);
+  return '';
+}
+
 export function sanitizeStaffForPublic(staff) {
   if (!staff) return null;
   const obj = staff.toObject ? staff.toObject() : { ...staff };
   return {
-    id: obj.id,
+    id: getStaffId(staff) || obj.id,
     name: obj.name,
     roleName: obj.roleName || '',
     avatar: obj.avatar || '',
@@ -130,6 +140,10 @@ export function sanitizeStaffForAdmin(staff) {
   delete obj.password;
   delete obj.passwordHash;
   delete obj.salt;
+  delete obj._id;
+  delete obj.__v;
+  const customId = getStaffId(staff);
+  if (customId) obj.id = customId;
   return obj;
 }
 
@@ -137,7 +151,7 @@ export function actorFromStaff(staff) {
   if (!staff) return null;
   const obj = staff.toObject ? staff.toObject() : staff;
   return {
-    id: obj.id,
+    id: getStaffId(staff) || obj.id,
     username: obj.username,
     name: obj.name,
     role: obj.role || 'editor',

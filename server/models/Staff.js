@@ -19,7 +19,8 @@ const staffSchema = new mongoose.Schema({
   tokenVersion: { type: Number, default: 0 },
   passwordChangedAt: { type: Date, default: null }
 }, {
-  timestamps: true
+  timestamps: true,
+  id: false
 });
 
 export const Staff = mongoose.model('Staff', staffSchema);

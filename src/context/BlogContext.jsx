@@ -71,18 +71,17 @@ export const BlogProvider = ({ children }) => {
   useEffect(() => {
     refreshAllData();
 
-    // Verify session token against server
+    // Verify session token against server. Only log out on a real 401.
+    // Network/503 must not wipe a still-valid local session.
     const token = localStorage.getItem('horizon_auth_token') || sessionStorage.getItem('horizon_auth_token');
     if (token) {
-      api.getMe().then(user => {
-        if (user && user.id) {
+      api.getMe().then(result => {
+        if (result?.ok && result.user) {
+          const user = result.user;
           setIsAdminAuthenticated(true);
           setUserRole(user.role || 'editor');
           setCurrentUser(user);
-          localStorage.setItem('horizon_user_role', user.role || 'editor');
-          localStorage.setItem('horizon_current_user', JSON.stringify(user));
-        } else {
-          // Token expired or invalid
+        } else if (result?.unauthorized) {
           api.logout();
           setIsAdminAuthenticated(false);
           setCurrentUser(null);
@@ -120,16 +119,19 @@ export const BlogProvider = ({ children }) => {
     setBookmarks(freshBookmarks);
     setActivityLogs(freshLogs);
 
-    // Sync currentUser if updated in staffList
+    // Sync currentUser if updated in staffList. Do not overwrite a logged-in
+    // session with the public staff projection (no role / username / permissions).
     try {
       const savedUserStr = localStorage.getItem('horizon_current_user') || sessionStorage.getItem('horizon_current_user');
       const savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
       if (savedUser && Array.isArray(freshStaff)) {
         const found = freshStaff.find(s => s.id === savedUser.id || (s.username && s.username === savedUser.username));
-        if (found) {
-          const merged = { ...savedUser, ...found };
+        const isFullRecord = Boolean(found && (found.role || found.username || found.permissions));
+        if (isFullRecord) {
+          const merged = { ...savedUser, ...found, role: found.role || savedUser.role };
           setCurrentUser(merged);
           localStorage.setItem('horizon_current_user', JSON.stringify(merged));
+          sessionStorage.setItem('horizon_current_user', JSON.stringify(merged));
         }
       }
     } catch (e) {}
@@ -159,10 +161,14 @@ export const BlogProvider = ({ children }) => {
 
   const showToast = (message, type = 'success', duration = 3500) => {
     const id = Date.now() + Math.random();
-    setToasts(prev => [...prev, { id, message, type }]);
+    setToasts(prev => [...prev, { id, message, type, duration }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, duration);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
   };
 
   const showDialog = (options = {}) => {
@@ -240,9 +246,6 @@ export const BlogProvider = ({ children }) => {
         setIsAdminAuthenticated(true);
         setUserRole(authenticatedUser.role || 'editor');
         setCurrentUser(authenticatedUser);
-
-        localStorage.setItem('horizon_user_role', authenticatedUser.role || 'editor');
-        localStorage.setItem('horizon_current_user', JSON.stringify(authenticatedUser));
 
         storageService.addActivityLog({
           staffId: authenticatedUser.id,
@@ -511,6 +514,17 @@ export const BlogProvider = ({ children }) => {
     }
   };
 
+  const incrementPostView = (slug) => {
+    if (!slug) return;
+    storageService.incrementView(slug);
+  };
+
+  const clearActivityLogs = () => {
+    const updated = storageService.clearActivityLogs();
+    setActivityLogs(updated);
+    showToast('Đã làm sạch nhật ký hoạt động', 'info');
+  };
+
   return (
     <BlogContext.Provider value={{
       posts,
@@ -526,6 +540,7 @@ export const BlogProvider = ({ children }) => {
       setSearchOpen,
       toasts,
       showToast,
+      removeToast,
       dialog,
       showDialog,
       showConfirm,
@@ -557,7 +572,10 @@ export const BlogProvider = ({ children }) => {
       addSubscriber,
       deleteSubscriber,
       resetAllData,
-      refreshAllData
+      resetData: resetAllData,
+      refreshAllData,
+      incrementPostView,
+      clearActivityLogs
     }}>
       {children}
     </BlogContext.Provider>

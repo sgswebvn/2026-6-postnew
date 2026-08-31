@@ -9,6 +9,7 @@ import { Subscriber } from '../models/Subscriber.js';
 import { Referral } from '../models/Referral.js';
 import { Staff } from '../models/Staff.js';
 import { ActivityLog } from '../models/ActivityLog.js';
+import { ShortLink } from '../models/ShortLink.js';
 import { memoryStore, getDbStatus } from '../db.js';
 import {
   hashPassword,
@@ -17,7 +18,8 @@ import {
   verifyToken,
   sanitizeStaffForPublic,
   sanitizeStaffForAdmin,
-  actorFromStaff
+  actorFromStaff,
+  getStaffId
 } from '../auth.js';
 import { getSupabaseServiceRoleKey, getSupabaseUrl } from '../env.js';
 import {
@@ -57,11 +59,22 @@ function supabaseAuthHeaders(extra = {}) {
   };
 }
 
+function isHexObjectId(value) {
+  return typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value);
+}
+
 export async function resolveActorFromToken(token) {
   const decoded = verifyToken(token);
   if (!decoded || !decoded.id) return { error: 401 };
   if (!isMongooseReady()) return { error: 503 };
-  const staffMember = await Staff.findOne({ id: decoded.id });
+
+  const decodedId = String(decoded.id).trim();
+  const lookup = [{ id: decodedId }];
+  if (isHexObjectId(decodedId)) {
+    lookup.push({ _id: decodedId });
+  }
+
+  const staffMember = await Staff.findOne({ $or: lookup });
   if (!staffMember) return { error: 401 };
   if ((staffMember.status || 'active') !== 'active') return { error: 401 };
   const dbVersion = staffMember.tokenVersion || 0;
@@ -284,14 +297,15 @@ router.post('/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Tài khoản hoặc mật khẩu không chính xác' });
     }
 
+    const staffId = getStaffId(staffMember);
     if (needsUpgrade) {
       const hashed = hashPassword(password);
       staffMember.password = hashed;
-      await Staff.updateOne({ id: staffMember.id }, { $set: { password: hashed } });
+      await Staff.updateOne({ id: staffId }, { $set: { password: hashed } });
     }
 
     const token = generateToken({
-      id: staffMember.id,
+      id: staffId,
       tokenVersion: staffMember.tokenVersion || 0
     });
 
@@ -335,11 +349,11 @@ router.post('/auth/change-password', requireAuth, async (req, res) => {
     const newHash = hashPassword(newPassword);
     const nextVersion = (staffMember.tokenVersion || 0) + 1;
     await Staff.updateOne(
-      { id: req.user.id },
+      { id: getStaffId(staffMember) || req.user.id },
       { $set: { password: newHash, tokenVersion: nextVersion, passwordChangedAt: new Date() } }
     );
 
-    const token = generateToken({ id: req.user.id, tokenVersion: nextVersion });
+    const token = generateToken({ id: getStaffId(staffMember) || req.user.id, tokenVersion: nextVersion });
     return res.json({ success: true, message: 'Đổi mật khẩu thành công!', token });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to change password' });
@@ -895,6 +909,76 @@ router.get('/referrals', optionalAuth, async (req, res) => {
     return res.json([]);
   } catch (error) {
     return res.json([]);
+  }
+});
+
+router.get('/shortlinks', requireAuth, requireRole(['admin', 'editor', 'author']), async (req, res) => {
+  try {
+    if (!isMongooseReady()) {
+      return mongoUnavailable(res);
+    }
+    const links = await ShortLink.find().sort({ createdAt: -1 }).limit(200);
+    return res.json(links);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to load short links' });
+  }
+});
+
+router.post('/shortlinks', requireAuth, requireRole(['admin', 'editor', 'author']), async (req, res) => {
+  try {
+    if (!isMongooseReady()) {
+      return mongoUnavailable(res);
+    }
+    const body = req.body || {};
+    const originalUrl = String(body.originalUrl || '').trim();
+    if (!originalUrl) {
+      return res.status(400).json({ error: 'originalUrl is required' });
+    }
+
+    const rawCode = String(body.customCode || body.code || '').trim().toLowerCase();
+    const code = (rawCode || Math.random().toString(36).slice(2, 8))
+      .replace(/[^a-z0-9-]/g, '')
+      .slice(0, 32);
+    if (!code) {
+      return res.status(400).json({ error: 'Invalid short link code' });
+    }
+
+    const existing = await ShortLink.findOne({ code });
+    if (existing) {
+      return res.status(409).json({ error: 'Short link code already exists' });
+    }
+
+    const saved = await ShortLink.create({
+      id: `sl-${Date.now()}`,
+      code,
+      originalUrl,
+      postSlug: String(body.postSlug || '').trim(),
+      postTitle: String(body.postTitle || '').trim(),
+      coverImage: String(body.coverImage || '').trim(),
+      staffCode: String(body.staffCode || '').trim().toUpperCase().slice(0, 16),
+      staffName: String(body.staffName || req.user?.name || '').trim(),
+      clicks: 0
+    });
+    return res.status(201).json(saved);
+  } catch (error) {
+    return res.status(400).json({ error: 'Failed to create short link' });
+  }
+});
+
+router.delete('/shortlinks/:id', requireAuth, requireRole(['admin', 'editor', 'author']), async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (!isMongooseReady()) {
+      return mongoUnavailable(res);
+    }
+    const found = await ShortLink.findOne({ $or: [{ id }, { code: id }] });
+    if (!found) {
+      return res.status(404).json({ error: 'Short link not found' });
+    }
+    await ShortLink.deleteOne({ _id: found._id });
+    return res.status(204).send();
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to delete short link' });
   }
 });
 

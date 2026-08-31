@@ -4,7 +4,7 @@ import { useBlog } from '../../context/BlogContext';
 import { Mail, Trash2, Download, Copy, Check, Users, ShieldCheck } from 'lucide-react';
 
 export const AdminSubscribers = () => {
-  const { showToast, showConfirm } = useBlog();
+  const { showToast, showConfirm, deleteSubscriber } = useBlog();
   const [subscribers, setSubscribers] = useState([]);
   const [copied, setCopied] = useState(false);
 
@@ -18,10 +18,9 @@ export const AdminSubscribers = () => {
       message: `Bạn có chắc muốn xóa email "${email}" khỏi danh sách nhận bản tin thị trường?`,
       confirmText: 'Xóa Email',
       variant: 'danger',
-      onConfirm: () => {
-        const updated = storageService.deleteSubscriber(email);
-        setSubscribers(updated);
-        showToast(`Đã xóa ${email} khỏi danh sách`, 'info');
+      onConfirm: async () => {
+        await deleteSubscriber(email);
+        setSubscribers(storageService.getSubscribers());
       }
     });
   };

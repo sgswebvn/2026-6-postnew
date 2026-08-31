@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { 
   Search, 
-  Sun, 
-  Moon, 
   Menu, 
   X, 
   Bookmark, 
@@ -39,8 +37,6 @@ const getCategoryIcon = (slug) => {
 
 export const Header = () => {
   const { 
-    darkMode, 
-    toggleDarkMode, 
     categories, 
     settings, 
     navigate, 

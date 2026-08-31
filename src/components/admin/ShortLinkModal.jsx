@@ -14,10 +14,10 @@ import {
   ShieldCheck,
   Zap
 } from 'lucide-react';
-import { storageService } from '../../services/storageService';
+import { api } from '../../services/api';
 
 export const ShortLinkModal = ({ isOpen, onClose, defaultPost = null }) => {
-  const { posts, staffList, currentUser, showToast, showConfirm } = useBlog();
+  const { posts, staffList, currentUser, showToast } = useBlog();
   const [selectedPostId, setSelectedPostId] = useState(defaultPost?.id || posts[0]?.id || '');
   const [selectedStaffCode, setSelectedStaffCode] = useState(currentUser?.refCode || 'QB');
   const [customAlias, setCustomAlias] = useState('');
@@ -36,13 +36,10 @@ export const ShortLinkModal = ({ isOpen, onClose, defaultPost = null }) => {
 
   const loadLinks = async () => {
     try {
-      const res = await fetch('/api/shortlinks');
-      if (res.ok) {
-        const data = await res.json();
-        setShortLinks(data || []);
-      }
+      const data = await api.getShortLinks();
+      setShortLinks(Array.isArray(data) ? data : []);
     } catch (e) {
-      // fallback
+      setShortLinks([]);
     }
   };
 
@@ -76,21 +73,11 @@ export const ShortLinkModal = ({ isOpen, onClose, defaultPost = null }) => {
         customCode: customAlias.trim()
       };
 
-      const res = await fetch('/api/shortlinks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        const saved = await res.json();
-        const shortUrl = `${window.location.origin}/s/${saved.code}`;
-        setCreatedLink(shortUrl);
-        showToast('Đã tạo link rút gọn Seeding thành công!', 'success');
-        loadLinks();
-      } else {
-        showToast('Không thể tạo link rút gọn. Mã code có thể đã tồn tại.', 'error');
-      }
+      const saved = await api.createShortLink(payload);
+      const shortUrl = `${window.location.origin}/s/${saved.code}`;
+      setCreatedLink(shortUrl);
+      showToast('Đã tạo link rút gọn Seeding thành công!', 'success');
+      loadLinks();
     } catch (err) {
       showToast('Lỗi khi tạo link rút gọn: ' + err.message, 'error');
     } finally {
@@ -107,11 +94,11 @@ export const ShortLinkModal = ({ isOpen, onClose, defaultPost = null }) => {
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`/api/shortlinks/${id}`, { method: 'DELETE' });
+      await api.deleteShortLink(id);
       showToast('Đã xóa link rút gọn', 'info');
       loadLinks();
     } catch (e) {
-      showToast('Lỗi khi xóa link', 'error');
+      showToast(e.message || 'Lỗi khi xóa link', 'error');
     }
   };
 

@@ -378,6 +378,11 @@ export const storageService = {
     return updated;
   },
 
+  clearActivityLogs() {
+    safeSetItem(STORAGE_KEYS.ACTIVITY_LOGS, JSON.stringify([]));
+    return [];
+  },
+
   // ==========================================
   // COMMENTS
   // ==========================================

@@ -9,6 +9,16 @@ function getAuthHeaders(extraHeaders = {}) {
   return headers;
 }
 
+function persistAuthUser(user) {
+  if (!user) return;
+  const raw = JSON.stringify(user);
+  localStorage.setItem('horizon_current_user', raw);
+  sessionStorage.setItem('horizon_current_user', raw);
+  const role = user.role || 'editor';
+  localStorage.setItem('horizon_user_role', role);
+  sessionStorage.setItem('horizon_user_role', role);
+}
+
 export const api = {
   // Authentication & Session
   async loginAdmin(identifier, password) {
@@ -25,6 +35,9 @@ export const api = {
       localStorage.setItem('horizon_auth_token', data.token);
       sessionStorage.setItem('horizon_auth_token', data.token);
     }
+    if (data.user) {
+      persistAuthUser(data.user);
+    }
     return data;
   },
 
@@ -33,10 +46,20 @@ export const api = {
       const res = await fetch(`${API_BASE}/auth/me`, {
         headers: getAuthHeaders()
       });
-      if (!res.ok) return null;
-      return await res.json();
+      if (res.status === 401) {
+        return { ok: false, unauthorized: true };
+      }
+      if (!res.ok) {
+        return { ok: false, unauthorized: false, status: res.status };
+      }
+      const user = await res.json();
+      if (!user || !(user.id || user._id)) {
+        return { ok: false, unauthorized: false };
+      }
+      persistAuthUser(user);
+      return { ok: true, user };
     } catch {
-      return null;
+      return { ok: false, unauthorized: false };
     }
   },
 
@@ -50,6 +73,10 @@ export const api = {
     if (!res.ok) {
       throw new Error(data.error || 'Đổi mật khẩu thất bại');
     }
+    if (data.token) {
+      localStorage.setItem('horizon_auth_token', data.token);
+      sessionStorage.setItem('horizon_auth_token', data.token);
+    }
     return data;
   },
 
@@ -60,6 +87,8 @@ export const api = {
     sessionStorage.removeItem('horizon_admin_session');
     localStorage.removeItem('horizon_current_user');
     sessionStorage.removeItem('horizon_current_user');
+    localStorage.removeItem('horizon_user_role');
+    sessionStorage.removeItem('horizon_user_role');
   },
 
   // Image Upload via Backend API
@@ -480,5 +509,40 @@ export const api = {
     } catch {
       return null;
     }
+  },
+
+  async getShortLinks() {
+    const res = await fetch(`${API_BASE}/shortlinks`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      throw new Error('Failed to load short links');
+    }
+    return await res.json();
+  },
+
+  async createShortLink(payload) {
+    const res = await fetch(`${API_BASE}/shortlinks`, {
+      method: 'POST',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to create short link');
+    }
+    return data;
+  },
+
+  async deleteShortLink(id) {
+    const res = await fetch(`${API_BASE}/shortlinks/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to delete short link');
+    }
+    return { success: true };
   }
 };
