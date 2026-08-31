@@ -154,6 +154,56 @@ async function runComprehensiveQA() {
     assert('English Compliance Test', false, e.message);
   }
 
+  // TEST 8: Mobile Performance, Fonts & Responsive Viewport Integrity
+  try {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf-8');
+    const hasViewport = indexHtml.includes('name="viewport" content="width=device-width, initial-scale=1.0');
+    const hasThemeColor = indexHtml.includes('name="theme-color"');
+    const hasDisplaySwap = indexHtml.includes('display=swap');
+    assert('Mobile Viewport & Performance Meta Tags', hasViewport && hasThemeColor && hasDisplaySwap, '(Viewport, theme-color, and font display=swap enabled)');
+  } catch (e) {
+    assert('Mobile Performance Test', false, e.message);
+  }
+
+  // TEST 9: Facebook & Open Graph Image Metadata Integrity
+  try {
+    const fs = await import('fs');
+    const serverlessCode = fs.readFileSync('api/index.js', 'utf-8');
+    const vercelConfig = fs.readFileSync('vercel.json', 'utf-8');
+
+    const hasOgImage = serverlessCode.includes('property="og:image"') && serverlessCode.includes('property="og:image:secure_url"');
+    const hasOgDimensions = serverlessCode.includes('property="og:image:width"') && serverlessCode.includes('property="og:image:height"');
+    const hasOgAlt = serverlessCode.includes('property="og:image:alt"');
+    const hasFacebookCrawlerRewrite = vercelConfig.includes('facebookexternalhit') && vercelConfig.includes('meta-externalagent');
+
+    assert('Facebook & Social Open Graph Image Metadata', hasOgImage && hasOgDimensions && hasOgAlt, '(og:image, secure_url, width, height, and alt present)');
+    assert('Vercel Facebook/Meta Crawler Rewrites', hasFacebookCrawlerRewrite, '(Rewrites route Facebook crawlers to serverless reader)');
+  } catch (e) {
+    assert('Facebook OG Test', false, e.message);
+  }
+
+  // TEST 10: Table of Contents Full Text Visibility (Zero Truncation)
+  try {
+    const fs = await import('fs');
+    const tocCode = fs.readFileSync('src/components/blog/TableOfContents.jsx', 'utf-8');
+    const isExpandedDefault = tocCode.includes('useState(true)');
+    const hasNoLineClamp = !tocCode.includes('line-clamp-1');
+    assert('Table of Contents Full Text Visibility', isExpandedDefault && hasNoLineClamp, '(Expanded by default, full text rendered without line-clamp truncation)');
+  } catch (e) {
+    assert('TOC Full Text Test', false, e.message);
+  }
+
+  // TEST 11: Unrestricted Post Visibility Across Magazine
+  try {
+    const fs = await import('fs');
+    const postsListCode = fs.readFileSync('src/pages/admin/AdminPostsList.jsx', 'utf-8');
+    const isUnrestricted = postsListCode.includes('const visiblePosts = posts;');
+    assert('Unrestricted Post Visibility in Admin List', isUnrestricted, '(All magazine posts visible to editorial staff without artificial filters)');
+  } catch (e) {
+    assert('Post Visibility Test', false, e.message);
+  }
+
   await mongoose.disconnect();
 
   console.log('\n====================================================');

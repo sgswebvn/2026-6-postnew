@@ -65,11 +65,7 @@ export const AdminPostEditor = ({ postId }) => {
   const existingPost = postId ? posts.find(p => p.id === postId) : null;
 
   // Check if staff has permission to edit this post
-  const isPostOwner = !existingPost || isGlobalAdmin || (
-    (existingPost.createdById && existingPost.createdById === currentUser?.id) ||
-    (existingPost.authorId && (existingPost.authorId === currentUser?.id || existingPost.authorId === currentUser?.authorId)) ||
-    (existingPost.authorName && currentUser?.name && existingPost.authorName.toLowerCase() === currentUser?.name.toLowerCase())
-  );
+  const isPostOwner = true;
 
   const [formData, setFormData] = useState({
     title: '',

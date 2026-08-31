@@ -17,7 +17,7 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": ".*(facebookexternalhit|Facebot|FacebookBot|Zalo|Twitterbot|TelegramBot|WhatsApp|LinkedInBot|Pinterest|Discordbot).*"
+          "value": ".*(facebookexternalhit|Facebot|FacebookBot|meta-externalagent|meta-externalads|facebookcatalog|facebookplatform|Zalo|Twitterbot|TelegramBot|WhatsApp|LinkedInBot|Pinterest|Discordbot|Slackbot|SkypeUriPreview|kakaotalk-scrap|vkShare|redditbot|Applebot|Googlebot|bingbot).*"
         }
       ],
       "destination": "/api/index.js"

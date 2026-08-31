@@ -60,7 +60,7 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
   <meta name="description" content="${cleanExcerpt}" />
   <link rel="canonical" href="${postUrl}" />
 
-  <!-- Open Graph / Facebook / Zalo / Telegram -->
+  <!-- Open Graph / Facebook / Zalo / Telegram / Social Preview -->
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="THE HORI CLICK" />
   <meta property="og:url" content="${postUrl}" />
@@ -70,7 +70,11 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
   <meta property="og:image:secure_url" content="${imageUrl}" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="${escapeHtml(post.title)}" />
   <meta property="og:image:type" content="image/jpeg" />
+  <meta property="article:published_time" content="${rawDate}" />
+  <meta property="article:section" content="${categoryName}" />
+  <meta itemprop="image" content="${imageUrl}" />
 
   <!-- Twitter Cards -->
   <meta name="twitter:card" content="summary_large_image" />
@@ -78,6 +82,7 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
   <meta name="twitter:title" content="${title}" />
   <meta name="twitter:description" content="${cleanExcerpt}" />
   <meta name="twitter:image" content="${imageUrl}" />
+  <meta name="twitter:image:alt" content="${escapeHtml(post.title)}" />
 
   <!-- Fonts & Responsive Styles -->
   <link rel="preconnect" href="https://fonts.googleapis.com">

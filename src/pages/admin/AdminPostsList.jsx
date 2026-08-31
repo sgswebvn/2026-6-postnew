@@ -30,29 +30,8 @@ export const AdminPostsList = () => {
   const [isShortLinkModalOpen, setIsShortLinkModalOpen] = useState(false);
   const [selectedShortLinkPost, setSelectedShortLinkPost] = useState(null);
 
-  // Admin sees all posts. Staff only sees and manages their own posts!
-  const isGlobalAdmin = userRole === 'admin' || currentUser?.role === 'admin';
-  const visiblePosts = isGlobalAdmin
-    ? posts
-    : posts.filter(p => {
-        const uId = currentUser?.id || '';
-        const uName = (currentUser?.name || '').toLowerCase().trim();
-        const uUser = (currentUser?.username || '').toLowerCase().trim();
-
-        const matchId = (p.createdById && p.createdById === uId) || (p.authorId && (p.authorId === uId || p.authorId === currentUser?.authorId));
-        const matchAuthorName = p.authorName && (
-          p.authorName.toLowerCase().includes(uName) || 
-          uName.includes(p.authorName.toLowerCase()) || 
-          p.authorName.toLowerCase() === uUser
-        );
-        const matchCreatedByName = p.createdByName && (
-          p.createdByName.toLowerCase().includes(uName) || 
-          uName.includes(p.createdByName.toLowerCase()) || 
-          p.createdByName.toLowerCase() === uUser
-        );
-
-        return matchId || matchAuthorName || matchCreatedByName;
-      });
+  // Full Unrestricted Visibility: Show all articles in the system across the magazine
+  const visiblePosts = posts;
 
   const filteredPosts = visiblePosts.filter(p => {
     const matchesSearch = 

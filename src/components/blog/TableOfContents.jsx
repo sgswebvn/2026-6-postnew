@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ListTree, ChevronRight } from 'lucide-react';
+import { ListTree, ChevronDown, ChevronUp, Hash } from 'lucide-react';
 
 export const TableOfContents = ({ contentHtml }) => {
   const [headings, setHeadings] = useState([]);
   const [activeId, setActiveId] = useState('');
+  const [isExpanded, setIsExpanded] = useState(true); // Default open / expanded as requested
 
   useEffect(() => {
     if (!contentHtml) return;
@@ -15,7 +16,7 @@ export const TableOfContents = ({ contentHtml }) => {
     
     const items = Array.from(elements).map((el, index) => {
       const text = el.textContent || '';
-      const id = `heading-${index}-${text.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30)}`;
+      const id = `heading-${index}-${text.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 40)}`;
       return {
         id,
         text,
@@ -50,26 +51,46 @@ export const TableOfContents = ({ contentHtml }) => {
   };
 
   return (
-    <div className="p-5 bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-800 rounded-2xl space-y-3">
-      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-900 dark:text-neutral-100 pb-2 border-b border-neutral-200 dark:border-neutral-800">
-        <ListTree className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-        <span>Table of Contents</span>
+    <div className="p-4 sm:p-5 bg-white dark:bg-[#111622] border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-xs space-y-3">
+      {/* Header with Title and Toggle */}
+      <div 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center justify-between cursor-pointer select-none pb-2 border-b border-neutral-100 dark:border-neutral-800"
+      >
+        <div className="flex items-center gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-900 dark:text-neutral-100">
+          <ListTree className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span>Table of Contents ({headings.length} Sections)</span>
+        </div>
+        <button 
+          type="button" 
+          className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 p-1 rounded-md"
+          aria-label={isExpanded ? 'Collapse Table of Contents' : 'Expand Table of Contents'}
+        >
+          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
       </div>
 
-      <nav className="space-y-1.5 text-xs">
-        {headings.map(h => (
-          <button
-            key={h.id}
-            onClick={() => scrollToHeading(h.id)}
-            className={`w-full text-left flex items-start gap-1.5 py-1 px-2 rounded-lg transition-colors ${
-              h.level === 3 ? 'pl-4 text-neutral-500 hover:text-neutral-900 dark:hover:text-white' : 'font-semibold text-neutral-800 dark:text-neutral-200 hover:text-blue-600 dark:hover:text-blue-400'
-            } ${activeId === h.id ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400' : ''}`}
-          >
-            <ChevronRight className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${activeId === h.id ? 'text-blue-600' : 'text-neutral-400'}`} />
-            <span className="line-clamp-1">{h.text}</span>
-          </button>
-        ))}
-      </nav>
+      {/* Full Expanded Navigation List - Full Text, Never Truncated */}
+      {isExpanded && (
+        <nav className="space-y-2 pt-1 animate-fadeIn">
+          {headings.map((h, idx) => (
+            <button
+              key={h.id}
+              onClick={() => scrollToHeading(h.id)}
+              className={`w-full text-left flex items-start gap-2 py-1.5 px-2.5 rounded-xl transition-all cursor-pointer ${
+                h.level === 3 
+                  ? 'pl-6 text-xs text-neutral-600 dark:text-neutral-400 hover:text-blue-600 dark:hover:text-blue-400' 
+                  : 'text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200 hover:text-blue-600 dark:hover:text-blue-400'
+              } ${activeId === h.id ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold border-l-2 border-blue-600 pl-2' : ''}`}
+            >
+              <Hash className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 opacity-50 ${activeId === h.id ? 'text-blue-600 opacity-100' : ''}`} />
+              <span className="break-words leading-relaxed flex-1">
+                {h.text}
+              </span>
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 };
