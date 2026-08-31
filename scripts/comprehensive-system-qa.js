@@ -68,11 +68,11 @@ async function runComprehensiveQA() {
 
   // TEST 4: Supabase CDN Manifest Sync
   try {
-    const cdnRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/postnew/posts_manifest.json`);
+    const cdnRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/postnew/posts_manifest.json?t=${Date.now()}`);
     const cdnPosts = await cdnRes.json();
     assert('Supabase CDN posts_manifest.json valid', Array.isArray(cdnPosts) && cdnPosts.length >= 30, `(Found ${cdnPosts.length} posts on CDN)`);
 
-    const staffRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/postnew/staff_manifest.json`);
+    const staffRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/postnew/staff_manifest.json?t=${Date.now()}`);
     const cdnStaff = await staffRes.json();
     assert('Supabase CDN staff_manifest.json valid', Array.isArray(cdnStaff) && cdnStaff.length >= 7, `(Found ${cdnStaff.length} staff on CDN)`);
   } catch (e) {

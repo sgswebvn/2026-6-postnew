@@ -38,53 +38,6 @@ const safeSetItem = (key, value) => {
 };
 
 export const storageService = {
-  /**
-   * Fast hydration from Local Cache, then refresh from Primary MongoDB and Supabase CDN
-   */
-  async initializeFromDB() {
-    try {
-      const [remotePosts, remoteStaff, remoteCats, remoteAuthors, remoteSettings] = await Promise.allSettled([
-        api.getPosts(),
-        api.getStaffList(),
-        api.getCategories(),
-        api.getAuthors(),
-        api.getSettings()
-      ]);
-
-      if (remotePosts.status === 'fulfilled' && Array.isArray(remotePosts.value) && remotePosts.value.length > 0) {
-        safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(remotePosts.value));
-      } else {
-        try {
-          const cdnRes = await fetch(supabaseStorage.getPublicManifestUrl('posts_manifest.json'));
-          if (cdnRes.ok) {
-            const cdnData = await cdnRes.json();
-            if (Array.isArray(cdnData) && cdnData.length > 0) {
-              safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(cdnData));
-            }
-          }
-        } catch (e) {}
-      }
-
-      if (remoteStaff.status === 'fulfilled' && Array.isArray(remoteStaff.value) && remoteStaff.value.length > 0) {
-        safeSetItem(STORAGE_KEYS.STAFF, JSON.stringify(remoteStaff.value));
-      }
-
-      if (remoteCats.status === 'fulfilled' && Array.isArray(remoteCats.value) && remoteCats.value.length > 0) {
-        safeSetItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(remoteCats.value));
-      }
-
-      if (remoteAuthors.status === 'fulfilled' && Array.isArray(remoteAuthors.value) && remoteAuthors.value.length > 0) {
-        safeSetItem(STORAGE_KEYS.AUTHORS, JSON.stringify(remoteAuthors.value));
-      }
-
-      if (remoteSettings.status === 'fulfilled' && remoteSettings.value && !remoteSettings.value.error) {
-        safeSetItem(STORAGE_KEYS.SETTINGS, JSON.stringify(remoteSettings.value));
-      }
-    } catch (err) {
-      console.warn('[StorageService] initializeFromDB partial warning:', err);
-    }
-  },
-
   // ==========================================
   // POSTS
   // ==========================================

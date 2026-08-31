@@ -77,8 +77,8 @@ export const AdminPostsList = () => {
       message: `Bạn có chắc chắn muốn xóa bài viết "${title}" không? Dữ liệu bài viết này sẽ bị gỡ bỏ hoàn toàn khỏi hệ thống.`,
       confirmText: 'Xóa Bài Viết',
       variant: 'danger',
-      onConfirm: () => {
-        deletePost(id);
+      onConfirm: async () => {
+        await deletePost(id);
       }
     });
   };

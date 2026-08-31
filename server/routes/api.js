@@ -548,22 +548,22 @@ router.put('/posts/:id', requireAuth, requireRole(['admin', 'editor', 'author'])
 });
 
 // Protected: Delete Post (Requires Auth & Role)
-router.delete('/posts/:id', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
+router.delete('/posts/:id', requireAuth, requireRole(['admin', 'editor', 'author']), async (req, res) => {
   const { id } = req.params;
   try {
     let postSlug = '';
     if (isMongooseReady()) {
       const found = await Post.findOne({ $or: [{ id }, { slug: id }] });
       if (found) postSlug = found.slug;
-      await Post.deleteOne({ $or: [{ id }, { slug: id }] });
+      await Post.deleteOne({ $or: [{ id }, { slug: id }, { slug: postSlug }] });
     }
 
     if (!memoryStore.posts) memoryStore.posts = [];
     const memPost = memoryStore.posts.find(p => p.id === id || p.slug === id);
     if (memPost && !postSlug) postSlug = memPost.slug;
-    memoryStore.posts = memoryStore.posts.filter(p => p.id !== id && p.slug !== id);
+    memoryStore.posts = memoryStore.posts.filter(p => p.id !== id && p.slug !== id && (!postSlug || p.slug !== postSlug));
 
-    deletePostFromSupabase(id, postSlug).catch(() => {});
+    await deletePostFromSupabase(id, postSlug).catch(() => {});
 
     return res.status(204).send();
   } catch (error) {

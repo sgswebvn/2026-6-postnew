@@ -1295,6 +1295,104 @@ export const initialStaffList = [
       paymentStatus: 'paid',
       paymentDate: '2026-08-05'
     }
+  },
+  {
+    id: 'staff-1787976824658',
+    name: 'hihi',
+    username: 'hihi',
+    password: 'hihi123',
+    email: 'hieutvpd09286@fpt.edu.vn',
+    phone: '123',
+    refCode: 'HIHI',
+    role: 'editor',
+    roleName: 'Biên Tập Viên Nội Dung',
+    joinDate: '2026-08-29',
+    status: 'active',
+    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_02.jpg',
+    permissions: {
+      canManagePosts: true,
+      canPublishPosts: true,
+      canManageCategories: false,
+      canViewRevenue: false,
+      canManageStaff: false,
+      canManagePayroll: false,
+      canManageComments: true,
+      canManageSettings: false
+    },
+    salary: {
+      baseSalary: 10000000,
+      kpiBonus: 0,
+      deduction: 0,
+      netSalary: 10000000,
+      payPeriod: '08/2026',
+      paymentStatus: 'paid',
+      paymentDate: '2026-08-29'
+    }
+  },
+  {
+    id: 'staff-1788014802201',
+    name: 'Trần Quang Anh',
+    username: 'atrann96@gmail.com',
+    password: 'an123',
+    email: 'atrann96@gmail.com',
+    phone: '',
+    refCode: 'QA',
+    role: 'editor',
+    roleName: 'Biên Tập Viên Nội Dung',
+    joinDate: '2026-08-29',
+    status: 'active',
+    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_02.jpg',
+    permissions: {
+      canManagePosts: true,
+      canPublishPosts: true,
+      canManageCategories: true,
+      canViewRevenue: false,
+      canManageStaff: false,
+      canManagePayroll: false,
+      canManageComments: true,
+      canManageSettings: false
+    },
+    salary: {
+      baseSalary: 0,
+      kpiBonus: 0,
+      deduction: 0,
+      netSalary: 0,
+      payPeriod: '08/2026',
+      paymentStatus: 'paid',
+      paymentDate: '2026-08-29'
+    }
+  },
+  {
+    id: 'staff-1788076599529',
+    name: 'test@gmail.com',
+    username: 'test@gmail.com',
+    password: 'test123',
+    email: 'test@gmail.com',
+    phone: '0941518881',
+    refCode: 'TEST',
+    role: 'editor',
+    roleName: 'Biên Tập Viên Nội Dung',
+    joinDate: '2026-08-30',
+    status: 'active',
+    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_02.jpg',
+    permissions: {
+      canManagePosts: true,
+      canPublishPosts: true,
+      canManageCategories: false,
+      canViewRevenue: false,
+      canManageStaff: false,
+      canManagePayroll: false,
+      canManageSettings: false
+    },
+    salary: {
+      baseSalary: 10000000,
+      kpiBonus: 0,
+      deduction: 0,
+      netSalary: 10000000,
+      payPeriod: '08/2026',
+      paymentStatus: 'paid',
+      paymentDate: '2026-08-30'
+    }
   }
 ];
 
