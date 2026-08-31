@@ -4,8 +4,7 @@ import {
   initialPosts, 
   initialComments, 
   initialSubscribers, 
-  initialSettings,
-  initialStaffList
+  initialSettings
 } from '../../server/seedData.js';
 import { api } from './api.js';
 import { supabaseStorage } from './supabaseStorage.js';
@@ -256,14 +255,13 @@ export const storageService = {
   getStaffList() {
     const raw = localStorage.getItem(STORAGE_KEYS.STAFF);
     if (!raw) {
-      safeSetItem(STORAGE_KEYS.STAFF, JSON.stringify(initialStaffList));
-      return initialStaffList;
+      return [];
     }
     try {
       const list = JSON.parse(raw);
-      return Array.isArray(list) ? list : initialStaffList;
+      return Array.isArray(list) ? list : [];
     } catch {
-      return initialStaffList;
+      return [];
     }
   },
 
@@ -289,7 +287,11 @@ export const storageService = {
         type: 'success'
       });
     } else {
-      const saved = await api.updateStaff(staffMember.id, staffMember);
+      const payload = { ...staffMember };
+      if (!payload.password || !String(payload.password).trim()) {
+        delete payload.password;
+      }
+      const saved = await api.updateStaff(staffMember.id, payload);
       updated = list.map(s => (s.id === staffMember.id || s.username === staffMember.username) ? (saved || { ...s, ...staffMember }) : s);
       this.addActivityLog({
         staffName: 'Quản Trị Viên',

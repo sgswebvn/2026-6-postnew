@@ -108,7 +108,7 @@ export const AdminStaff = () => {
       setStaffForm({
         name: staff.name || '',
         username: staff.username || (staff.email ? staff.email.split('@')[0] : 'user'),
-        password: staff.password || '123456',
+        password: '',
         email: staff.email || '',
         phone: staff.phone || '',
         refCode: staff.refCode || '',
@@ -132,7 +132,7 @@ export const AdminStaff = () => {
       setStaffForm({
         name: '',
         username: '',
-        password: 'user123',
+        password: '',
         email: '',
         phone: '',
         refCode: '',
@@ -179,6 +179,9 @@ export const AdminStaff = () => {
       refCode: (staffForm.refCode || '').toUpperCase().trim(),
       id: editingStaff?.id || `staff-${Date.now()}`
     };
+    if (!payload.password || !String(payload.password).trim()) {
+      delete payload.password;
+    }
 
     saveStaff(payload);
     setIsStaffModalOpen(false);

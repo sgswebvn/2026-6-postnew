@@ -102,7 +102,9 @@ export const api = {
   // Posts
   async getPosts() {
     try {
-      const res = await fetch(`${API_BASE}/posts`);
+      const res = await fetch(`${API_BASE}/posts`, {
+        headers: getAuthHeaders()
+      });
       if (!res.ok) throw new Error('Failed to fetch posts');
       return await res.json();
     } catch (e) {
@@ -113,7 +115,9 @@ export const api = {
 
   async getPostBySlug(slug) {
     try {
-      const res = await fetch(`${API_BASE}/posts/${slug}`);
+      const res = await fetch(`${API_BASE}/posts/${slug}`, {
+        headers: getAuthHeaders()
+      });
       if (!res.ok) return null;
       return await res.json();
     } catch {

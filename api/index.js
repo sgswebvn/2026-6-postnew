@@ -5,7 +5,6 @@ import apiRouter from '../server/routes/api.js';
 import { connectDB, memoryStore } from '../server/db.js';
 import { Post } from '../server/models/Post.js';
 import { ShortLink } from '../server/models/ShortLink.js';
-import { initialPosts } from '../server/seedData.js';
 
 dotenv.config();
 
@@ -395,62 +394,20 @@ const handlePostCrawler = async (req, res) => {
       .replace(/^\/+|\/+$/g, '')
       .replace(/-+$/, '');
 
-    const refCode = (req.query.ref || req.query.utm_source || '').toUpperCase();
+    const refCode = String(req.query.ref || req.query.utm_source || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 16);
 
     let post = null;
-
-    // 1. Fast look-up: Supabase CDN (Ultra-fast <50ms response)
-    if (slug) {
-      try {
-        const supabaseRes = await fetch(`https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/posts/${slug}.json`, {
-          signal: AbortSignal.timeout(1500)
-        });
-        if (supabaseRes.ok) {
-          post = await supabaseRes.json();
-        }
-      } catch (e) {}
-    }
-
-    // 2. Fallback to MongoDB Atlas
-    if (!post) {
-      try {
-        if (Post) {
-          post = await Post.findOne({
-            $or: [
-              { slug: slug },
-              { slug: new RegExp(`^${slug}$`, 'i') },
-              { id: slug }
-            ]
-          }).maxTimeMS(2000);
-        }
-      } catch (e) {}
-    }
-
-    // 3. Fallback to In-Memory Seed Store
-    if (!post) {
-      post = (memoryStore.posts || []).find(p => 
-        (p.slug && p.slug.toLowerCase().trim() === slug) || 
-        (p.id && p.id.toLowerCase().trim() === slug)
-      ) || initialPosts.find(p => 
-        (p.slug && p.slug.toLowerCase().trim() === slug) || 
-        (p.id && p.id.toLowerCase().trim() === slug)
-      );
-    }
-
-    // 4. Fallback: Generate smart title from slug if post not found
-    if (!post && slug) {
-      const generatedTitle = slug
-        .split('-')
-        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ');
-
-      post = {
-        title: generatedTitle,
-        slug: slug,
-        excerpt: `Read the full investigative coverage and analysis for "${generatedTitle}" on THE HORI CLICK.`,
-        coverImage: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_24.jpg'
-      };
-    }
+    try {
+      if (Post) {
+        post = await Post.findOne({
+          $or: [{ slug }, { id: slug }],
+          status: 'published'
+        }).maxTimeMS(2000);
+      }
+    } catch (e) {}
 
     if (post) {
       const html = buildPostHtml(post, req.originalUrl, refCode);
@@ -459,15 +416,7 @@ const handlePostCrawler = async (req, res) => {
       return res.send(html);
     }
 
-    const defaultHtml = buildPostHtml({
-      title: 'THE HORI CLICK | Independent US Finance, Technology & Modern Lifestyle Journal',
-      slug: slug || '',
-      excerpt: 'In-depth analysis, expert guides, and daily insights on personal finance, emerging AI, and modern digital lifestyle.',
-      coverImage: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200'
-    }, req.originalUrl, refCode);
-
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.send(defaultHtml);
+    return res.redirect(302, 'https://www.thehori.click/');
   } catch (err) {
     console.error('[Post Serverless Error]', err);
     return res.redirect(302, 'https://www.thehori.click/');
@@ -530,30 +479,23 @@ app.get('/s/:code', async (req, res) => {
       let post = null;
       if (shortLink.postSlug) {
         try {
-          if (Post) post = await Post.findOne({ slug: shortLink.postSlug });
+          if (Post) {
+            post = await Post.findOne({ slug: shortLink.postSlug, status: 'published' });
+          }
         } catch (e) {}
-        if (!post) {
-          post = (memoryStore.posts || []).find(p => p.slug === shortLink.postSlug) ||
-                 initialPosts.find(p => p.slug === shortLink.postSlug);
-        }
       }
 
-      if (!post && shortLink.postTitle) {
-        post = {
-          title: shortLink.postTitle,
-          slug: shortLink.postSlug || code,
-          coverImage: shortLink.coverImage || 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_24.jpg',
-          excerpt: `Read the full analysis for "${shortLink.postTitle}" on THE HORI CLICK.`
-        };
+      if (!post) {
+        return res.redirect(302, 'https://www.thehori.click/');
       }
 
-      if (isCrawler && post) {
+      if (isCrawler) {
         const html = buildPostHtml(post, req.originalUrl, shortLink.staffCode);
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.send(html);
       }
 
-      const targetUrl = shortLink.originalUrl || (post ? `https://www.thehori.click/post/${post.slug}${shortLink.staffCode ? `?ref=${shortLink.staffCode}` : ''}` : 'https://www.thehori.click/');
+      const targetUrl = shortLink.originalUrl || `https://www.thehori.click/post/${post.slug}${shortLink.staffCode ? `?ref=${shortLink.staffCode}` : ''}`;
       return res.redirect(302, targetUrl);
     }
 

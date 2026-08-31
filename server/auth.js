@@ -1,12 +1,22 @@
 import crypto from 'crypto';
+import { getJwtSecret, getJwtSecretPrevious } from './env.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXT_PUBLIC_SECRET || 'hori-click-secure-jwt-secret-2026-production';
+function hmacSign(header, body, secret) {
+  return crypto.createHmac('sha256', secret).update(`${header}.${body}`).digest('base64url');
+}
 
-/**
- * Hash password using standard Scrypt algorithm with 16-byte random salt
- * @param {string} password 
- * @returns {string} format 'salt:hash'
- */
+function timingSafeEqualString(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    const dummy = Buffer.alloc(bufA.length || 1);
+    crypto.timingSafeEqual(bufA.length ? bufA : dummy, bufA.length ? bufA : dummy);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 export function hashPassword(password) {
   if (!password) return '';
   const salt = crypto.randomBytes(16).toString('hex');
@@ -14,73 +24,61 @@ export function hashPassword(password) {
   return `${salt}:${hash}`;
 }
 
-/**
- * Verify password against stored hash (or legacy plaintext with auto-upgrade flag)
- * @param {string} password 
- * @param {string} storedHash 
- * @returns {{ valid: boolean, needsUpgrade: boolean }}
- */
 export function verifyPassword(password, storedHash) {
   if (!password || !storedHash) return { valid: false, needsUpgrade: false };
 
-  // Check if stored in 'salt:hash' scrypt format
   if (storedHash.includes(':')) {
     const [salt, originalHash] = storedHash.split(':');
     if (!salt || !originalHash) return { valid: false, needsUpgrade: false };
     const computedHash = crypto.scryptSync(password, salt, 64).toString('hex');
-    const valid = crypto.timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(originalHash, 'hex'));
-    return { valid, needsUpgrade: false };
+    if (computedHash.length !== originalHash.length) {
+      return { valid: false, needsUpgrade: false };
+    }
+    try {
+      const valid = crypto.timingSafeEqual(
+        Buffer.from(computedHash, 'hex'),
+        Buffer.from(originalHash, 'hex')
+      );
+      return { valid, needsUpgrade: false };
+    } catch {
+      return { valid: false, needsUpgrade: false };
+    }
   }
 
-  // Legacy plaintext match
-  const valid = password === storedHash;
-  return { valid, needsUpgrade: valid };
+  return { valid: false, needsUpgrade: false };
 }
 
-/**
- * Generate a cryptographically signed JWT-like token
- * @param {Object} payload 
- * @param {number} expiresInMs default 7 days
- * @returns {string}
- */
 export function generateToken(payload, expiresInMs = 7 * 24 * 60 * 60 * 1000) {
+  const secret = getJwtSecret();
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const body = Buffer.from(JSON.stringify({
-    ...payload,
+    id: payload.id,
+    tokenVersion: payload.tokenVersion || 0,
     iat: Date.now(),
     exp: Date.now() + expiresInMs
   })).toString('base64url');
-
-  const signature = crypto
-    .createHmac('sha256', JWT_SECRET)
-    .update(`${header}.${body}`)
-    .digest('base64url');
-
+  const signature = hmacSign(header, body, secret);
   return `${header}.${body}.${signature}`;
 }
 
-/**
- * Verify and decode token
- * @param {string} token 
- * @returns {Object|null}
- */
-export function verifyToken(token) {
-  if (!token || typeof token !== 'string') return null;
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
+function decodeAndVerifyWithSecret(header, body, signature, secret) {
+  const expectedSig = hmacSign(header, body, secret);
+  if (!timingSafeEqualString(signature, expectedSig)) return null;
 
-  const [header, body, signature] = parts;
-  const expectedSig = crypto
-    .createHmac('sha256', JWT_SECRET)
-    .update(`${header}.${body}`)
-    .digest('base64url');
-
-  if (signature !== expectedSig) return null;
+  let headerObj;
+  try {
+    headerObj = JSON.parse(Buffer.from(header, 'base64url').toString('utf-8'));
+  } catch {
+    return null;
+  }
+  if (!headerObj || headerObj.alg !== 'HS256' || headerObj.typ !== 'JWT') {
+    return null;
+  }
 
   try {
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf-8'));
-    if (payload.exp && Date.now() > payload.exp) {
-      return null; // Expired
+    if (!payload.exp || Date.now() > payload.exp) {
+      return null;
     }
     return payload;
   } catch {
@@ -88,38 +86,44 @@ export function verifyToken(token) {
   }
 }
 
-/**
- * Sanitize staff member data for public consumption (zero sensitive credentials/salaries)
- * @param {Object} staff 
- * @returns {Object}
- */
+export function verifyToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  const [header, body, signature] = parts;
+
+  try {
+    const current = decodeAndVerifyWithSecret(header, body, signature, getJwtSecret());
+    if (current) return current;
+  } catch {
+    return null;
+  }
+
+  const previous = getJwtSecretPrevious();
+  if (previous) {
+    try {
+      return decodeAndVerifyWithSecret(header, body, signature, previous);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 export function sanitizeStaffForPublic(staff) {
   if (!staff) return null;
   const obj = staff.toObject ? staff.toObject() : { ...staff };
-  delete obj.password;
-  delete obj.passwordHash;
-  delete obj.salt;
-  delete obj.salary;
   return {
     id: obj.id,
     name: obj.name,
-    username: obj.username,
-    role: obj.role || 'editor',
     roleName: obj.roleName || '',
     avatar: obj.avatar || '',
     refCode: obj.refCode || '',
-    joinDate: obj.joinDate || '',
-    status: obj.status || 'active',
-    seedingHits: obj.seedingHits || 0,
-    permissions: obj.permissions || {}
+    joinDate: obj.joinDate || ''
   };
 }
 
-/**
- * Sanitize staff member data for authenticated admin view (includes salary, hides password hash)
- * @param {Object} staff 
- * @returns {Object}
- */
 export function sanitizeStaffForAdmin(staff) {
   if (!staff) return null;
   const obj = staff.toObject ? staff.toObject() : { ...staff };
@@ -127,4 +131,18 @@ export function sanitizeStaffForAdmin(staff) {
   delete obj.passwordHash;
   delete obj.salt;
   return obj;
+}
+
+export function actorFromStaff(staff) {
+  if (!staff) return null;
+  const obj = staff.toObject ? staff.toObject() : staff;
+  return {
+    id: obj.id,
+    username: obj.username,
+    name: obj.name,
+    role: obj.role || 'editor',
+    status: obj.status || 'active',
+    tokenVersion: obj.tokenVersion || 0,
+    permissions: obj.permissions || {}
+  };
 }

@@ -9,7 +9,10 @@ import { sanitizeStaffForPublic } from '../server/auth.js';
 dotenv.config();
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mmltqgekvpdnezqdavvc.supabase.co';
-const SERVICE_KEY = process.env.NEXT_ROLE;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SERVICE_KEY) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
+}
 const BUCKET_NAME = 'postnew';
 
 async function uploadToSupabase(filePath, contentObj) {

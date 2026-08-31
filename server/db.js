@@ -12,11 +12,11 @@ import {
   initialComments, 
   initialSubscribers, 
   initialSettings,
-  initialStaffList,
   initialActivityLogs
 } from './seedData.js';
 import { Staff } from './models/Staff.js';
 import { ActivityLog } from './models/ActivityLog.js';
+import { hashPassword } from './auth.js';
 
 let isConnected = false;
 let isInMemoryFallback = false;
@@ -30,7 +30,7 @@ export const memoryStore = {
   settings: { ...initialSettings },
   comments: [...initialComments],
   subscribers: [...initialSubscribers],
-  staff: [...initialStaffList],
+  staff: [],
   activityLogs: [...initialActivityLogs],
   shortLinks: []
 };
@@ -47,7 +47,7 @@ export async function connectDB() {
 
   const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
-    isConnected = true;
+    isConnected = false;
     isInMemoryFallback = true;
     return { isConnected, isInMemoryFallback };
   }
@@ -68,8 +68,8 @@ export async function connectDB() {
       console.log('[MongoDB] Connected successfully to MongoDB Database!');
       await seedDatabase();
     } catch (err) {
-      console.warn(`[MongoDB Warning] Could not connect to MongoDB (${err.message}). Using in-memory engine.`);
-      isConnected = true;
+      console.warn(`[MongoDB Warning] Could not connect to MongoDB (${err.message}). Auth and writes are unavailable.`);
+      isConnected = false;
       isInMemoryFallback = true;
     }
     return { isConnected, isInMemoryFallback };
@@ -120,8 +120,32 @@ export async function seedDatabase() {
 
     const staffCount = await Staff.countDocuments();
     if (staffCount === 0) {
-      console.log('[MongoDB Seeder] Seeding initial Staff...');
-      await Staff.insertMany(initialStaffList);
+      const seedPass = process.env.STAFF_SEED_PASSWORD;
+      if (seedPass && String(seedPass).trim().length >= 6) {
+        await Staff.create({
+          id: 'staff-1',
+          name: 'Administrator',
+          username: process.env.STAFF_SEED_USERNAME || 'admin',
+          password: hashPassword(String(seedPass).trim()),
+          email: process.env.STAFF_SEED_EMAIL || 'admin@localhost',
+          role: 'admin',
+          roleName: 'Administrator',
+          status: 'active',
+          tokenVersion: 0,
+          permissions: {
+            canManagePosts: true,
+            canPublishPosts: true,
+            canManageCategories: true,
+            canViewRevenue: true,
+            canManageStaff: true,
+            canManagePayroll: true,
+            canManageSettings: true
+          }
+        });
+        console.log('[MongoDB Seeder] Bootstrapped admin staff from STAFF_SEED_PASSWORD.');
+      } else {
+        console.warn('[MongoDB Seeder] Staff collection is empty. Set STAFF_SEED_PASSWORD to bootstrap an admin. Existing databases are not modified.');
+      }
     }
 
     const logCount = await ActivityLog.countDocuments();

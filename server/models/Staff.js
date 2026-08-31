@@ -15,7 +15,9 @@ const staffSchema = new mongoose.Schema({
   avatar: { type: String },
   permissions: { type: mongoose.Schema.Types.Mixed, default: {} },
   salary: { type: mongoose.Schema.Types.Mixed, default: {} },
-  seedingHits: { type: Number, default: 0 }
+  seedingHits: { type: Number, default: 0 },
+  tokenVersion: { type: Number, default: 0 },
+  passwordChangedAt: { type: Date, default: null }
 }, {
   timestamps: true
 });

@@ -5,62 +5,95 @@ import { Category } from '../models/Category.js';
 import { Author } from '../models/Author.js';
 import { Setting } from '../models/Setting.js';
 import { Comment } from '../models/Comment.js';
+import { Subscriber } from '../models/Subscriber.js';
 import { Referral } from '../models/Referral.js';
 import { Staff } from '../models/Staff.js';
 import { ActivityLog } from '../models/ActivityLog.js';
-import { ShortLink } from '../models/ShortLink.js';
 import { memoryStore, getDbStatus } from '../db.js';
-import { 
-  hashPassword, 
-  verifyPassword, 
-  generateToken, 
-  verifyToken, 
-  sanitizeStaffForPublic, 
-  sanitizeStaffForAdmin 
+import {
+  hashPassword,
+  verifyPassword,
+  generateToken,
+  verifyToken,
+  sanitizeStaffForPublic,
+  sanitizeStaffForAdmin,
+  actorFromStaff
 } from '../auth.js';
-import { 
-  initialPosts, 
-  initialCategories, 
-  initialAuthors, 
-  initialSettings, 
-  initialComments, 
-  initialSubscribers,
-  initialStaffList,
-  initialActivityLogs
+import { getSupabaseServiceRoleKey, getSupabaseUrl } from '../env.js';
+import {
+  canSeeDrafts,
+  canMutatePost,
+  staffPutAuthorization,
+  extractPasswordUpdate,
+  publicPostProjection,
+  pickPostFields
+} from '../staffRules.js';
+import {
+  initialPosts,
+  initialCategories,
+  initialAuthors,
+  initialSettings,
+  initialComments,
+  initialSubscribers
 } from '../seedData.js';
 
 const router = express.Router();
 
 const isMongooseReady = () => mongoose.connection.readyState === 1;
 
-// Server-side only Supabase configuration
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mmltqgekvpdnezqdavvc.supabase.co';
-const SUPABASE_SERVICE_ROLE = process.env.NEXT_ROLE || process.env.SUPABASE_SERVICE_ROLE || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tbHRxZ2VrdnBkbmV6cWRhdnZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NzkzMDY3NywiZXhwIjoyMTAzNTA2Njc3fQ.q_cgtmcVGrBeD8eCuov4xHzl4Lahy5bJIAlsZ8Y_ZUo';
+const SUPABASE_URL = getSupabaseUrl();
 const BUCKET_NAME = 'postnew';
 
-// ==========================================
-// 🔐 AUTH & RBAC MIDDLEWARE
-// ==========================================
-export function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization || req.headers['x-auth-token'];
-  let token = '';
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.slice(7).trim();
-  } else if (authHeader) {
-    token = authHeader.trim();
-  }
+function mongoUnavailable(res) {
+  return res.status(503).json({ error: 'Service temporarily unavailable' });
+}
 
+function supabaseAuthHeaders(extra = {}) {
+  const key = getSupabaseServiceRoleKey();
+  return {
+    Authorization: `Bearer ${key}`,
+    apikey: key,
+    ...extra
+  };
+}
+
+export async function resolveActorFromToken(token) {
+  const decoded = verifyToken(token);
+  if (!decoded || !decoded.id) return { error: 401 };
+  if (!isMongooseReady()) return { error: 503 };
+  const staffMember = await Staff.findOne({ id: decoded.id });
+  if (!staffMember) return { error: 401 };
+  if ((staffMember.status || 'active') !== 'active') return { error: 401 };
+  const dbVersion = staffMember.tokenVersion || 0;
+  const tokenVersion = decoded.tokenVersion || 0;
+  if (dbVersion !== tokenVersion) return { error: 401 };
+  return { actor: actorFromStaff(staffMember), staff: staffMember };
+}
+
+function readBearer(req) {
+  const authHeader = req.headers.authorization || req.headers['x-auth-token'];
+  if (!authHeader) return '';
+  if (typeof authHeader !== 'string') return '';
+  if (authHeader.startsWith('Bearer ')) return authHeader.slice(7).trim();
+  return authHeader.trim();
+}
+
+export function requireAuth(req, res, next) {
+  const token = readBearer(req);
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized: Authentication token required' });
   }
-
-  const decoded = verifyToken(token);
-  if (!decoded) {
+  resolveActorFromToken(token).then((result) => {
+    if (result.error === 503) return mongoUnavailable(res);
+    if (result.error) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
+    }
+    req.user = result.actor;
+    req.staffRecord = result.staff;
+    next();
+  }).catch(() => {
     return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
-  }
-
-  req.user = decoded;
-  next();
+  });
 }
 
 export function requireRole(allowedRoles = []) {
@@ -76,30 +109,30 @@ export function requireRole(allowedRoles = []) {
 }
 
 export function optionalAuth(req, res, next) {
-  const authHeader = req.headers.authorization || req.headers['x-auth-token'];
-  if (authHeader) {
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
-    const decoded = verifyToken(token);
-    if (decoded) req.user = decoded;
-  }
-  next();
+  const token = readBearer(req);
+  if (!token) return next();
+  resolveActorFromToken(token).then((result) => {
+    if (result.actor) req.user = result.actor;
+    next();
+  }).catch(() => next());
 }
 
-// ==========================================
-// ☁️ SERVER-SIDE SUPABASE CDN SYNC HELPERS
-// ==========================================
 async function syncPostToSupabase(post) {
   try {
+    const status = post.status || 'draft';
     const cleanSlug = (post.slug || post.id || '').toLowerCase().trim().replace(/[^a-z0-9-]/g, '-');
+    if (status !== 'published') {
+      await deletePostFromSupabase(post.id, post.slug);
+      return;
+    }
+    const publicPost = publicPostProjection(post);
     await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/posts/${cleanSlug}.json`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-        'apikey': SUPABASE_SERVICE_ROLE,
+      headers: supabaseAuthHeaders({
         'Content-Type': 'application/json',
         'x-upsert': 'true'
-      },
-      body: JSON.stringify(post)
+      }),
+      body: JSON.stringify(publicPost)
     });
 
     let currentManifest = [];
@@ -108,31 +141,20 @@ async function syncPostToSupabase(post) {
       if (manRes.ok) currentManifest = await manRes.json();
     } catch (e) {}
 
-    const updatedManifest = [post, ...(Array.isArray(currentManifest) ? currentManifest.filter(p => p.id !== post.id && p.slug !== post.slug) : [])];
+    const publishedOnly = (Array.isArray(currentManifest) ? currentManifest : [])
+      .filter((p) => p && p.status === 'published' && p.id !== publicPost.id && p.slug !== publicPost.slug);
+    const updatedManifest = [publicPost, ...publishedOnly];
     await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/posts_manifest.json`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-        'apikey': SUPABASE_SERVICE_ROLE,
+      headers: supabaseAuthHeaders({
         'Content-Type': 'application/json',
         'x-upsert': 'true'
-      },
+      }),
       body: JSON.stringify(updatedManifest)
     });
   } catch (err) {
     console.warn('[Supabase Sync Warning]', err.message);
   }
-}
-
-async function getSupabasePostsManifest() {
-  try {
-    const manRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/posts_manifest.json`);
-    if (manRes.ok) {
-      const data = await manRes.json();
-      if (Array.isArray(data) && data.length > 0) return data;
-    }
-  } catch (e) {}
-  return [];
 }
 
 async function deletePostFromSupabase(id, slug = '') {
@@ -146,15 +168,13 @@ async function deletePostFromSupabase(id, slug = '') {
       }
     } catch (e) {}
 
-    const updated = manifest.filter(p => p.id !== id && (!slug || p.slug !== slug));
+    const updated = manifest.filter((p) => p.id !== id && (!slug || p.slug !== slug));
     await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/posts_manifest.json`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-        'apikey': SUPABASE_SERVICE_ROLE,
+      headers: supabaseAuthHeaders({
         'Content-Type': 'application/json',
         'x-upsert': 'true'
-      },
+      }),
       body: JSON.stringify(updated)
     });
 
@@ -162,10 +182,7 @@ async function deletePostFromSupabase(id, slug = '') {
       const cleanSlug = slug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-');
       await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/posts/${cleanSlug}.json`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-          'apikey': SUPABASE_SERVICE_ROLE
-        }
+        headers: supabaseAuthHeaders()
       });
     }
   } catch (err) {
@@ -173,37 +190,20 @@ async function deletePostFromSupabase(id, slug = '') {
   }
 }
 
-// ⚠️ ZERO PLAINTEXT PASSWORDS: Sync only sanitized staff data to Supabase public CDN
 async function syncStaffToSupabase(staffList) {
   try {
-    const sanitized = (Array.isArray(staffList) ? staffList : []).map(s => sanitizeStaffForPublic(s));
+    const sanitized = (Array.isArray(staffList) ? staffList : []).map((s) => sanitizeStaffForPublic(s));
     await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/staff_manifest.json`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-        'apikey': SUPABASE_SERVICE_ROLE,
+      headers: supabaseAuthHeaders({
         'Content-Type': 'application/json',
         'x-upsert': 'true'
-      },
+      }),
       body: JSON.stringify(sanitized)
     });
   } catch (e) {}
 }
 
-async function getSupabaseStaffManifest() {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/staff_manifest.json`);
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) return data;
-    }
-  } catch (e) {}
-  return [];
-}
-
-// ==========================================
-// 1. SYSTEM HEALTH & MONGODB STATUS
-// ==========================================
 router.get('/status', (req, res) => {
   res.json({
     status: 'online',
@@ -212,9 +212,6 @@ router.get('/status', (req, res) => {
   });
 });
 
-// ==========================================
-// 2. FILE UPLOAD (SERVER-SIDE SECURED)
-// ==========================================
 router.post('/upload', requireAuth, async (req, res) => {
   try {
     const { imageBase64, fileName, mimeType } = req.body;
@@ -224,36 +221,33 @@ router.post('/upload', requireAuth, async (req, res) => {
 
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
-    const ext = (fileName && fileName.includes('.')) ? fileName.split('.').pop() : 'webp';
-    const cleanName = `upload_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const ext = (fileName && fileName.includes('.')) ? fileName.split('.').pop().replace(/[^a-zA-Z0-9]/g, '') : 'webp';
+    const cleanName = `upload_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext || 'webp'}`;
     const filePath = `uploads/${cleanName}`;
 
     const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/${filePath}`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE}`,
-        'apikey': SUPABASE_SERVICE_ROLE,
+      headers: supabaseAuthHeaders({
         'Content-Type': mimeType || 'image/webp',
         'x-upsert': 'true'
-      },
+      }),
       body: buffer
     });
 
     if (!uploadRes.ok) {
-      const err = await uploadRes.text();
-      return res.status(500).json({ error: `Upload to storage failed: ${err}` });
+      return res.status(500).json({ error: 'Upload to storage failed' });
     }
 
     const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${filePath}`;
     return res.json({ url: publicUrl, path: filePath });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    if (err && err.message && err.message.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+      return mongoUnavailable(res);
+    }
+    return res.status(500).json({ error: 'Upload failed' });
   }
 });
 
-// ==========================================
-// 3. AUTHENTICATION & SESSION MANAGEMENT
-// ==========================================
 router.post('/auth/login', async (req, res) => {
   const rawId = req.body?.identifier;
   const rawPass = req.body?.password;
@@ -262,27 +256,26 @@ router.post('/auth/login', async (req, res) => {
     return res.status(400).json({ error: 'Tên đăng nhập và mật khẩu là bắt buộc và phải là chuỗi hợp lệ' });
   }
 
+  if (!isMongooseReady()) {
+    return mongoUnavailable(res);
+  }
+
   const identifier = rawId.trim();
   const password = rawPass.trim();
 
   try {
-    let staffMember = null;
-    if (isMongooseReady()) {
-      staffMember = await Staff.findOne({
-        $or: [
-          { username: identifier },
-          { email: identifier }
-        ]
-      });
-    }
+    const staffMember = await Staff.findOne({
+      $or: [
+        { username: identifier },
+        { email: identifier }
+      ]
+    });
 
     if (!staffMember) {
-      staffMember = (memoryStore.staff || []).find(
-        s => s.username === identifier.trim() || s.email === identifier.trim()
-      );
+      return res.status(401).json({ error: 'Tài khoản hoặc mật khẩu không chính xác' });
     }
 
-    if (!staffMember) {
+    if ((staffMember.status || 'active') !== 'active') {
       return res.status(401).json({ error: 'Tài khoản hoặc mật khẩu không chính xác' });
     }
 
@@ -291,8 +284,7 @@ router.post('/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Tài khoản hoặc mật khẩu không chính xác' });
     }
 
-    // Auto-upgrade legacy plaintext password to secure Scrypt hash in MongoDB
-    if (needsUpgrade && isMongooseReady()) {
+    if (needsUpgrade) {
       const hashed = hashPassword(password);
       staffMember.password = hashed;
       await Staff.updateOne({ id: staffMember.id }, { $set: { password: hashed } });
@@ -300,9 +292,7 @@ router.post('/auth/login', async (req, res) => {
 
     const token = generateToken({
       id: staffMember.id,
-      username: staffMember.username,
-      name: staffMember.name,
-      role: staffMember.role || 'editor'
+      tokenVersion: staffMember.tokenVersion || 0
     });
 
     return res.json({
@@ -311,26 +301,18 @@ router.post('/auth/login', async (req, res) => {
       user: sanitizeStaffForAdmin(staffMember)
     });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    if (error && error.message && error.message.includes('JWT_SECRET')) {
+      return mongoUnavailable(res);
+    }
+    return res.status(500).json({ error: 'Login failed' });
   }
 });
 
 router.get('/auth/me', requireAuth, async (req, res) => {
   try {
-    if (isMongooseReady()) {
-      const staffMember = await Staff.findOne({
-        $or: [
-          { id: req.user.id },
-          { username: req.user.username }
-        ]
-      });
-      if (staffMember) {
-        return res.json(sanitizeStaffForAdmin(staffMember));
-      }
-    }
-    return res.json(req.user);
+    return res.json(sanitizeStaffForAdmin(req.staffRecord));
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'Failed to load profile' });
   }
 });
 
@@ -339,39 +321,28 @@ router.post('/auth/change-password', requireAuth, async (req, res) => {
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ error: 'Vui lòng điền mật khẩu hiện tại và mật khẩu mới' });
   }
-  if (newPassword.length < 6) {
+  if (typeof newPassword !== 'string' || newPassword.length < 6) {
     return res.status(400).json({ error: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
   }
 
   try {
-    let staffMember = null;
-    if (isMongooseReady()) {
-      staffMember = await Staff.findOne({ id: req.user.id });
-    } else {
-      staffMember = (memoryStore.staff || []).find(s => s.id === req.user.id);
-    }
-
-    if (!staffMember) {
-      return res.status(404).json({ error: 'Không tìm thấy thông tin tài khoản' });
-    }
-
+    const staffMember = req.staffRecord;
     const { valid } = verifyPassword(currentPassword, staffMember.password);
     if (!valid) {
       return res.status(400).json({ error: 'Mật khẩu hiện tại không đúng' });
     }
 
     const newHash = hashPassword(newPassword);
-    if (isMongooseReady()) {
-      await Staff.updateOne({ id: req.user.id }, { $set: { password: newHash } });
-    }
-    if (memoryStore.staff) {
-      const idx = memoryStore.staff.findIndex(s => s.id === req.user.id);
-      if (idx !== -1) memoryStore.staff[idx].password = newHash;
-    }
+    const nextVersion = (staffMember.tokenVersion || 0) + 1;
+    await Staff.updateOne(
+      { id: req.user.id },
+      { $set: { password: newHash, tokenVersion: nextVersion, passwordChangedAt: new Date() } }
+    );
 
-    return res.json({ success: true, message: 'Đổi mật khẩu thành công!' });
+    const token = generateToken({ id: req.user.id, tokenVersion: nextVersion });
+    return res.json({ success: true, message: 'Đổi mật khẩu thành công!', token });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to change password' });
   }
 });
 
@@ -379,224 +350,164 @@ router.post('/auth/logout', (req, res) => {
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
-// ==========================================
-// 4. POSTS ENDPOINTS (CRUD with RBAC)
-// ==========================================
-router.get('/posts', async (req, res) => {
+router.get('/posts', optionalAuth, async (req, res) => {
   try {
-    if (isMongooseReady()) {
-      const posts = await Post.find().sort({ publishedAt: -1 });
-      if (posts && posts.length > 0) return res.json(posts);
+    if (!isMongooseReady()) {
+      return mongoUnavailable(res);
     }
 
-    const cloudPosts = await getSupabasePostsManifest();
-    const memoryPosts = memoryStore.posts || [];
-    const merged = [...cloudPosts];
-    for (const p of memoryPosts) {
-      if (!merged.some(m => m.id === p.id || m.slug === p.slug)) {
-        merged.push(p);
-      }
+    const allowDrafts = req.user && canSeeDrafts(req.user.role);
+    const query = allowDrafts ? {} : { status: 'published' };
+    const posts = await Post.find(query).sort({ publishedAt: -1 });
+    if (allowDrafts) {
+      return res.json(posts);
     }
-    return res.json(merged.length > 0 ? merged : initialPosts);
+    return res.json(posts.map(publicPostProjection));
   } catch (error) {
-    return res.json(memoryStore.posts || initialPosts);
+    return mongoUnavailable(res);
   }
 });
 
 router.get('/posts/published', async (req, res) => {
   try {
-    if (isMongooseReady()) {
-      const posts = await Post.find({ status: 'published' }).sort({ publishedAt: -1 });
-      if (posts && posts.length > 0) return res.json(posts);
+    if (!isMongooseReady()) {
+      return mongoUnavailable(res);
     }
-    const cloudPosts = await getSupabasePostsManifest();
-    const memoryPosts = memoryStore.posts || [];
-    const merged = [...cloudPosts];
-    for (const p of memoryPosts) {
-      if (!merged.some(m => m.id === p.id || m.slug === p.slug)) {
-        merged.push(p);
-      }
-    }
-    const published = (merged.length > 0 ? merged : initialPosts).filter(p => p.status === 'published');
-    return res.json(published);
+    const posts = await Post.find({ status: 'published' }).sort({ publishedAt: -1 });
+    return res.json(posts.map(publicPostProjection));
   } catch (error) {
-    const published = (memoryStore.posts || initialPosts).filter(p => p.status === 'published');
-    return res.json(published);
+    return mongoUnavailable(res);
   }
 });
 
-router.get('/posts/:slug', async (req, res) => {
+router.get('/posts/:slug', optionalAuth, async (req, res) => {
   const rawSlug = req.params.slug;
-  const clean = (rawSlug || '').trim().replace(/-+$/, '');
+  const clean = (rawSlug || '').trim().replace(/[^a-z0-9-]/g, '-').replace(/-+$/, '');
   try {
-    if (isMongooseReady()) {
-      const post = await Post.findOne({ 
-        $or: [
-          { slug: rawSlug }, 
-          { slug: clean }, 
-          { id: rawSlug },
-          { slug: { $regex: `^${clean}$`, $options: 'i' } }
-        ] 
-      });
-      if (post) return res.json(post);
+    if (!isMongooseReady()) {
+      return mongoUnavailable(res);
     }
 
-    let post = (memoryStore.posts || []).find(p => 
-      p.slug === rawSlug || 
-      p.slug === clean || 
-      p.id === rawSlug || 
-      (p.slug && clean && p.slug.toLowerCase() === clean.toLowerCase())
-    );
+    const post = await Post.findOne({
+      $or: [
+        { slug: rawSlug },
+        { slug: clean },
+        { id: rawSlug }
+      ]
+    });
 
-    if (post) return res.json(post);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
 
-    const cloudPosts = await getSupabasePostsManifest();
-    post = cloudPosts.find(p => 
-      p.slug === rawSlug || 
-      p.slug === clean || 
-      p.id === rawSlug ||
-      (p.slug && clean && p.slug.toLowerCase() === clean.toLowerCase())
-    );
-    if (post) return res.json(post);
+    const allowDrafts = req.user && canSeeDrafts(req.user.role);
+    if (post.status !== 'published' && !allowDrafts) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
 
-    // Fetch individual post json from Supabase CDN
-    try {
-      const singleRes = await fetch(`${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/posts/${encodeURIComponent(clean)}.json`);
-      if (singleRes.ok) {
-        const singleData = await singleRes.json();
-        if (singleData && singleData.slug) return res.json(singleData);
-      }
-    } catch (e) {}
-
-    const seed = initialPosts.find(p => p.slug === rawSlug || p.slug === clean || p.id === rawSlug);
-    if (seed) return res.json(seed);
-
-    return res.status(404).json({ error: 'Post not found' });
+    if (!allowDrafts) {
+      return res.json(publicPostProjection(post));
+    }
+    return res.json(post);
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to load post' });
   }
 });
 
-// Protected: Create Post (Requires Auth & Role)
 router.post('/posts', requireAuth, requireRole(['admin', 'editor', 'author']), async (req, res) => {
   try {
-    const rawPost = req.body;
-    let baseSlug = (rawPost.slug || rawPost.title || `post-${Date.now()}`)
+    const fields = pickPostFields(req.body);
+    let baseSlug = (fields.slug || fields.title || `post-${Date.now()}`)
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
     const newPost = {
-      ...rawPost,
-      id: rawPost.id && !rawPost.id.startsWith('new-') ? rawPost.id : `post-${Date.now()}`,
+      ...fields,
+      id: `post-${Date.now()}`,
       slug: baseSlug,
       createdById: req.user.id,
       createdByName: req.user.name,
-      publishedAt: rawPost.publishedAt || new Date().toISOString(),
+      status: fields.status === 'published' ? 'published' : (fields.status || 'draft'),
+      publishedAt: fields.publishedAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
-    // 1. Primary write to MongoDB Atlas
-    let savedPost = newPost;
-    if (isMongooseReady()) {
-      savedPost = await Post.create(newPost);
-    } else {
-      if (!memoryStore.posts) memoryStore.posts = [];
-      memoryStore.posts.unshift(newPost);
-    }
-
-    // 2. Server-side mirror to Supabase CDN
-    syncPostToSupabase(newPost).catch(() => {});
-
+    const savedPost = await Post.create(newPost);
+    syncPostToSupabase(savedPost).catch(() => {});
     return res.status(201).json(savedPost);
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: 'Failed to create post' });
   }
 });
 
-// Protected: Update Post (Requires Auth & Role)
 router.put('/posts/:id', requireAuth, requireRole(['admin', 'editor', 'author']), async (req, res) => {
   const { id } = req.params;
   try {
-    const updateData = { ...req.body, updatedAt: new Date().toISOString() };
-    delete updateData._id;
-
-    let updatedPost = null;
-    if (isMongooseReady()) {
-      updatedPost = await Post.findOneAndUpdate(
-        { $or: [{ id }, { slug: id }] },
-        updateData,
-        { new: true, upsert: true }
-      );
+    const existing = await Post.findOne({ $or: [{ id }, { slug: id }] });
+    if (!existing) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    if (!canMutatePost(req.user, existing)) {
+      return res.status(403).json({ error: 'Forbidden: You can only modify your own posts' });
     }
 
-    if (!memoryStore.posts) memoryStore.posts = [];
-    const idx = memoryStore.posts.findIndex(p => p.id === id || p.slug === id);
-    if (idx !== -1) {
-      memoryStore.posts[idx] = { ...memoryStore.posts[idx], ...updateData };
-    } else {
-      memoryStore.posts.unshift(updateData);
-    }
+    const fields = pickPostFields(req.body);
+    const updateData = { ...fields, updatedAt: new Date().toISOString() };
+    delete updateData.id;
+    delete updateData.createdById;
 
-    syncPostToSupabase(updatedPost || updateData).catch(() => {});
+    const updatedPost = await Post.findOneAndUpdate(
+      { id: existing.id },
+      { $set: updateData },
+      { new: true, upsert: false }
+    );
 
-    return res.json(updatedPost || updateData);
+    syncPostToSupabase(updatedPost).catch(() => {});
+    return res.json(updatedPost);
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: 'Failed to update post' });
   }
 });
 
-// Protected: Delete Post (Requires Auth & Role)
 router.delete('/posts/:id', requireAuth, requireRole(['admin', 'editor', 'author']), async (req, res) => {
   const { id } = req.params;
   try {
-    let postSlug = '';
-    if (isMongooseReady()) {
-      const found = await Post.findOne({ $or: [{ id }, { slug: id }] });
-      if (found) postSlug = found.slug;
-      await Post.deleteOne({ $or: [{ id }, { slug: id }, { slug: postSlug }] });
+    const found = await Post.findOne({ $or: [{ id }, { slug: id }] });
+    if (!found) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    if (!canMutatePost(req.user, found)) {
+      return res.status(403).json({ error: 'Forbidden: You can only delete your own posts' });
     }
 
-    if (!memoryStore.posts) memoryStore.posts = [];
-    const memPost = memoryStore.posts.find(p => p.id === id || p.slug === id);
-    if (memPost && !postSlug) postSlug = memPost.slug;
-    memoryStore.posts = memoryStore.posts.filter(p => p.id !== id && p.slug !== id && (!postSlug || p.slug !== postSlug));
-
-    await deletePostFromSupabase(id, postSlug).catch(() => {});
-
+    await Post.deleteOne({ id: found.id });
+    await deletePostFromSupabase(found.id, found.slug).catch(() => {});
     return res.status(204).send();
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to delete post' });
   }
 });
 
 router.post('/posts/:slug/view', async (req, res) => {
   const { slug } = req.params;
   try {
-    if (isMongooseReady()) {
-      const post = await Post.findOneAndUpdate(
-        { $or: [{ slug }, { id: slug }] },
-        { $inc: { views: 1 } },
-        { new: true }
-      );
-      if (post) return res.json({ views: post.views });
+    if (!isMongooseReady()) {
+      return res.json({ views: 1 });
     }
-
-    const post = (memoryStore.posts || []).find(p => p.slug === slug || p.id === slug);
-    if (post) {
-      post.views = (post.views || 0) + 1;
-      return res.json({ views: post.views });
-    }
+    const post = await Post.findOneAndUpdate(
+      { $or: [{ slug }, { id: slug }], status: 'published' },
+      { $inc: { views: 1 } },
+      { new: true }
+    );
+    if (post) return res.json({ views: post.views });
     return res.json({ views: 1 });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to record view' });
   }
 });
 
-// ==========================================
-// 5. CATEGORIES ENDPOINTS
-// ==========================================
 router.get('/categories', async (req, res) => {
   try {
     if (isMongooseReady()) {
@@ -612,51 +523,34 @@ router.get('/categories', async (req, res) => {
 router.post('/categories', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
   try {
     const newCat = { ...req.body, id: req.body.id || req.body.slug || `cat-${Date.now()}` };
-    if (isMongooseReady()) {
-      const created = await Category.create(newCat);
-      return res.status(201).json(created);
-    }
-    if (!memoryStore.categories) memoryStore.categories = [];
-    memoryStore.categories.push(newCat);
-    return res.status(201).json(newCat);
+    const created = await Category.create(newCat);
+    return res.status(201).json(created);
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: 'Failed to create category' });
   }
 });
 
 router.put('/categories/:id', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
   const { id } = req.params;
   try {
-    if (isMongooseReady()) {
-      const updated = await Category.findOneAndUpdate({ id }, req.body, { new: true, upsert: true });
-      return res.json(updated);
-    }
-    if (!memoryStore.categories) memoryStore.categories = [];
-    const idx = memoryStore.categories.findIndex(c => c.id === id);
-    if (idx !== -1) memoryStore.categories[idx] = { ...memoryStore.categories[idx], ...req.body };
-    return res.json(req.body);
+    const updated = await Category.findOneAndUpdate({ id }, req.body, { new: true, upsert: false });
+    if (!updated) return res.status(404).json({ error: 'Category not found' });
+    return res.json(updated);
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: 'Failed to update category' });
   }
 });
 
 router.delete('/categories/:id', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
   const { id } = req.params;
   try {
-    if (isMongooseReady()) {
-      await Category.deleteOne({ id });
-    }
-    if (!memoryStore.categories) memoryStore.categories = [];
-    memoryStore.categories = memoryStore.categories.filter(c => c.id !== id);
+    await Category.deleteOne({ id });
     return res.status(204).send();
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to delete category' });
   }
 });
 
-// ==========================================
-// 6. AUTHORS ENDPOINTS
-// ==========================================
 router.get('/authors', async (req, res) => {
   try {
     if (isMongooseReady()) {
@@ -672,51 +566,34 @@ router.get('/authors', async (req, res) => {
 router.post('/authors', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
   try {
     const newAuthor = { ...req.body, id: req.body.id || `author-${Date.now()}` };
-    if (isMongooseReady()) {
-      const created = await Author.create(newAuthor);
-      return res.status(201).json(created);
-    }
-    if (!memoryStore.authors) memoryStore.authors = [];
-    memoryStore.authors.push(newAuthor);
-    return res.status(201).json(newAuthor);
+    const created = await Author.create(newAuthor);
+    return res.status(201).json(created);
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: 'Failed to create author' });
   }
 });
 
 router.put('/authors/:id', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
   const { id } = req.params;
   try {
-    if (isMongooseReady()) {
-      const updated = await Author.findOneAndUpdate({ id }, req.body, { new: true, upsert: true });
-      return res.json(updated);
-    }
-    if (!memoryStore.authors) memoryStore.authors = [];
-    const idx = memoryStore.authors.findIndex(a => a.id === id);
-    if (idx !== -1) memoryStore.authors[idx] = { ...memoryStore.authors[idx], ...req.body };
-    return res.json(req.body);
+    const updated = await Author.findOneAndUpdate({ id }, req.body, { new: true, upsert: false });
+    if (!updated) return res.status(404).json({ error: 'Author not found' });
+    return res.json(updated);
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: 'Failed to update author' });
   }
 });
 
 router.delete('/authors/:id', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
   const { id } = req.params;
   try {
-    if (isMongooseReady()) {
-      await Author.deleteOne({ id });
-    }
-    if (!memoryStore.authors) memoryStore.authors = [];
-    memoryStore.authors = memoryStore.authors.filter(a => a.id !== id);
+    await Author.deleteOne({ id });
     return res.status(204).send();
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to delete author' });
   }
 });
 
-// ==========================================
-// 7. SETTINGS ENDPOINTS
-// ==========================================
 router.get('/settings', async (req, res) => {
   try {
     if (isMongooseReady()) {
@@ -731,34 +608,23 @@ router.get('/settings', async (req, res) => {
 
 router.put('/settings', requireAuth, requireRole(['admin']), async (req, res) => {
   try {
-    if (isMongooseReady()) {
-      const updated = await Setting.findOneAndUpdate({}, req.body, { new: true, upsert: true });
-      return res.json(updated);
-    }
-    memoryStore.settings = { ...memoryStore.settings, ...req.body };
-    return res.json(memoryStore.settings);
+    const updated = await Setting.findOneAndUpdate({}, req.body, { new: true, upsert: true });
+    return res.json(updated);
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: 'Failed to update settings' });
   }
 });
 
 router.post('/settings/reset', requireAuth, requireRole(['admin']), async (req, res) => {
   try {
-    if (isMongooseReady()) {
-      await Setting.deleteMany({});
-      const reset = await Setting.create(initialSettings);
-      return res.json(reset);
-    }
-    memoryStore.settings = { ...initialSettings };
-    return res.json(memoryStore.settings);
+    await Setting.deleteMany({});
+    const reset = await Setting.create(initialSettings);
+    return res.json(reset);
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to reset settings' });
   }
 });
 
-// ==========================================
-// 8. COMMENTS ENDPOINTS
-// ==========================================
 router.get('/comments', async (req, res) => {
   try {
     if (isMongooseReady()) {
@@ -783,11 +649,9 @@ router.post('/comments', async (req, res) => {
       const created = await Comment.create(newComment);
       return res.status(201).json(created);
     }
-    if (!memoryStore.comments) memoryStore.comments = [];
-    memoryStore.comments.unshift(newComment);
-    return res.status(201).json(newComment);
+    return res.status(503).json({ error: 'Service temporarily unavailable' });
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: 'Failed to post comment' });
   }
 });
 
@@ -798,49 +662,34 @@ router.post('/comments/:id/like', async (req, res) => {
       const comment = await Comment.findOneAndUpdate({ id }, { $inc: { likes: 1 } }, { new: true });
       if (comment) return res.json({ likes: comment.likes });
     }
-    const c = (memoryStore.comments || []).find(item => item.id === id);
-    if (c) {
-      c.likes = (c.likes || 0) + 1;
-      return res.json({ likes: c.likes });
-    }
     return res.json({ likes: 1 });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to like comment' });
   }
 });
 
 router.delete('/comments/:id', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
   const { id } = req.params;
   try {
-    if (isMongooseReady()) {
-      await Comment.deleteOne({ id });
-    }
-    if (!memoryStore.comments) memoryStore.comments = [];
-    memoryStore.comments = memoryStore.comments.filter(c => c.id !== id);
+    await Comment.deleteOne({ id });
     return res.status(204).send();
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to delete comment' });
   }
 });
 
-// ==========================================
-// 9. SUBSCRIBERS ENDPOINTS
-// ==========================================
 router.get('/subscribers', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
   try {
-    if (isMongooseReady()) {
-      const subs = await Subscriber.find().sort({ subscribedAt: -1 });
-      return res.json(subs);
-    }
-    return res.json(memoryStore.subscribers || initialSubscribers);
+    const subs = await Subscriber.find().sort({ subscribedAt: -1 });
+    return res.json(subs);
   } catch (error) {
-    return res.json(memoryStore.subscribers || initialSubscribers);
+    return res.status(500).json({ error: 'Failed to load subscribers' });
   }
 });
 
 router.post('/subscribers', async (req, res) => {
   const { email, source } = req.body;
-  if (!email || !email.includes('@')) {
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email is required' });
   }
   try {
@@ -856,154 +705,161 @@ router.post('/subscribers', async (req, res) => {
     }
     return res.status(201).json({ success: true, email: newSub.email });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to subscribe' });
   }
 });
 
 router.delete('/subscribers/:email', requireAuth, requireRole(['admin']), async (req, res) => {
   const { email } = req.params;
   try {
-    if (isMongooseReady()) {
-      await Subscriber.deleteOne({ email: email.toLowerCase() });
-    }
+    await Subscriber.deleteOne({ email: email.toLowerCase() });
     return res.status(204).send();
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to delete subscriber' });
   }
 });
 
-// ==========================================
-// 10. STAFF MANAGEMENT (SECURED & SANITIZED)
-// ==========================================
 router.get('/staff', optionalAuth, async (req, res) => {
   try {
-    let rawList = [];
-    if (isMongooseReady()) {
-      rawList = await Staff.find().sort({ createdAt: -1 });
+    if (!isMongooseReady()) {
+      return mongoUnavailable(res);
     }
-    if (!rawList || rawList.length === 0) {
-      const cloudStaff = await getSupabaseStaffManifest();
-      rawList = cloudStaff.length > 0 ? cloudStaff : (memoryStore.staff || initialStaffList);
-    }
-
-    // Role-based filtering: Admin/Accountant sees salary, others get public sanitized view
+    const rawList = await Staff.find().sort({ createdAt: -1 });
     const isAdminUser = req.user && (req.user.role === 'admin' || req.user.role === 'accountant');
-    const sanitizedList = rawList.map(s => isAdminUser ? sanitizeStaffForAdmin(s) : sanitizeStaffForPublic(s));
+    const sanitizedList = rawList.map((s) => (isAdminUser ? sanitizeStaffForAdmin(s) : sanitizeStaffForPublic(s)));
     return res.json(sanitizedList);
   } catch (error) {
-    return res.json((memoryStore.staff || initialStaffList).map(s => sanitizeStaffForPublic(s)));
+    return mongoUnavailable(res);
   }
 });
 
 router.post('/staff', requireAuth, requireRole(['admin']), async (req, res) => {
   try {
-    const rawPassword = req.body.password || '123456';
-    const newStaff = {
-      ...req.body,
-      id: req.body.id || `staff-${Date.now()}`,
-      password: hashPassword(rawPassword) // Scrypt hashed
-    };
-
-    let created = newStaff;
-    if (isMongooseReady()) {
-      created = await Staff.create(newStaff);
+    const rawPassword = req.body.password;
+    if (typeof rawPassword !== 'string' || rawPassword.trim().length < 6) {
+      return res.status(400).json({ error: 'Password is required (minimum 6 characters)' });
+    }
+    const username = String(req.body.username || '').trim();
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+    const existing = await Staff.findOne({ username });
+    if (existing) {
+      return res.status(409).json({ error: 'Username already exists' });
     }
 
-    // Update memory & Supabase with sanitized records
-    if (!memoryStore.staff) memoryStore.staff = [];
-    memoryStore.staff.unshift(newStaff);
+    const newStaff = {
+      name: req.body.name,
+      username,
+      email: req.body.email,
+      phone: req.body.phone,
+      refCode: req.body.refCode,
+      role: req.body.role || 'editor',
+      roleName: req.body.roleName,
+      joinDate: req.body.joinDate,
+      status: req.body.status || 'active',
+      avatar: req.body.avatar,
+      permissions: req.body.permissions || {},
+      salary: req.body.salary || {},
+      id: `staff-${Date.now()}`,
+      password: hashPassword(rawPassword.trim()),
+      tokenVersion: 0
+    };
 
-    const allStaff = isMongooseReady() ? await Staff.find() : memoryStore.staff;
+    const created = await Staff.create(newStaff);
+    const allStaff = await Staff.find();
     syncStaffToSupabase(allStaff).catch(() => {});
-
     return res.status(201).json(sanitizeStaffForAdmin(created));
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: 'Failed to create staff' });
   }
 });
 
 router.put('/staff/:id', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  const targetId = String(id).trim();
-
-  // Non-admin can only update their own profile
-  if (req.user.role !== 'admin' && req.user.id !== targetId) {
-    return res.status(403).json({ error: 'Forbidden: You can only update your own profile' });
+  const decision = staffPutAuthorization(req.user, req.params.id);
+  if (decision.error) {
+    return res.status(decision.error).json({ error: decision.message });
   }
 
   try {
-    const updatedData = { ...req.body, id: targetId };
-
-    // Mass Assignment Protection: Non-admins cannot alter role, permissions, or salary
-    if (req.user.role !== 'admin') {
-      delete updatedData.role;
-      delete updatedData.roleName;
-      delete updatedData.permissions;
-      delete updatedData.salary;
-      delete updatedData.status;
+    const existing = await Staff.findOne(decision.filter);
+    if (!existing) {
+      return res.status(404).json({ error: 'Staff not found' });
     }
 
-    // If password provided, hash it with Scrypt
-    if (updatedData.password && typeof updatedData.password === 'string' && updatedData.password.trim()) {
-      updatedData.password = hashPassword(updatedData.password.trim());
-    } else {
-      delete updatedData.password; // Do not overwrite existing password with undefined
+    const passwordDecision = extractPasswordUpdate(req.body);
+    if (passwordDecision.error) {
+      return res.status(passwordDecision.error).json({ error: passwordDecision.message });
     }
 
-    let updated = updatedData;
-    if (isMongooseReady()) {
-      const query = { $or: [{ id: targetId }] };
-      if (updatedData.username) query.$or.push({ username: String(updatedData.username).trim() });
-      updated = await Staff.findOneAndUpdate(query, updatedData, { returnDocument: 'after', upsert: true });
+    const updatedData = {};
+    const allowed = ['name', 'email', 'phone', 'refCode', 'avatar', 'joinDate'];
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+        updatedData[key] = req.body[key];
+      }
     }
 
-    if (!memoryStore.staff) memoryStore.staff = [];
-    const idx = memoryStore.staff.findIndex(s => s.id === targetId || (s.username && updatedData.username && s.username === updatedData.username));
-    if (idx !== -1) {
-      memoryStore.staff[idx] = { ...memoryStore.staff[idx], ...updatedData };
-    } else {
-      memoryStore.staff.unshift(updatedData);
+    if (req.user.role === 'admin') {
+      for (const key of ['role', 'roleName', 'permissions', 'salary', 'status']) {
+        if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+          updatedData[key] = req.body[key];
+        }
+      }
     }
 
-    const allStaff = isMongooseReady() ? await Staff.find() : memoryStore.staff;
+    if (Object.prototype.hasOwnProperty.call(req.body, 'username')) {
+      const nextUsername = String(req.body.username || '').trim();
+      if (!nextUsername) {
+        return res.status(400).json({ error: 'Username is required' });
+      }
+      if (nextUsername !== existing.username) {
+        const collision = await Staff.findOne({ username: nextUsername, id: { $ne: existing.id } });
+        if (collision) {
+          return res.status(409).json({ error: 'Username already exists' });
+        }
+        updatedData.username = nextUsername;
+      }
+    }
+
+    if (passwordDecision.change) {
+      updatedData.password = hashPassword(passwordDecision.password);
+      updatedData.tokenVersion = (existing.tokenVersion || 0) + 1;
+      updatedData.passwordChangedAt = new Date();
+    }
+
+    const updated = await Staff.findOneAndUpdate(
+      { id: existing.id },
+      { $set: updatedData },
+      { returnDocument: 'after', upsert: false }
+    );
+
+    const allStaff = await Staff.find();
     syncStaffToSupabase(allStaff).catch(() => {});
-
     return res.json(sanitizeStaffForAdmin(updated));
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: 'Failed to update staff' });
   }
 });
 
 router.delete('/staff/:id', requireAuth, requireRole(['admin']), async (req, res) => {
   const { id } = req.params;
   try {
-    if (isMongooseReady()) {
-      await Staff.findOneAndDelete({ id });
-    }
-    if (!memoryStore.staff) memoryStore.staff = [];
-    memoryStore.staff = memoryStore.staff.filter(s => s.id !== id);
-
-    const allStaff = isMongooseReady() ? await Staff.find() : memoryStore.staff;
+    await Staff.findOneAndDelete({ id });
+    const allStaff = await Staff.find();
     syncStaffToSupabase(allStaff).catch(() => {});
-
     return res.status(204).send();
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to delete staff' });
   }
 });
 
-// ==========================================
-// 11. ACTIVITY LOGS
-// ==========================================
 router.get('/activity-logs', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
   try {
-    if (isMongooseReady()) {
-      const logs = await ActivityLog.find().sort({ createdAt: -1 }).limit(100);
-      return res.json(logs);
-    }
-    return res.json(memoryStore.activityLogs || []);
+    const logs = await ActivityLog.find().sort({ createdAt: -1 }).limit(100);
+    return res.json(logs);
   } catch (error) {
-    return res.json(memoryStore.activityLogs || []);
+    return res.json([]);
   }
 });
 
@@ -1012,25 +868,20 @@ router.post('/activity-logs', optionalAuth, async (req, res) => {
     const newLog = {
       ...req.body,
       id: req.body.id || `log-${Date.now()}`,
-      userId: req.user ? req.user.id : req.body.userId || 'system',
-      userName: req.user ? req.user.name : req.body.userName || 'System',
+      userId: req.user ? req.user.id : 'system',
+      userName: req.user ? req.user.name : 'System',
       timestamp: new Date().toISOString()
     };
     if (isMongooseReady()) {
       const created = await ActivityLog.create(newLog);
       return res.status(201).json(created);
     }
-    if (!memoryStore.activityLogs) memoryStore.activityLogs = [];
-    memoryStore.activityLogs.unshift(newLog);
-    return res.status(201).json(newLog);
+    return res.status(503).json({ error: 'Service temporarily unavailable' });
   } catch (error) {
-    return res.status(400).json({ error: error.message });
+    return res.status(400).json({ error: 'Failed to write log' });
   }
 });
 
-// ==========================================
-// 12. REFERRALS & SHORTLINKS
-// ==========================================
 router.get('/referrals', optionalAuth, async (req, res) => {
   try {
     if (isMongooseReady()) {
@@ -1049,7 +900,7 @@ router.post('/referrals/hit/:refCode', async (req, res) => {
     if (isMongooseReady()) {
       const updated = await Referral.findOneAndUpdate(
         { refCode },
-        { 
+        {
           $inc: { totalClicks: 1 },
           $set: { lastActive: new Date() }
         },
@@ -1059,7 +910,7 @@ router.post('/referrals/hit/:refCode', async (req, res) => {
     }
     return res.json({ refCode, totalClicks: 1 });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to record referral' });
   }
 });
 

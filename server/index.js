@@ -6,9 +6,9 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import apiRouter from './routes/api.js';
 import { connectDB, memoryStore } from './db.js';
+import { assertJwtConfigured } from './env.js';
 import { Post } from './models/Post.js';
 import { ShortLink } from './models/ShortLink.js';
-import { initialPosts } from './seedData.js';
 
 dotenv.config();
 
@@ -114,18 +114,17 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
 app.get('/post/:slug', async (req, res, next) => {
   try {
     const slug = req.params.slug;
-    const refCode = (req.query.ref || req.query.utm_source || '').toUpperCase();
+    const refCode = String(req.query.ref || req.query.utm_source || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 16);
     let post = null;
 
     try {
       if (Post) {
-        post = await Post.findOne({ $or: [{ slug }, { id: slug }] });
+        post = await Post.findOne({ $or: [{ slug }, { id: slug }], status: 'published' });
       }
     } catch (e) {}
-
-    if (!post) {
-      post = (memoryStore.posts || []).find(p => p.slug === slug || p.id === slug) || initialPosts.find(p => p.slug === slug || p.id === slug);
-    }
 
     if (post) {
       const html = buildPostHtml(post, req.originalUrl, refCode);
@@ -167,21 +166,23 @@ app.get('/s/:code', async (req, res) => {
       let post = null;
       if (shortLink.postSlug) {
         try {
-          if (Post) post = await Post.findOne({ slug: shortLink.postSlug });
+          if (Post) {
+            post = await Post.findOne({ slug: shortLink.postSlug, status: 'published' });
+          }
         } catch (e) {}
-        if (!post) {
-          post = (memoryStore.posts || []).find(p => p.slug === shortLink.postSlug) ||
-                 initialPosts.find(p => p.slug === shortLink.postSlug);
-        }
       }
 
-      if (isCrawler && post) {
+      if (!post) {
+        return res.redirect(302, 'https://www.thehori.click/');
+      }
+
+      if (isCrawler) {
         const html = buildPostHtml(post, req.originalUrl, shortLink.staffCode);
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.send(html);
       }
 
-      const targetUrl = shortLink.originalUrl || (post ? `https://www.thehori.click/post/${post.slug}${shortLink.staffCode ? `?ref=${shortLink.staffCode}` : ''}` : 'https://www.thehori.click/');
+      const targetUrl = shortLink.originalUrl || `https://www.thehori.click/post/${post.slug}${shortLink.staffCode ? `?ref=${shortLink.staffCode}` : ''}`;
       return res.redirect(302, targetUrl);
     }
 
@@ -198,7 +199,7 @@ app.use('/api', apiRouter);
 app.use(express.static(path.resolve(__dirname, '../dist')));
 
 // Fallback SPA routing
-app.get('*', (req, res) => {
+app.get('/*splat', (req, res) => {
   const distHtml = path.resolve(__dirname, '../dist/index.html');
   if (fs.existsSync(distHtml)) {
     return res.sendFile(distHtml);
@@ -207,8 +208,15 @@ app.get('*', (req, res) => {
 });
 
 // Boot Server
+try {
+  assertJwtConfigured();
+} catch (err) {
+  console.error('[Fatal]', err.message);
+  process.exit(1);
+}
+
 connectDB().then(() => {
   app.listen(PORT, () => {
-    console.log(`🚀 [Production Server] Running at: http://localhost:${PORT}`);
+    console.log(`[Production Server] Running at: http://localhost:${PORT}`);
   });
 });

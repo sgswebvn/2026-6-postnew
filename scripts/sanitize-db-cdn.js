@@ -5,7 +5,10 @@ import { hashPassword, sanitizeStaffForPublic } from '../server/auth.js';
 dotenv.config();
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mmltqgekvpdnezqdavvc.supabase.co';
-const SUPABASE_SERVICE_ROLE = process.env.NEXT_ROLE || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tbHRxZ2VrdnBkbmV6cWRhdnZjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NzkzMDY3NywiZXhwIjoyMTAzNTA2Njc3fQ.q_cgtmcVGrBeD8eCuov4xHzl4Lahy5bJIAlsZ8Y_ZUo';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
+}
 
 async function sanitizeDatabaseAndCdn() {
   await mongoose.connect(process.env.MONGODB_URI);
@@ -30,8 +33,8 @@ async function sanitizeDatabaseAndCdn() {
   const uploadRes = await fetch(SUPABASE_URL + '/storage/v1/object/postnew/staff_manifest.json', {
     method: 'POST',
     headers: {
-      'Authorization': 'Bearer ' + SUPABASE_SERVICE_ROLE,
-      'apikey': SUPABASE_SERVICE_ROLE,
+      'Authorization': 'Bearer ' + SUPABASE_SERVICE_ROLE_KEY,
+      'apikey': SUPABASE_SERVICE_ROLE_KEY,
       'Content-Type': 'application/json',
       'x-upsert': 'true'
     },

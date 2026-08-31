@@ -65,9 +65,7 @@ export const PostDetailPage = ({ slug }) => {
         fetch(`/api/posts/${encodeURIComponent(cleanSlug || slug)}`)
           .then(res => {
             if (res.ok) return res.json();
-            // Direct Supabase CDN fetch fallback
-            return fetch(`https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/posts/${encodeURIComponent(cleanSlug || slug)}.json?t=${Date.now()}`)
-              .then(sb => sb.ok ? sb.json() : null);
+            return null;
           })
           .then(data => {
             if (data && data.content) setFetchedPost(data);
