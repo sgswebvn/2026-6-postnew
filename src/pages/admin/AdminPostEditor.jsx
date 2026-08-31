@@ -517,7 +517,19 @@ export const AdminPostEditor = ({ postId }) => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!formData.title.trim() || !formData.content.trim()) {
+
+    // Synchronously grab the latest content directly from the active editor DOM node
+    let contentToSave = (formData.content || '').trim();
+    if (activeTab === 'write' && visualEditorRef.current) {
+      const visualHtml = (visualEditorRef.current.innerHTML || '').trim();
+      if (visualHtml && visualHtml !== '<br>' && visualHtml !== '<p><br></p>') {
+        contentToSave = visualHtml;
+      }
+    } else if (activeTab === 'code' && textareaRef.current) {
+      contentToSave = (textareaRef.current.value || '').trim();
+    }
+
+    if (!formData.title.trim() || !contentToSave) {
       showToast('Vui lòng nhập đầy đủ tiêu đề và nội dung bài viết (*)', 'warning');
       return;
     }
@@ -530,11 +542,12 @@ export const AdminPostEditor = ({ postId }) => {
         .filter(Boolean);
 
       // Auto-extract a clean 160-character lead excerpt from content
-      const plainTextContent = formData.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      const plainTextContent = contentToSave.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       const cleanExcerpt = formData.excerpt || (plainTextContent.length > 160 ? plainTextContent.slice(0, 160) + '...' : plainTextContent);
 
       const postPayload = {
         ...formData,
+        content: contentToSave,
         excerpt: cleanExcerpt,
         tags: tagsArray,
         id: existingPost ? existingPost.id : undefined,

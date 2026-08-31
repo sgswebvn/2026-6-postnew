@@ -414,7 +414,7 @@ export const PostDetailPage = ({ slug }) => {
               dangerouslySetInnerHTML={{ 
                 __html: (post.content && /<(p|div|h[1-6]|ul|ol|table|blockquote|figure)\b[^>]*>/i.test(post.content))
                   ? post.content 
-                  : (post.content || '')
+                  : (post.content || post.excerpt || post.title || '')
                       .split(/\n\s*\n/)
                       .map(p => p.trim())
                       .filter(Boolean)
