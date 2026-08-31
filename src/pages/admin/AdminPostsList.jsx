@@ -135,7 +135,7 @@ export const AdminPostsList = () => {
               setIsShortLinkModalOpen(true);
             }}
             className="px-3.5 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold border border-purple-200 flex items-center gap-1.5 transition-all shadow-xs"
-            title="Mở công cụ rút gọn link bài viết để rải seeding MXH"
+            title="Dán link bài viết hiện tại để rút gọn và tự gắn mã seeding của bạn"
           >
             <Zap className="w-4 h-4 text-purple-600" />
             <span>🔗 Rút Gọn Link Seeding</span>
@@ -275,7 +275,7 @@ export const AdminPostsList = () => {
                               setIsShortLinkModalOpen(true);
                             }}
                             className="p-1.5 hover:bg-purple-50 rounded text-purple-600"
-                            title="Rút gọn link bài này để rải Seeding"
+                            title="Rút gọn link bài này (tự gắn mã seeding tài khoản đang đăng nhập)"
                           >
                             <Link2 className="w-4 h-4" />
                           </button>

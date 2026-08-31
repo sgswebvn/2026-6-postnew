@@ -563,7 +563,7 @@ export const AdminProfile = () => {
               </div>
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <p className="text-[11px] text-neutral-400">
-                  💡 <strong>Mẹo rải link bài viết:</strong> Gắn <code className="text-purple-300 font-mono">?ref={profileForm.refCode || 'SEEK'}</code> vào cuối link bài viết bất kỳ: <code className="text-neutral-300 font-mono">https://www.thehori.click/post/slug?ref={profileForm.refCode || 'SEEK'}</code>
+                  💡 <strong>Mẹo rải link:</strong> Copy URL bài viết hiện tại, dán vào công cụ rút gọn — mã <code className="text-purple-300 font-mono">?ref={profileForm.refCode || 'SEEK'}</code> được gắn tự động theo tài khoản đăng nhập.
                 </p>
                 <button
                   type="button"

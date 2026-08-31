@@ -38,6 +38,11 @@ import {
   initialComments,
   initialSubscribers
 } from '../seedData.js';
+import {
+  applyServerStaffOverride,
+  generateShortCode,
+  shortLinkErrorMessage
+} from '../../src/utils/shortLink.js';
 
 const router = express.Router();
 
@@ -1028,7 +1033,13 @@ router.get('/shortlinks', requireAuth, requireRole(['admin', 'editor', 'author']
     if (!isMongooseReady()) {
       return mongoUnavailable(res);
     }
-    const links = await ShortLink.find().sort({ createdAt: -1 }).limit(200);
+    const query = {};
+    if (req.user?.role !== 'admin') {
+      const myRef = String(req.staffRecord?.refCode || '').trim().toUpperCase();
+      if (!myRef) return res.json([]);
+      query.staffCode = myRef;
+    }
+    const links = await ShortLink.find(query).sort({ createdAt: -1 }).limit(200);
     return res.json(links);
   } catch (error) {
     return res.status(500).json({ error: 'Failed to load short links' });
@@ -1041,37 +1052,59 @@ router.post('/shortlinks', requireAuth, requireRole(['admin', 'editor', 'author'
       return mongoUnavailable(res);
     }
     const body = req.body || {};
-    const originalUrl = String(body.originalUrl || '').trim();
-    if (!originalUrl) {
-      return res.status(400).json({ error: 'originalUrl is required' });
+    const staffUser = {
+      ...(req.user || {}),
+      refCode: req.staffRecord?.refCode || req.user?.refCode || '',
+      name: req.staffRecord?.name || req.user?.name || ''
+    };
+
+    const prepared = applyServerStaffOverride(body, staffUser);
+    if (!prepared.ok) {
+      return res.status(400).json({ error: shortLinkErrorMessage(prepared.error) });
     }
 
-    const rawCode = String(body.customCode || body.code || '').trim().toLowerCase();
-    const code = (rawCode || Math.random().toString(36).slice(2, 8))
-      .replace(/[^a-z0-9-]/g, '')
-      .slice(0, 32);
-    if (!code) {
-      return res.status(400).json({ error: 'Invalid short link code' });
+    const post = await Post.findOne({ slug: prepared.postSlug });
+    if (!post) {
+      return res.status(404).json({ error: 'Không tìm thấy bài viết tương ứng với link này' });
     }
 
-    const existing = await ShortLink.findOne({ code });
-    if (existing) {
-      return res.status(409).json({ error: 'Short link code already exists' });
+    const requestedCode = prepared.customCode;
+    let code = requestedCode;
+    if (requestedCode) {
+      const existing = await ShortLink.findOne({ code: requestedCode });
+      if (existing) {
+        return res.status(409).json({ error: 'Short link code already exists' });
+      }
+    } else {
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const candidate = generateShortCode() || Math.random().toString(36).slice(2, 8);
+        const clash = await ShortLink.findOne({ code: candidate });
+        if (!clash) {
+          code = candidate;
+          break;
+        }
+      }
+      if (!code) {
+        return res.status(500).json({ error: 'Failed to allocate short link code' });
+      }
     }
 
     const saved = await ShortLink.create({
-      id: `sl-${Date.now()}`,
+      id: `sl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       code,
-      originalUrl,
-      postSlug: String(body.postSlug || '').trim(),
-      postTitle: String(body.postTitle || '').trim(),
-      coverImage: String(body.coverImage || '').trim(),
-      staffCode: String(body.staffCode || '').trim().toUpperCase().slice(0, 16),
-      staffName: String(body.staffName || req.user?.name || '').trim(),
+      originalUrl: prepared.originalUrl,
+      postSlug: post.slug,
+      postTitle: post.title || '',
+      coverImage: post.coverImage || '',
+      staffCode: prepared.staffCode,
+      staffName: prepared.staffName || staffUser.name || '',
       clicks: 0
     });
     return res.status(201).json(saved);
   } catch (error) {
+    if (error && error.code === 11000) {
+      return res.status(409).json({ error: 'Short link code already exists' });
+    }
     return res.status(400).json({ error: 'Failed to create short link' });
   }
 });
@@ -1085,6 +1118,12 @@ router.delete('/shortlinks/:id', requireAuth, requireRole(['admin', 'editor', 'a
     const found = await ShortLink.findOne({ $or: [{ id }, { code: id }] });
     if (!found) {
       return res.status(404).json({ error: 'Short link not found' });
+    }
+    if (req.user?.role !== 'admin') {
+      const myRef = String(req.staffRecord?.refCode || '').trim().toUpperCase();
+      if (!myRef || String(found.staffCode || '').toUpperCase() !== myRef) {
+        return res.status(403).json({ error: 'Forbidden: cannot delete this short link' });
+      }
     }
     await ShortLink.deleteOne({ _id: found._id });
     return res.status(204).send();
