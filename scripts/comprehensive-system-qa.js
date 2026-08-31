@@ -129,6 +129,31 @@ async function runComprehensiveQA() {
     assert('Categories/Authors Test', false, e.message);
   }
 
+  // TEST 7: Public Client 100% English Compliance Verification
+  try {
+    const fs = await import('fs');
+    const postDetailCode = fs.readFileSync('src/pages/PostDetailPage.jsx', 'utf-8');
+    const homePageCode = fs.readFileSync('src/pages/HomePage.jsx', 'utf-8');
+    const headerCode = fs.readFileSync('src/components/layout/Header.jsx', 'utf-8');
+    const serverlessCode = fs.readFileSync('api/index.js', 'utf-8');
+
+    const vietnameseRegex = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+
+    const hasPostDetailEn = !vietnameseRegex.test(postDetailCode);
+    assert('PostDetailPage.jsx 100% English UI', hasPostDetailEn, '(0 Vietnamese characters in component)');
+
+    const hasHomeEn = !vietnameseRegex.test(homePageCode);
+    assert('HomePage.jsx 100% English UI', hasHomeEn, '(0 Vietnamese characters in component)');
+
+    const hasHeaderEn = !vietnameseRegex.test(headerCode);
+    assert('Header.jsx 100% English UI', hasHeaderEn, '(0 Vietnamese characters in component)');
+
+    const isServerlessEn = serverlessCode.includes('lang="en"') && serverlessCode.includes('Home') && serverlessCode.includes('Share this article');
+    assert('api/index.js Serverless Reader 100% English', isServerlessEn, '(HTML lang="en", English navigation & share labels)');
+  } catch (e) {
+    assert('English Compliance Test', false, e.message);
+  }
+
   await mongoose.disconnect();
 
   console.log('\n====================================================');

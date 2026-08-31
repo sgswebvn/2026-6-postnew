@@ -34,24 +34,24 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
   const cleanExcerpt = escapeHtml(post.excerpt || post.metaDescription || post.title);
   const imageUrl = post.coverImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200';
   const postUrl = `https://www.thehori.click/post/${post.slug}${refCode ? `?ref=${refCode}` : ''}`;
-  const authorName = escapeHtml(post.authorName || post.createdByName || 'Ban Biên Tập THE HORI CLICK');
+  const authorName = escapeHtml(post.authorName || post.createdByName || 'THE HORI CLICK Editorial Board');
   const authorAvatar = post.authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200';
-  const categoryName = escapeHtml(post.category || 'Tin Tiêu Điểm');
+  const categoryName = escapeHtml(post.category || 'Featured');
   
-  // Format Date
+  // Format Date (US English Format)
   const rawDate = post.publishedAt || post.createdAt || post.date || new Date().toISOString();
-  let formattedDate = '31/08/2026';
+  let formattedDate = 'Aug 31, 2026';
   try {
     const d = new Date(rawDate);
     if (!isNaN(d.getTime())) {
-      formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(d);
     }
   } catch(e) {}
 
   const fullContent = post.content || `<p>${cleanExcerpt}</p>`;
 
   return `<!doctype html>
-<html lang="vi" prefix="og: https://ogp.me/ns#">
+<html lang="en" prefix="og: https://ogp.me/ns#">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
@@ -321,7 +321,7 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
       <span class="brand-badge">H</span>
       <span class="brand-title">THE HORI CLICK</span>
     </a>
-    <a href="/" class="home-btn">🏠 Trang Chủ</a>
+    <a href="/" class="home-btn">🏠 Home</a>
   </header>
 
   <!-- Main Article Body -->
@@ -333,7 +333,7 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
       <img src="${authorAvatar}" alt="${authorName}" class="author-avatar" />
       <div>
         <span class="author-name">${authorName}</span>
-        <span class="meta-date">Xuất bản: ${formattedDate} • 5 phút đọc</span>
+        <span class="meta-date">Published: ${formattedDate} • 5 min read</span>
       </div>
     </div>
 
@@ -349,7 +349,7 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
 
     <!-- Social Share Tools -->
     <div class="share-bar">
-      <span class="share-title">Chia sẻ bài viết:</span>
+      <span class="share-title">Share this article:</span>
       <div class="share-btns">
         <a href="https://zalo.me/share?url=${encodeURIComponent(postUrl)}" target="_blank" rel="noopener" class="share-btn share-zalo">Zalo</a>
         <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}" target="_blank" rel="noopener" class="share-btn share-fb">Facebook</a>
@@ -358,12 +358,12 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
 
     <!-- Explore More -->
     <a href="/" class="cta-explore">
-      Khám Phá Thêm Nhiều Bài Viết Mới Trên THE HORI CLICK →
+      Explore More In-Depth Articles On THE HORI CLICK →
     </a>
   </main>
 
   <footer class="footer">
-    <p>© 2026 THE HORI CLICK. Tạp chí Tài Chính, Công Nghệ & Phong Cách Sống.</p>
+    <p>© 2026 THE HORI CLICK. Independent US Finance, Technology & Modern Lifestyle Journal.</p>
   </footer>
 </body>
 </html>`;
@@ -442,7 +442,7 @@ const handlePostCrawler = async (req, res) => {
       post = {
         title: generatedTitle,
         slug: slug,
-        excerpt: `Đọc bài viết phân tích chi tiết "${generatedTitle}" trên THE HORI CLICK.`,
+        excerpt: `Read the full investigative coverage and analysis for "${generatedTitle}" on THE HORI CLICK.`,
         coverImage: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_24.jpg'
       };
     }
@@ -455,9 +455,9 @@ const handlePostCrawler = async (req, res) => {
     }
 
     const defaultHtml = buildPostHtml({
-      title: 'THE HORI CLICK | Tạp chí Tài Chính, Công Nghệ & Phong Cách Sống',
+      title: 'THE HORI CLICK | Independent US Finance, Technology & Modern Lifestyle Journal',
       slug: slug || '',
-      excerpt: 'Phân tích chuyên sâu, tin tức độc quyền và kiến thức hữu ích hàng ngày.',
+      excerpt: 'In-depth analysis, expert guides, and daily insights on personal finance, emerging AI, and modern digital lifestyle.',
       coverImage: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200'
     }, req.originalUrl, refCode);
 

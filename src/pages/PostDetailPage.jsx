@@ -296,24 +296,24 @@ export const PostDetailPage = ({ slug }) => {
               <button
                 onClick={scrollToTop}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-blue-50 dark:hover:bg-neutral-700 hover:text-blue-600 transition-all cursor-pointer border border-neutral-200 dark:border-neutral-700 shadow-2xs"
-                title="Lướt lên đầu tiêu đề bài viết"
+                title="Scroll to article header"
               >
                 <ArrowUp className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span className="text-[11px] sm:text-xs font-semibold">Lên Đầu</span>
+                <span className="text-[11px] sm:text-xs font-semibold">Top</span>
               </button>
               <button
                 onClick={scrollToBottom}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-blue-50 dark:hover:bg-neutral-700 hover:text-blue-600 transition-all cursor-pointer border border-neutral-200 dark:border-neutral-700 shadow-2xs"
-                title="Lướt xuống cuối bài viết"
+                title="Scroll to end of article"
               >
                 <ArrowDown className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span className="text-[11px] sm:text-xs font-semibold">Xuống Cuối</span>
+                <span className="text-[11px] sm:text-xs font-semibold">Bottom</span>
               </button>
             </div>
 
             {/* Font Size Adjuster */}
             <div className="flex items-center space-x-1 bg-white dark:bg-neutral-800 p-0.5 rounded-lg border border-neutral-200 dark:border-neutral-700">
-              <span className="text-[10px] sm:text-[11px] font-mono px-1 text-neutral-400">Cỡ chữ:</span>
+              <span className="text-[10px] sm:text-[11px] font-mono px-1 text-neutral-400">Text:</span>
               <button
                 onClick={() => setFontSize('sm')}
                 className={`px-1.5 py-0.5 rounded text-xs cursor-pointer ${fontSize === 'sm' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
@@ -344,7 +344,7 @@ export const PostDetailPage = ({ slug }) => {
               }`}
             >
               <Bookmark className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
-              <span>{isSaved ? 'Đã Lưu' : 'Lưu'}</span>
+              <span>{isSaved ? 'Saved' : 'Save'}</span>
             </button>
           </div>
 
@@ -565,16 +565,16 @@ export const PostDetailPage = ({ slug }) => {
           <button
             onClick={scrollToTop}
             className="w-10 h-10 rounded-full bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 shadow-lg flex items-center justify-center hover:bg-blue-50 dark:hover:bg-neutral-700 hover:text-blue-600 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-            title="Lướt lên đầu tiêu đề bài viết"
-            aria-label="Lướt lên đầu bài"
+            title="Scroll to Top"
+            aria-label="Scroll to Top"
           >
             <ChevronUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </button>
           <button
             onClick={scrollToBottom}
             className="w-10 h-10 rounded-full bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 shadow-lg flex items-center justify-center hover:bg-blue-50 dark:hover:bg-neutral-700 hover:text-blue-600 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-            title="Lướt xuống cuối bài viết"
-            aria-label="Lướt xuống cuối bài"
+            title="Scroll to Bottom"
+            aria-label="Scroll to Bottom"
           >
             <ChevronDown className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </button>
