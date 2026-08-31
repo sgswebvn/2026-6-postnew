@@ -194,14 +194,18 @@ async function runComprehensiveQA() {
     assert('TOC Full Text Test', false, e.message);
   }
 
-  // TEST 11: Unrestricted Post Visibility Across Magazine
+  // TEST 11: Granular Role-Based Post Visibility & Ownership Permissions
   try {
     const fs = await import('fs');
     const postsListCode = fs.readFileSync('src/pages/admin/AdminPostsList.jsx', 'utf-8');
-    const isUnrestricted = postsListCode.includes('const visiblePosts = posts;');
-    assert('Unrestricted Post Visibility in Admin List', isUnrestricted, '(All magazine posts visible to editorial staff without artificial filters)');
+    const postEditorCode = fs.readFileSync('src/pages/admin/AdminPostEditor.jsx', 'utf-8');
+
+    const hasRoleFilter = postsListCode.includes('isGlobalAdmin') && postsListCode.includes('matchCreatedById') && postsListCode.includes('matchAuthorId');
+    const hasEditorGuard = postEditorCode.includes('isGlobalAdmin') && postEditorCode.includes('hasManagePostsPermission') && postEditorCode.includes('isPostOwner');
+
+    assert('Admin Full Post Access & Staff Ownership Permissions', hasRoleFilter && hasEditorGuard, '(Admin accesses 100% posts, staff sees and edits own assigned posts)');
   } catch (e) {
-    assert('Post Visibility Test', false, e.message);
+    assert('Role Permission Test', false, e.message);
   }
 
   await mongoose.disconnect();

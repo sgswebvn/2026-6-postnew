@@ -64,8 +64,15 @@ export const AdminPostEditor = ({ postId }) => {
   const isGlobalAdmin = userRole === 'admin' || currentUser?.role === 'admin';
   const existingPost = postId ? posts.find(p => p.id === postId) : null;
 
-  // Check if staff has permission to edit this post
-  const isPostOwner = true;
+  // Check if staff has permission to edit this post:
+  // Admin has 100% full access. Staff can edit their own posts or when granted canManagePosts permission.
+  const hasManagePostsPermission = Boolean(currentUser?.permissions?.canManagePosts);
+  const isPostOwner = !existingPost || isGlobalAdmin || hasManagePostsPermission || (
+    (existingPost.createdById && (String(existingPost.createdById) === String(currentUser?.id) || String(existingPost.createdById).toLowerCase() === String(currentUser?.username).toLowerCase())) ||
+    (existingPost.authorId && (String(existingPost.authorId) === String(currentUser?.id) || String(existingPost.authorId) === String(currentUser?.authorId))) ||
+    (existingPost.authorName && currentUser?.name && existingPost.authorName.toLowerCase().includes(currentUser.name.toLowerCase())) ||
+    (existingPost.createdByName && currentUser?.name && existingPost.createdByName.toLowerCase().includes(currentUser.name.toLowerCase()))
+  );
 
   const [formData, setFormData] = useState({
     title: '',

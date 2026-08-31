@@ -30,8 +30,32 @@ export const AdminPostsList = () => {
   const [isShortLinkModalOpen, setIsShortLinkModalOpen] = useState(false);
   const [selectedShortLinkPost, setSelectedShortLinkPost] = useState(null);
 
-  // Full Unrestricted Visibility: Show all articles in the system across the magazine
-  const visiblePosts = posts;
+  // Role Permission: Admin has 100% full access to all posts. Staff only sees their own assigned/created posts.
+  const isGlobalAdmin = userRole === 'admin' || currentUser?.role === 'admin';
+  const visiblePosts = isGlobalAdmin
+    ? posts
+    : posts.filter(p => {
+        if (!currentUser) return false;
+        const uId = String(currentUser.id || '').trim();
+        const uUsername = String(currentUser.username || '').toLowerCase().trim();
+        const uName = String(currentUser.name || '').toLowerCase().trim();
+        const uAuthorId = String(currentUser.authorId || '').trim();
+
+        const matchCreatedById = p.createdById && (String(p.createdById).trim() === uId || String(p.createdById).toLowerCase().trim() === uUsername);
+        const matchAuthorId = p.authorId && (String(p.authorId).trim() === uId || (uAuthorId && String(p.authorId).trim() === uAuthorId));
+        const matchAuthorName = p.authorName && (
+          p.authorName.toLowerCase().trim() === uName || 
+          p.authorName.toLowerCase().trim() === uUsername ||
+          uName.includes(p.authorName.toLowerCase().trim())
+        );
+        const matchCreatedByName = p.createdByName && (
+          p.createdByName.toLowerCase().trim() === uName || 
+          p.createdByName.toLowerCase().trim() === uUsername ||
+          uName.includes(p.createdByName.toLowerCase().trim())
+        );
+
+        return matchCreatedById || matchAuthorId || matchAuthorName || matchCreatedByName;
+      });
 
   const filteredPosts = visiblePosts.filter(p => {
     const matchesSearch = 
