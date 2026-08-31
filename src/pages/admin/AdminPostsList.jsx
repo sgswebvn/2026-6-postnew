@@ -196,12 +196,12 @@ export const AdminPostsList = () => {
               <tr>
                 <th className="p-3.5 text-center w-12">STT</th>
                 <th className="p-3.5">Bài Viết & Tiêu Đề</th>
+                <th className="p-3.5 whitespace-nowrap">Thao Tác</th>
                 <th className="p-3.5">Người Tạo</th>
                 <th className="p-3.5">Chuyên Mục</th>
                 <th className="p-3.5">Thời Gian Đăng</th>
                 <th className="p-3.5">Trạng Thái</th>
                 <th className="p-3.5">AdSense Ads</th>
-                <th className="p-3.5 text-right">Thao Tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800 font-sans">
@@ -263,6 +263,61 @@ export const AdminPostsList = () => {
                               /post/{post.slug}
                             </span>
                           </div>
+                        </div>
+                      </td>
+
+                      {/* Action Tools — next to title so they stay in view */}
+                      <td className="p-3.5 whitespace-nowrap">
+                        <div className="flex items-center space-x-1.5">
+                          <button
+                            onClick={() => {
+                              setSelectedShortLinkPost(post);
+                              setIsShortLinkModalOpen(true);
+                            }}
+                            className="p-1.5 hover:bg-purple-50 rounded text-purple-600"
+                            title="Rút gọn link bài này để rải Seeding"
+                          >
+                            <Link2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              const myRef = currentUser?.refCode || (currentUser?.role === 'admin' ? 'QB' : '');
+                              const refQuery = myRef ? `?ref=${myRef}` : '';
+                              const postUrl = `${window.location.origin}/post/${post.slug}${refQuery}`;
+                              navigator.clipboard.writeText(postUrl);
+                              showToast(myRef ? `Đã sao chép link kèm mã Seeding (${myRef})!` : 'Đã sao chép liên kết bài viết!');
+                            }}
+                            className="p-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded text-emerald-600 dark:text-emerald-400"
+                            title="Sao chép link bài viết tự động gắn mã Seeding nhân viên"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/post/${post.slug}`)}
+                            className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded text-neutral-500 hover:text-neutral-900"
+                            title="Xem trên trang độc giả"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/admin/posts/edit/${post.id}`)}
+                            className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded text-blue-500 hover:text-blue-600"
+                            title="Chỉnh sửa nội dung"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDelete(post);
+                            }}
+                            className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded text-rose-500 hover:text-rose-600"
+                            title="Xóa bài viết"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
 
@@ -331,61 +386,6 @@ export const AdminPostsList = () => {
                         >
                           {post.enableAds ? '● Bật Ads' : '○ Tắt Ads'}
                         </button>
-                      </td>
-
-                      {/* Action Tools */}
-                      <td className="p-3.5 text-right">
-                        <div className="flex items-center justify-end space-x-1.5">
-                          <button
-                            onClick={() => {
-                              setSelectedShortLinkPost(post);
-                              setIsShortLinkModalOpen(true);
-                            }}
-                            className="p-1.5 hover:bg-purple-50 rounded text-purple-600"
-                            title="Rút gọn link bài này để rải Seeding"
-                          >
-                            <Link2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              const myRef = currentUser?.refCode || (currentUser?.role === 'admin' ? 'QB' : '');
-                              const refQuery = myRef ? `?ref=${myRef}` : '';
-                              const postUrl = `${window.location.origin}/post/${post.slug}${refQuery}`;
-                              navigator.clipboard.writeText(postUrl);
-                              showToast(myRef ? `Đã sao chép link kèm mã Seeding (${myRef})!` : 'Đã sao chép liên kết bài viết!');
-                            }}
-                            className="p-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded text-emerald-600 dark:text-emerald-400"
-                            title="Sao chép link bài viết tự động gắn mã Seeding nhân viên"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => navigate(`/post/${post.slug}`)}
-                            className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded text-neutral-500 hover:text-neutral-900"
-                            title="Xem trên trang độc giả"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => navigate(`/admin/posts/edit/${post.id}`)}
-                            className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded text-blue-500 hover:text-blue-600"
-                            title="Chỉnh sửa nội dung"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleDelete(post);
-                            }}
-                            className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded text-rose-500 hover:text-rose-600"
-                            title="Xóa bài viết"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   );
