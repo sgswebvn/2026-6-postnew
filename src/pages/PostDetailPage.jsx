@@ -20,8 +20,10 @@ import {
   ChevronRight, 
   Bookmark, 
   Sparkles,
-  Volume2,
-  VolumeX,
+  ArrowUp,
+  ArrowDown,
+  ChevronUp,
+  ChevronDown,
   Type,
   ThumbsUp,
   Lightbulb,
@@ -34,7 +36,7 @@ import { NotFoundPage } from './NotFoundPage';
 export const PostDetailPage = ({ slug }) => {
   const { posts, categories, authors, settings, navigate, toggleBookmark, bookmarks, incrementPostView, showToast } = useBlog();
   const [fontSize, setFontSize] = useState('base'); // 'sm' | 'base' | 'lg'
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [userReaction, setUserReaction] = useState(null);
   const [reactionCounts, setReactionCounts] = useState({
     helpful: 24,
@@ -97,9 +99,6 @@ export const PostDetailPage = ({ slug }) => {
     const cleanupTelemetry = telemetryService.initArticleTelemetry(slug, post?.title || slug);
 
     return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
       if (cleanupTelemetry) {
         cleanupTelemetry();
       }
@@ -223,29 +222,12 @@ export const PostDetailPage = ({ slug }) => {
     }
   };
 
-  const handleToggleSpeech = () => {
-    if (!('speechSynthesis' in window)) {
-      showToast('Text-to-speech audio narration is not supported in your browser.', 'warning');
-      return;
-    }
-    if (isPlayingAudio) {
-      window.speechSynthesis.cancel();
-      setIsPlayingAudio(false);
-      telemetryService.trackEvent('audio_playback_stopped', { slug: post?.slug });
-    } else {
-      const plainText = `${post.title}. By ${author?.name || 'our correspondent'}. ${post.excerpt || ''}. ${(post.content || '').replace(/<[^>]*>/g, ' ')}`;
-      const utterance = new SpeechSynthesisUtterance(plainText);
-      utterance.lang = 'en-US';
-      utterance.rate = 1.0;
-      utterance.onend = () => {
-        setIsPlayingAudio(false);
-        telemetryService.trackEvent('audio_playback_finished', { slug: post?.slug });
-      };
-      utterance.onerror = () => setIsPlayingAudio(false);
-      window.speechSynthesis.speak(utterance);
-      setIsPlayingAudio(true);
-      telemetryService.trackEvent('audio_playback_started', { slug: post?.slug, title: post?.title });
-    }
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const scrollToBottom = () => {
+    window.scrollTo({ top: document.documentElement.scrollHeight || document.body.scrollHeight, behavior: 'smooth' });
   };
 
   const handleReaction = (type) => {
@@ -307,24 +289,31 @@ export const PostDetailPage = ({ slug }) => {
             {post.excerpt}
           </p>
 
-          {/* Reading Toolbar */}
+          {/* Reading Toolbar with Quick Scroll Jump & Font Size */}
           <div className="p-2 sm:p-2.5 bg-neutral-100/60 dark:bg-neutral-900/40 rounded-xl border border-neutral-200 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-            {/* Audio Reader */}
-            <button
-              onClick={handleToggleSpeech}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg font-medium transition-all cursor-pointer ${
-                isPlayingAudio 
-                  ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-xs' 
-                  : 'bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200'
-              }`}
-            >
-              {isPlayingAudio ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-neutral-600 dark:text-neutral-400" />}
-              <span>{isPlayingAudio ? 'Stop' : 'Listen'}</span>
-            </button>
+            {/* Quick Navigation Jump Buttons */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={scrollToTop}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-blue-50 dark:hover:bg-neutral-700 hover:text-blue-600 transition-all cursor-pointer border border-neutral-200 dark:border-neutral-700 shadow-2xs"
+                title="Lướt lên đầu tiêu đề bài viết"
+              >
+                <ArrowUp className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="text-[11px] sm:text-xs font-semibold">Lên Đầu</span>
+              </button>
+              <button
+                onClick={scrollToBottom}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-blue-50 dark:hover:bg-neutral-700 hover:text-blue-600 transition-all cursor-pointer border border-neutral-200 dark:border-neutral-700 shadow-2xs"
+                title="Lướt xuống cuối bài viết"
+              >
+                <ArrowDown className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="text-[11px] sm:text-xs font-semibold">Xuống Cuối</span>
+              </button>
+            </div>
 
             {/* Font Size Adjuster */}
             <div className="flex items-center space-x-1 bg-white dark:bg-neutral-800 p-0.5 rounded-lg border border-neutral-200 dark:border-neutral-700">
-              <span className="text-[10px] sm:text-[11px] font-mono px-1 text-neutral-400">Text:</span>
+              <span className="text-[10px] sm:text-[11px] font-mono px-1 text-neutral-400">Cỡ chữ:</span>
               <button
                 onClick={() => setFontSize('sm')}
                 className={`px-1.5 py-0.5 rounded text-xs cursor-pointer ${fontSize === 'sm' ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold' : 'text-neutral-600 dark:text-neutral-400'}`}
@@ -355,7 +344,7 @@ export const PostDetailPage = ({ slug }) => {
               }`}
             >
               <Bookmark className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
-              <span>{isSaved ? 'Saved' : 'Save'}</span>
+              <span>{isSaved ? 'Đã Lưu' : 'Lưu'}</span>
             </button>
           </div>
 
@@ -569,6 +558,26 @@ export const PostDetailPage = ({ slug }) => {
               </button>
             </div>
           </aside>
+        </div>
+
+        {/* Floating Quick Scroll Dock (Bottom Right) */}
+        <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-2 print:hidden animate-fadeIn">
+          <button
+            onClick={scrollToTop}
+            className="w-10 h-10 rounded-full bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 shadow-lg flex items-center justify-center hover:bg-blue-50 dark:hover:bg-neutral-700 hover:text-blue-600 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            title="Lướt lên đầu tiêu đề bài viết"
+            aria-label="Lướt lên đầu bài"
+          >
+            <ChevronUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          </button>
+          <button
+            onClick={scrollToBottom}
+            className="w-10 h-10 rounded-full bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 shadow-lg flex items-center justify-center hover:bg-blue-50 dark:hover:bg-neutral-700 hover:text-blue-600 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            title="Lướt xuống cuối bài viết"
+            aria-label="Lướt xuống cuối bài"
+          >
+            <ChevronDown className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          </button>
         </div>
       </div>
     </>
