@@ -44,11 +44,20 @@ import {
   Layers,
   ThumbsUp,
   Lightbulb,
-  TrendingUp
+  TrendingUp,
+  Lock
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
 import { supabaseStorage } from '../../services/supabaseStorage';
 import { ShortLinkModal } from '../../components/admin/ShortLinkModal';
+import { api } from '../../services/api';
+import {
+  extractYouTubeVideoId,
+  buildYouTubeEmbedHtml,
+  isEmptyVisualHtml,
+  resolveContentToSave,
+  sanitizePastedHtml
+} from '../../utils/postEditor';
 
 const SAMPLE_COVERS = [
   { name: 'Tài Chính & Đầu Tư', url: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_24.jpg' },
@@ -62,7 +71,9 @@ export const AdminPostEditor = ({ postId }) => {
   const { posts, categories, authors, savePost, addCategory, navigate, showToast, showPrompt, userRole, currentUser } = useBlog();
 
   const isGlobalAdmin = userRole === 'admin' || currentUser?.role === 'admin';
-  const existingPost = postId ? posts.find(p => p.id === postId) : null;
+  const listPost = postId ? posts.find(p => p.id === postId || p.slug === postId) : null;
+  const [fullPost, setFullPost] = useState(null);
+  const existingPost = fullPost || listPost;
 
   // Check if staff has permission to edit this post:
   // Admin has 100% full access. Staff can edit their own posts or when granted canManagePosts permission.
@@ -101,6 +112,37 @@ export const AdminPostEditor = ({ postId }) => {
   const [newCatDesc, setNewCatDesc] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isShortLinkModalOpen, setIsShortLinkModalOpen] = useState(false);
+  const [previewDevice, setPreviewDevice] = useState('desktop');
+  const visualEditorRef = React.useRef(null);
+  const textareaRef = React.useRef(null);
+  const isContentMountedRef = React.useRef(false);
+  const loadedFromListRef = React.useRef(false);
+  const loadedFromApiRef = React.useRef(false);
+
+  const insertHtmlIntoEditor = (html) => {
+    const snippet = String(html || '');
+    if (!snippet.trim()) return;
+    if (activeTab === 'write' && visualEditorRef.current) {
+      visualEditorRef.current.focus();
+      const marker = snippet.includes('youtube.com/embed/')
+        ? 'youtube.com/embed/'
+        : snippet.trim().slice(0, 48);
+      try {
+        document.execCommand('insertHTML', false, snippet);
+      } catch {
+        // contentEditable insertHTML can reject iframes; fall through to append
+      }
+      const current = visualEditorRef.current.innerHTML || '';
+      if (!current.includes(marker)) {
+        visualEditorRef.current.innerHTML = current + snippet;
+      }
+      const next = visualEditorRef.current.innerHTML || '';
+      setFormData(prev => ({ ...prev, content: next }));
+      isContentMountedRef.current = true;
+      return;
+    }
+    setFormData(prev => ({ ...prev, content: (prev.content || '') + snippet }));
+  };
 
   const handleCreateCategory = async (e) => {
     e.preventDefault();
@@ -127,13 +169,46 @@ export const AdminPostEditor = ({ postId }) => {
   };
 
   useEffect(() => {
-    if (existingPost) {
-      setFormData({
-        ...existingPost,
-        tagsString: existingPost.tags ? existingPost.tags.join(', ') : ''
-      });
-    }
-  }, [existingPost]);
+    loadedFromListRef.current = false;
+    loadedFromApiRef.current = false;
+    setFullPost(null);
+    isContentMountedRef.current = false;
+    if (!postId) return undefined;
+
+    let cancelled = false;
+    api.getPostBySlug(postId).then((data) => {
+      if (cancelled || !data || !(data.id || data.slug)) return;
+      setFullPost(data);
+    }).catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [postId]);
+
+  useEffect(() => {
+    if (!listPost || loadedFromListRef.current) return;
+    loadedFromListRef.current = true;
+    setFormData({
+      ...listPost,
+      tagsString: listPost.tags ? listPost.tags.join(', ') : ''
+    });
+    isContentMountedRef.current = false;
+  }, [listPost]);
+
+  useEffect(() => {
+    if (!fullPost || loadedFromApiRef.current) return;
+    loadedFromApiRef.current = true;
+    setFormData((prev) => ({
+      ...prev,
+      ...fullPost,
+      tagsString: Array.isArray(fullPost.tags) ? fullPost.tags.join(', ') : (prev.tagsString || ''),
+      content: (fullPost.content && fullPost.content.length >= String(prev.content || '').length)
+        ? fullPost.content
+        : (prev.content || fullPost.content || '')
+    }));
+    isContentMountedRef.current = false;
+  }, [fullPost]);
 
   const generateSlug = (text = '') => {
     let clean = String(text || '')
@@ -212,32 +287,33 @@ export const AdminPostEditor = ({ postId }) => {
 <h2>3. Lộ Trình Triển Khai Thực Tiễn</h2>
 <p>Hướng dẫn từng bước cụ thể để độc giả có thể áp dụng trực tiếp vào công việc và danh mục đầu tư của mình ngay hôm nay.</p>
 `;
-    setFormData(prev => ({
-      ...prev,
-      content: prev.content ? prev.content + outlineSnippet : outlineSnippet
-    }));
+    insertHtmlIntoEditor(outlineSnippet);
   };
 
-  const [previewDevice, setPreviewDevice] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
-  const visualEditorRef = React.useRef(null);
-  const textareaRef = React.useRef(null);
-  const isContentMountedRef = React.useRef(false);
-
-  // Sync content into visual editor on initial load or post change (without breaking active typing cursor)
+  // Sync content into visual editor on initial load, tab switch, or fetched post
   useEffect(() => {
-    if (visualEditorRef.current && (!isContentMountedRef.current || (existingPost && !isContentMountedRef.current))) {
-      visualEditorRef.current.innerHTML = formData.content || '';
-      if (formData.content) {
-        isContentMountedRef.current = true;
-      }
+    if (activeTab !== 'write') {
+      isContentMountedRef.current = false;
+      return;
     }
-  }, [existingPost, formData.content]);
+    if (visualEditorRef.current && !isContentMountedRef.current) {
+      visualEditorRef.current.innerHTML = formData.content || '';
+      isContentMountedRef.current = true;
+    }
+  }, [activeTab, formData.content, existingPost]);
 
   const switchTab = (newTab) => {
-    if (newTab === 'write' && activeTab === 'code') {
-      if (visualEditorRef.current) {
-        visualEditorRef.current.innerHTML = formData.content || '';
+    if (newTab === activeTab) return;
+    if (activeTab === 'write' && visualEditorRef.current) {
+      const visualHtml = visualEditorRef.current.innerHTML || '';
+      if (!isEmptyVisualHtml(visualHtml)) {
+        setFormData(prev => ({ ...prev, content: visualHtml }));
       }
+    } else if (activeTab === 'code' && textareaRef.current) {
+      setFormData(prev => ({ ...prev, content: textareaRef.current.value || prev.content }));
+    }
+    if (newTab === 'write') {
+      isContentMountedRef.current = false;
     }
     setActiveTab(newTab);
   };
@@ -319,7 +395,14 @@ export const AdminPostEditor = ({ postId }) => {
   };
 
   const handleVisualPaste = (e) => {
-    // Let browser paste naturally and sync content immediately
+    const html = e.clipboardData?.getData('text/html');
+    if (html && html.includes('<')) {
+      const cleanHtml = sanitizePastedHtml(html);
+      if (cleanHtml.length > 20) {
+        e.preventDefault();
+        document.execCommand('insertHTML', false, cleanHtml);
+      }
+    }
     setTimeout(() => {
       if (visualEditorRef.current) {
         setFormData(prev => ({ ...prev, content: visualEditorRef.current.innerHTML }));
@@ -330,13 +413,7 @@ export const AdminPostEditor = ({ postId }) => {
   const handlePaste = (e) => {
     const html = e.clipboardData?.getData('text/html');
     if (html && html.includes('<')) {
-      const cleanHtml = html
-        .replace(/<!--[\s\S]*?-->/g, '')
-        .replace(/class="mso[^"]*"/gi, '')
-        .replace(/style="mso-[^"]*"/gi, '')
-        .replace(/<o:p>[\s\S]*?<\/o:p>/gi, '')
-        .replace(/<\/?(html|body|meta|head|link)[^>]*>/gi, '')
-        .trim();
+      const cleanHtml = sanitizePastedHtml(html);
 
       if (cleanHtml.length > 20) {
         e.preventDefault();
@@ -365,35 +442,14 @@ export const AdminPostEditor = ({ postId }) => {
       confirmText: 'Nhúng Video',
       onConfirm: (rawUrl) => {
         if (!rawUrl || !rawUrl.trim()) return;
-        let videoId = '';
-        const match1 = rawUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
-        if (match1) {
-          videoId = match1[1];
-        } else if (rawUrl.trim().length === 11) {
-          videoId = rawUrl.trim();
-        }
-
+        const videoId = extractYouTubeVideoId(rawUrl);
         if (!videoId) {
           showToast('Không tìm thấy Video ID hợp lệ từ liên kết YouTube vừa nhập', 'warning');
           return;
         }
 
-        const embedHtml = `
-<div class="my-8 rounded-3xl overflow-hidden aspect-video shadow-xl border border-neutral-200 dark:border-neutral-800 bg-black">
-  <iframe 
-    class="w-full h-full" 
-    src="https://www.youtube.com/embed/${videoId}" 
-    title="YouTube video player" 
-    frameborder="0" 
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-    allowfullscreen>
-  </iframe>
-</div>
-`;
-        setFormData(prev => ({
-          ...prev,
-          content: prev.content + embedHtml
-        }));
+        const embedHtml = buildYouTubeEmbedHtml(videoId);
+        insertHtmlIntoEditor(embedHtml);
         showToast('Đã chèn khung video YouTube thành công!', 'success');
       }
     });
@@ -492,7 +548,7 @@ export const AdminPostEditor = ({ postId }) => {
   ${caption ? `<figcaption class="text-xs text-center text-neutral-500 dark:text-neutral-400 mt-2 font-mono">${caption}</figcaption>` : ''}
 </figure>
 `;
-      setFormData(prev => ({ ...prev, content: prev.content + imageHtml }));
+      insertHtmlIntoEditor(imageHtml);
       setShowImageModal(false);
       setImageCaption('');
       showToast('Đã tải ảnh lên Supabase & chèn vào bài viết thành công!', 'success');
@@ -515,7 +571,7 @@ export const AdminPostEditor = ({ postId }) => {
   ${caption ? `<figcaption class="text-xs text-center text-neutral-500 dark:text-neutral-400 mt-2 font-mono">${caption}</figcaption>` : ''}
 </figure>
 `;
-    setFormData(prev => ({ ...prev, content: prev.content + imageHtml }));
+    insertHtmlIntoEditor(imageHtml);
     setShowImageModal(false);
     setCustomImageUrl('');
     setImageCaption('');
@@ -525,19 +581,20 @@ export const AdminPostEditor = ({ postId }) => {
   const handleSave = async (e) => {
     e.preventDefault();
 
-    // Synchronously grab the latest content directly from the active editor DOM node
-    let contentToSave = (formData.content || '').trim();
-    if (activeTab === 'write' && visualEditorRef.current) {
-      const visualHtml = (visualEditorRef.current.innerHTML || '').trim();
-      if (visualHtml && visualHtml !== '<br>' && visualHtml !== '<p><br></p>') {
-        contentToSave = visualHtml;
-      }
-    } else if (activeTab === 'code' && textareaRef.current) {
-      contentToSave = (textareaRef.current.value || '').trim();
-    }
+    const contentToSave = resolveContentToSave({
+      activeTab,
+      formContent: formData.content,
+      visualHtml: visualEditorRef.current ? visualEditorRef.current.innerHTML : '',
+      textareaValue: textareaRef.current ? textareaRef.current.value : formData.content
+    });
 
     if (!formData.title.trim() || !contentToSave) {
       showToast('Vui lòng nhập đầy đủ tiêu đề và nội dung bài viết (*)', 'warning');
+      return;
+    }
+
+    if (existingPost && String(existingPost.content || '').trim().length > 50 && isEmptyVisualHtml(contentToSave)) {
+      showToast('Nội dung soạn thảo đang trống — hệ thống không ghi đè bài viết đã có.', 'warning');
       return;
     }
 
@@ -978,6 +1035,7 @@ export const AdminPostEditor = ({ postId }) => {
                     rows="16"
                     value={formData.content}
                     onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                    onPaste={handlePaste}
                     className="w-full font-mono text-sm bg-neutral-900 text-neutral-100 p-4 rounded-xl border border-neutral-700 focus:outline-none focus:border-blue-500 leading-relaxed resize-y min-h-[380px]"
                   />
                 </div>

@@ -94,11 +94,11 @@ export const AdminPostsList = () => {
 
   const toggleStatus = (post) => {
     const newStatus = post.status === 'published' ? 'draft' : 'published';
-    savePost({ ...post, status: newStatus });
+    savePost({ id: post.id, status: newStatus });
   };
 
   const toggleAds = (post) => {
-    savePost({ ...post, enableAds: !post.enableAds });
+    savePost({ id: post.id, enableAds: !post.enableAds });
   };
 
   const handlePageChange = (newPage) => {

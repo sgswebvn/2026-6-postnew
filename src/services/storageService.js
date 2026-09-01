@@ -79,18 +79,29 @@ export const storageService = {
         type: 'success'
       });
     } else {
-      const updatedPost = { ...post, updatedAt: new Date().toISOString() };
-      // Primary update to MongoDB via API (Throws error if database write fails)
-      const saved = await api.updatePost(post.id, updatedPost);
-      if (saved && saved.id) {
-        Object.assign(updatedPost, saved);
+      const sid = String(post.id || '').trim();
+      const current = posts.find((p) => String(p.id) === sid || String(p.slug) === sid) || {};
+      const payload = { ...post };
+      if (!String(payload.content || '').trim() && String(current.content || '').trim()) {
+        delete payload.content;
       }
-      updated = posts.map(p => p.id === post.id ? updatedPost : p);
+      const saved = await api.updatePost(current.id || post.id, payload);
+      const updatedPost = {
+        ...current,
+        ...payload,
+        ...(saved && typeof saved === 'object' ? saved : {}),
+        id: (saved && saved.id) || current.id || post.id,
+        updatedAt: new Date().toISOString()
+      };
+      if (!String(updatedPost.content || '').trim() && current.content) {
+        updatedPost.content = current.content;
+      }
+      updated = posts.map((p) => (p.id === updatedPost.id || (updatedPost.slug && p.slug === updatedPost.slug) ? updatedPost : p));
       this.addActivityLog({
-        staffName: post.authorName || 'Biên Tập Viên',
+        staffName: post.authorName || current.authorName || 'Biên Tập Viên',
         action: 'edit_post',
         title: 'Chỉnh sửa bài viết',
-        details: `Cập nhật bài: "${post.title}"`,
+        details: `Cập nhật bài: "${updatedPost.title || post.title || current.title}"`,
         type: 'neutral'
       });
     }

@@ -26,7 +26,7 @@ export const AdminDashboard = () => {
 
   const toggleStatus = (post) => {
     const newStatus = post.status === 'published' ? 'draft' : 'published';
-    savePost({ ...post, status: newStatus });
+    savePost({ id: post.id, status: newStatus });
   };
 
   return (

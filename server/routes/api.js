@@ -28,7 +28,9 @@ import {
   staffPutAuthorization,
   extractPasswordUpdate,
   publicPostProjection,
-  pickPostFields
+  pickPostFields,
+  slugifyPost,
+  stripEmptyContentOverwrite
 } from '../staffRules.js';
 import {
   initialPosts,
@@ -115,6 +117,18 @@ async function allocateUniqueCategorySlug(baseSlug, excludeId = null) {
     const query = { slug };
     if (excludeId) query.id = { $ne: excludeId };
     const taken = await Category.exists(query);
+    if (!taken) return slug;
+  }
+  return `${base}-${Date.now().toString(36)}`;
+}
+
+async function allocateUniquePostSlug(baseSlug, excludeId = null) {
+  const base = slugifyPost(baseSlug) || `bai-viet-${Date.now().toString(36)}`;
+  for (let n = 0; n < 50; n++) {
+    const slug = n === 0 ? base : `${base}-${n + 1}`;
+    const query = { slug };
+    if (excludeId) query.id = { $ne: excludeId };
+    const taken = await Post.exists(query);
     if (!taken) return slug;
   }
   return `${base}-${Date.now()}`;
@@ -505,16 +519,12 @@ router.get('/posts/:slug', optionalAuth, async (req, res) => {
 router.post('/posts', requireAuth, requireRole(['admin', 'editor', 'author']), async (req, res) => {
   try {
     const fields = pickPostFields(req.body);
-    let baseSlug = (fields.slug || fields.title || `post-${Date.now()}`)
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    const slug = await allocateUniquePostSlug(fields.slug || fields.title || `bai-viet-${Date.now()}`);
 
     const newPost = {
       ...fields,
       id: `post-${Date.now()}`,
-      slug: baseSlug,
+      slug,
       createdById: req.user.id,
       createdByName: req.user.name,
       status: fields.status === 'published' ? 'published' : (fields.status || 'draft'),
@@ -542,9 +552,15 @@ router.put('/posts/:id', requireAuth, requireRole(['admin', 'editor', 'author'])
     }
 
     const fields = pickPostFields(req.body);
-    const updateData = { ...fields, updatedAt: new Date().toISOString() };
+    const updateData = stripEmptyContentOverwrite(
+      { ...fields, updatedAt: new Date().toISOString() },
+      existing.content
+    );
     delete updateData.id;
     delete updateData.createdById;
+    if (updateData.slug) {
+      updateData.slug = await allocateUniquePostSlug(updateData.slug, existing.id);
+    }
 
     const updatedPost = await Post.findOneAndUpdate(
       { id: existing.id },

@@ -259,6 +259,15 @@ export const BlogProvider = ({ children }) => {
         setActivityLogs(storageService.getActivityLogs());
 
         showToast(`Chào mừng ${authenticatedUser.name} (${authenticatedUser.roleName || authenticatedUser.role})!`, 'success');
+
+        storageService.initializeFromDB().then((freshData) => {
+          if (!freshData) return;
+          if (Array.isArray(freshData.posts)) setPosts(freshData.posts);
+          if (Array.isArray(freshData.categories)) setCategories(freshData.categories);
+          if (Array.isArray(freshData.authors)) setAuthors(freshData.authors);
+          if (Array.isArray(freshData.staffList)) setStaffList(freshData.staffList);
+          if (freshData.settings) setSettings(freshData.settings);
+        }).catch(() => {});
         
         const destination = customTarget || (currentRoute && currentRoute.startsWith('/admin') ? currentRoute : (authenticatedUser.role === 'admin' ? '/admin' : '/admin/posts'));
         navigate(destination);

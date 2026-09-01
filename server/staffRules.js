@@ -103,3 +103,32 @@ export function pickPostFields(body) {
   }
   return out;
 }
+
+export function slugifyPost(input) {
+  const clean = String(input || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/https?:\/\/[^\s]+/gi, '')
+    .replace(/www\.[^\s]+/gi, '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  return clean;
+}
+
+export function stripEmptyContentOverwrite(fields, existingContent) {
+  if (!fields || typeof fields !== 'object') return fields || {};
+  if (!Object.prototype.hasOwnProperty.call(fields, 'content')) return fields;
+  const incoming = String(fields.content || '').trim();
+  const existing = String(existingContent || '').trim();
+  if (!incoming && existing) {
+    const next = { ...fields };
+    delete next.content;
+    return next;
+  }
+  return fields;
+}

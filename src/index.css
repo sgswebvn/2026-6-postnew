@@ -307,9 +307,25 @@
 .editorial-prose iframe,
 .editorial-prose video {
   max-width: 100% !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 200px;
   border-radius: 0.75rem;
   margin: 1.5rem auto;
   display: block;
+}
+
+.editorial-prose .aspect-video {
+  position: relative;
+}
+
+.editorial-prose .aspect-video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0;
+  margin: 0;
 }
 
 .editorial-prose table {

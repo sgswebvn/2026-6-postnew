@@ -154,7 +154,7 @@ export const api = {
 
   async getPostBySlug(slug) {
     try {
-      const res = await fetch(`${API_BASE}/posts/${slug}`, {
+      const res = await fetch(`${API_BASE}/posts/${encodeURIComponent(slug)}`, {
         headers: getAuthHeaders()
       });
       if (!res.ok) return null;
