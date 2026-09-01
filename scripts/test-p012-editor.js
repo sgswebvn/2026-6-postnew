@@ -3,11 +3,15 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import {
   extractYouTubeVideoId,
+  extractStandaloneYouTubeId,
   buildYouTubeEmbedHtml,
   isEmptyVisualHtml,
   resolveContentToSave,
   sanitizePastedHtml,
-  shouldOmitEmptyContent
+  shouldOmitEmptyContent,
+  replaceYouTubeUrlsWithEmbeds,
+  stripYouTubeEditorChrome,
+  finalizeEditorHtml
 } from '../src/utils/postEditor.js';
 import { pickPostFields, stripEmptyContentOverwrite, slugifyPost } from '../server/staffRules.js';
 
@@ -70,6 +74,27 @@ assert(isEmptyVisualHtml('<p><br></p>'), '<p><br></p> is empty visual html', 'Sa
 assert(isEmptyVisualHtml('<div><br></div>'), '<div><br></div> is empty visual html', 'Save');
 assert(isEmptyVisualHtml('<div>&nbsp;</div>'), 'nbsp-only is empty visual html', 'Save');
 assert(!isEmptyVisualHtml('<p>Bai viet goc</p>'), 'real paragraph is not empty', 'Save');
+assert(!isEmptyVisualHtml(buildYouTubeEmbedHtml(YT_ID)), 'YouTube-only embed is not empty visual html', 'Save');
+assert(extractStandaloneYouTubeId('https://youtu.be/dQw4w9WgXcQ') === YT_ID, 'standalone paste URL extracts ID', 'YouTube');
+assert(extractStandaloneYouTubeId('xem https://youtu.be/dQw4w9WgXcQ di') === '', 'mixed sentence is not a standalone URL', 'YouTube');
+
+const convertedBare = replaceYouTubeUrlsWithEmbeds('Xem clip https://youtu.be/dQw4w9WgXcQ ngay');
+assert(convertedBare.includes('youtube.com/embed/dQw4w9WgXcQ'), 'bare URL in text becomes embed', 'YouTube');
+assert(!convertedBare.includes('https://youtu.be/dQw4w9WgXcQ'), 'original bare URL is replaced', 'YouTube');
+
+const alreadyEmbedded = buildYouTubeEmbedHtml(YT_ID);
+const convertedTwice = replaceYouTubeUrlsWithEmbeds(alreadyEmbedded);
+const embedCount = (convertedTwice.match(/youtube\.com\/embed\/dQw4w9WgXcQ/g) || []).length;
+assert(embedCount === 1, 'existing embed is not duplicated', 'YouTube');
+
+const withAnchor = replaceYouTubeUrlsWithEmbeds('<p><a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">Video</a></p>');
+assert(withAnchor.includes('yt-embed-block'), 'YouTube anchor becomes embed block', 'YouTube');
+
+const chrome = `<div class="yt-embed-block" data-youtube-id="${YT_ID}"><div class="yt-embed-toolbar"><button data-yt-delete>Xoa</button></div><iframe src="https://www.youtube.com/embed/${YT_ID}"></iframe></div>`;
+const strippedChrome = stripYouTubeEditorChrome(chrome);
+assert(!strippedChrome.includes('yt-embed-toolbar'), 'save strips editor toolbar', 'YouTube');
+assert(strippedChrome.includes('youtube.com/embed/dQw4w9WgXcQ'), 'save keeps iframe after stripping chrome', 'YouTube');
+assert(finalizeEditorHtml('https://www.youtube.com/shorts/dQw4w9WgXcQ').includes('yt-embed-block'), 'finalize converts shorts URL', 'YouTube');
 
 const article = '<p>Bai viet goc</p>';
 const ytBlock = buildYouTubeEmbedHtml(YT_ID);
@@ -159,6 +184,9 @@ const editorSrc = fs.readFileSync(path.join(root, 'src/pages/admin/AdminPostEdit
 assert(editorSrc.includes('extractYouTubeVideoId'), 'editor uses shared YouTube parser', 'Source');
 assert(editorSrc.includes('insertHtmlIntoEditor'), 'editor inserts HTML into visual DOM', 'Source');
 assert(editorSrc.includes('resolveContentToSave'), 'editor save uses resolveContentToSave', 'Source');
+assert(editorSrc.includes('decorateYouTubeBlocks'), 'editor decorates YouTube as movable blocks', 'Source');
+assert(editorSrc.includes('placeYouTubeBlockAtPoint'), 'editor supports dragging YouTube blocks', 'Source');
+assert(editorSrc.includes('extractStandaloneYouTubeId'), 'editor auto-embeds pasted YouTube URLs', 'Source');
 assert(editorSrc.includes('sanitizePastedHtml'), 'editor sanitizes pasted HTML', 'Source');
 assert(editorSrc.includes('api.getPostBySlug'), 'editor fetches full post when editing', 'Source');
 assert(/Lock/.test(editorSrc) && editorSrc.includes('Lock'), 'Lock icon is imported and used', 'Source');

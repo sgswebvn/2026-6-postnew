@@ -53,10 +53,17 @@ import { ShortLinkModal } from '../../components/admin/ShortLinkModal';
 import { api } from '../../services/api';
 import {
   extractYouTubeVideoId,
+  extractStandaloneYouTubeId,
   buildYouTubeEmbedHtml,
   isEmptyVisualHtml,
   resolveContentToSave,
-  sanitizePastedHtml
+  sanitizePastedHtml,
+  replaceYouTubeUrlsWithEmbeds,
+  stripYouTubeEditorChrome,
+  decorateYouTubeBlocks,
+  convertTypedYouTubeUrls,
+  moveYouTubeBlock,
+  placeYouTubeBlockAtPoint
 } from '../../utils/postEditor';
 
 const SAMPLE_COVERS = [
@@ -118,6 +125,15 @@ export const AdminPostEditor = ({ postId }) => {
   const isContentMountedRef = React.useRef(false);
   const loadedFromListRef = React.useRef(false);
   const loadedFromApiRef = React.useRef(false);
+  const ytDragRef = React.useRef(null);
+  const ytSelectedRef = React.useRef(null);
+
+  const syncVisualToForm = () => {
+    if (!visualEditorRef.current) return;
+    decorateYouTubeBlocks(visualEditorRef.current);
+    const clean = stripYouTubeEditorChrome(visualEditorRef.current.innerHTML || '');
+    setFormData(prev => ({ ...prev, content: clean }));
+  };
 
   const insertHtmlIntoEditor = (html) => {
     const snippet = String(html || '');
@@ -136,12 +152,13 @@ export const AdminPostEditor = ({ postId }) => {
       if (!current.includes(marker)) {
         visualEditorRef.current.innerHTML = current + snippet;
       }
-      const next = visualEditorRef.current.innerHTML || '';
+      decorateYouTubeBlocks(visualEditorRef.current);
+      const next = stripYouTubeEditorChrome(visualEditorRef.current.innerHTML || '');
       setFormData(prev => ({ ...prev, content: next }));
       isContentMountedRef.current = true;
       return;
     }
-    setFormData(prev => ({ ...prev, content: (prev.content || '') + snippet }));
+    setFormData(prev => ({ ...prev, content: replaceYouTubeUrlsWithEmbeds((prev.content || '') + snippet) }));
   };
 
   const handleCreateCategory = async (e) => {
@@ -298,6 +315,7 @@ export const AdminPostEditor = ({ postId }) => {
     }
     if (visualEditorRef.current && !isContentMountedRef.current) {
       visualEditorRef.current.innerHTML = formData.content || '';
+      decorateYouTubeBlocks(visualEditorRef.current);
       isContentMountedRef.current = true;
     }
   }, [activeTab, formData.content, existingPost]);
@@ -305,7 +323,7 @@ export const AdminPostEditor = ({ postId }) => {
   const switchTab = (newTab) => {
     if (newTab === activeTab) return;
     if (activeTab === 'write' && visualEditorRef.current) {
-      const visualHtml = visualEditorRef.current.innerHTML || '';
+      const visualHtml = stripYouTubeEditorChrome(visualEditorRef.current.innerHTML || '');
       if (!isEmptyVisualHtml(visualHtml)) {
         setFormData(prev => ({ ...prev, content: visualHtml }));
       }
@@ -319,9 +337,9 @@ export const AdminPostEditor = ({ postId }) => {
   };
 
   const handleVisualInput = () => {
-    if (visualEditorRef.current) {
-      setFormData(prev => ({ ...prev, content: visualEditorRef.current.innerHTML }));
-    }
+    if (!visualEditorRef.current) return;
+    convertTypedYouTubeUrls(visualEditorRef.current);
+    syncVisualToForm();
   };
 
   const handleFormatVisual = (command, value = null) => {
@@ -390,45 +408,179 @@ export const AdminPostEditor = ({ postId }) => {
     }
 
     if (visualEditorRef.current) {
-      setFormData(prev => ({ ...prev, content: visualEditorRef.current.innerHTML }));
+      syncVisualToForm();
     }
   };
 
   const handleVisualPaste = (e) => {
-    const html = e.clipboardData?.getData('text/html');
+    const text = (e.clipboardData?.getData('text/plain') || '').trim();
+    const html = e.clipboardData?.getData('text/html') || '';
+    const standaloneId = extractStandaloneYouTubeId(text);
+
+    if (standaloneId) {
+      e.preventDefault();
+      insertHtmlIntoEditor(buildYouTubeEmbedHtml(standaloneId));
+      showToast('Đã nhúng video YouTube từ liên kết vừa dán!', 'success');
+      return;
+    }
+
     if (html && html.includes('<')) {
-      const cleanHtml = sanitizePastedHtml(html);
+      const cleanHtml = replaceYouTubeUrlsWithEmbeds(sanitizePastedHtml(html));
       if (cleanHtml.length > 20) {
         e.preventDefault();
         document.execCommand('insertHTML', false, cleanHtml);
       }
+    } else if (text && extractYouTubeVideoId(text)) {
+      e.preventDefault();
+      document.execCommand('insertHTML', false, replaceYouTubeUrlsWithEmbeds(text));
     }
+
     setTimeout(() => {
-      if (visualEditorRef.current) {
-        setFormData(prev => ({ ...prev, content: visualEditorRef.current.innerHTML }));
-      }
+      if (!visualEditorRef.current) return;
+      convertTypedYouTubeUrls(visualEditorRef.current);
+      syncVisualToForm();
     }, 50);
   };
 
+  const handleVisualMouseDown = (e) => {
+    const editor = visualEditorRef.current;
+    if (!editor) return;
+    const moveBtn = e.target.closest('[data-yt-move]');
+    const deleteBtn = e.target.closest('[data-yt-delete]');
+    const block = e.target.closest('.yt-embed-block');
+    if (!block || !editor.contains(block)) return;
+
+    if (moveBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      moveYouTubeBlock(block, moveBtn.getAttribute('data-yt-move'));
+      block.classList.add('yt-embed-selected');
+      ytSelectedRef.current = block;
+      syncVisualToForm();
+      return;
+    }
+
+    if (deleteBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      block.remove();
+      ytSelectedRef.current = null;
+      if (!editor.innerHTML.trim()) editor.innerHTML = '<p><br></p>';
+      syncVisualToForm();
+      showToast('Đã xóa video YouTube khỏi bài viết', 'info');
+    }
+  };
+
+  const handleVisualClick = (e) => {
+    const editor = visualEditorRef.current;
+    if (!editor) return;
+    editor.querySelectorAll('.yt-embed-selected').forEach((el) => el.classList.remove('yt-embed-selected'));
+    const block = e.target.closest('.yt-embed-block');
+    if (block && editor.contains(block)) {
+      block.classList.add('yt-embed-selected');
+      ytSelectedRef.current = block;
+    } else {
+      ytSelectedRef.current = null;
+    }
+  };
+
+  const handleVisualKeyDown = (e) => {
+    if (e.key !== 'Backspace' && e.key !== 'Delete') return;
+    const selected = ytSelectedRef.current;
+    if (!selected || !visualEditorRef.current?.contains(selected)) return;
+    e.preventDefault();
+    selected.remove();
+    ytSelectedRef.current = null;
+    if (!visualEditorRef.current.innerHTML.trim()) {
+      visualEditorRef.current.innerHTML = '<p><br></p>';
+    }
+    syncVisualToForm();
+    showToast('Đã xóa video YouTube khỏi bài viết', 'info');
+  };
+
+  const handleVisualDragStart = (e) => {
+    const block = e.target.closest?.('.yt-embed-block');
+    if (!block || !visualEditorRef.current?.contains(block)) return;
+    if (e.target.closest('.yt-embed-toolbar')) {
+      e.preventDefault();
+      return;
+    }
+    ytDragRef.current = block;
+    block.classList.add('is-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', 'youtube-block');
+  };
+
+  const handleVisualDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = ytDragRef.current ? 'move' : 'copy';
+  };
+
+  const handleVisualDrop = (e) => {
+    e.preventDefault();
+    if (!visualEditorRef.current) return;
+    const dragging = ytDragRef.current;
+    if (dragging) {
+      placeYouTubeBlockAtPoint(visualEditorRef.current, dragging, e.clientY);
+      dragging.classList.remove('is-dragging');
+      ytDragRef.current = null;
+      syncVisualToForm();
+      return;
+    }
+
+    const dropped = (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain') || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .find(Boolean) || '';
+    const droppedId = extractYouTubeVideoId(dropped);
+    if (!droppedId) return;
+    insertHtmlIntoEditor(buildYouTubeEmbedHtml(droppedId));
+    const placed = [...visualEditorRef.current.querySelectorAll(`.yt-embed-block[data-youtube-id="${droppedId}"]`)].pop();
+    if (placed) placeYouTubeBlockAtPoint(visualEditorRef.current, placed, e.clientY);
+    syncVisualToForm();
+    showToast('Đã nhúng video YouTube từ liên kết vừa kéo thả!', 'success');
+  };
+
+  const handleVisualDragEnd = () => {
+    if (ytDragRef.current) {
+      ytDragRef.current.classList.remove('is-dragging');
+    }
+    ytDragRef.current = null;
+  };
+
   const handlePaste = (e) => {
+    const text = (e.clipboardData?.getData('text/plain') || '').trim();
     const html = e.clipboardData?.getData('text/html');
+    const standaloneId = extractStandaloneYouTubeId(text);
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    if (standaloneId) {
+      e.preventDefault();
+      const embed = buildYouTubeEmbedHtml(standaloneId);
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const current = formData.content || '';
+      const newContent = current.substring(0, start) + embed + current.substring(end);
+      setFormData(prev => ({ ...prev, content: newContent }));
+      showToast('Đã nhúng video YouTube từ liên kết vừa dán!', 'success');
+      return;
+    }
+
     if (html && html.includes('<')) {
-      const cleanHtml = sanitizePastedHtml(html);
+      const cleanHtml = replaceYouTubeUrlsWithEmbeds(sanitizePastedHtml(html));
 
       if (cleanHtml.length > 20) {
         e.preventDefault();
-        const textarea = textareaRef.current;
-        if (textarea) {
-          const start = textarea.selectionStart;
-          const end = textarea.selectionEnd;
-          const current = formData.content || '';
-          const newContent = current.substring(0, start) + cleanHtml + current.substring(end);
-          setFormData(prev => ({ ...prev, content: newContent }));
-          setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = start + cleanHtml.length;
-          }, 0);
-          showToast('Đã giữ nguyên định dạng Rich Text từ văn bản dán vào!', 'info');
-        }
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const current = formData.content || '';
+        const newContent = current.substring(0, start) + cleanHtml + current.substring(end);
+        setFormData(prev => ({ ...prev, content: newContent }));
+        setTimeout(() => {
+          textarea.selectionStart = textarea.selectionEnd = start + cleanHtml.length;
+        }, 0);
+        showToast('Đã giữ nguyên định dạng Rich Text từ văn bản dán vào!', 'info');
       }
     }
   };
@@ -1007,7 +1159,7 @@ export const AdminPostEditor = ({ postId }) => {
             {/* Word Count & Low-Tech Helper Bar */}
             <div className="px-6 py-2.5 bg-blue-50/60 border-b border-neutral-200 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
               <span className="flex items-center gap-1.5 text-blue-900">
-                ✨ <span className="font-sans font-medium">Bạn có thể <strong>copy-paste trực tiếp từ Word, Google Docs, ChatGPT</strong> vào đây. Văn bản sẽ giữ nguyên in đậm, tiêu đề và định dạng đẹp mắt mà không cần biết HTML!</span>
+                ✨ <span className="font-sans font-medium">Dán <strong>link YouTube</strong> để tự nhúng thành khối video — kéo hoặc bấm Đầu / Lên / Xuống / Cuối / Xóa để đặt vị trí. Paste từ Word, Docs, ChatGPT vẫn giữ định dạng.</span>
               </span>
               <span className={wordCount >= 1000 ? 'text-emerald-700 font-bold' : 'text-amber-700 font-bold'}>
                 {wordCount} từ {wordCount >= 1000 ? '✓ Đạt chuẩn 1,000+ từ AdSense' : '(Khuyến nghị 1,000+ từ)'}
@@ -1022,6 +1174,13 @@ export const AdminPostEditor = ({ postId }) => {
                   contentEditable
                   onInput={handleVisualInput}
                   onPaste={handleVisualPaste}
+                  onMouseDown={handleVisualMouseDown}
+                  onClick={handleVisualClick}
+                  onKeyDown={handleVisualKeyDown}
+                  onDragStart={handleVisualDragStart}
+                  onDragOver={handleVisualDragOver}
+                  onDrop={handleVisualDrop}
+                  onDragEnd={handleVisualDragEnd}
                   className="editorial-prose min-h-[420px] p-4 sm:p-6 focus:outline-none text-neutral-900 leading-relaxed bg-white border border-neutral-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-inner"
                   style={{ minHeight: '420px' }}
                 />
