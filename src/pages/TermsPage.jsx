@@ -31,9 +31,9 @@ export const TermsPage = () => {
           Readers may quote excerpts of up to 150 words provided full attribution is granted with a direct, followable hyperlink to the original article source URL. Systematic automated scraping, LLM retraining without licensing agreements, or wholesale republishing is strictly prohibited.
         </p>
 
-        <h2>3. User Conduct in Forums & Comments</h2>
+        <h2>3. Reader Conduct & Communications</h2>
         <p>
-          Comments submitted to our articles must remain civil, professional, and free from defamation, hate speech, automated spam, or unauthorized commercial solicitation.
+          Communications, inquiries, and contributions submitted to our editorial team must remain civil, professional, and free from defamation, hate speech, automated spam, or unauthorized commercial solicitation.
         </p>
 
         <h2>4. Limitation of Liability</h2>

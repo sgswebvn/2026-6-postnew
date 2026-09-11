@@ -1,90 +1,28 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { 
   Users, 
   ShieldCheck, 
-  DollarSign, 
   PlusCircle, 
   Edit3, 
   Trash2, 
-  CheckCircle, 
-  XCircle, 
-  Calendar, 
   Phone, 
   Mail, 
-  Tag, 
-  Briefcase, 
   Search, 
   Check, 
   CreditCard, 
   History, 
-  Share2, 
   Copy, 
   Clock, 
-  Sparkles, 
-  Filter, 
-  CheckCircle2, 
-  Upload, 
-  BarChart3, 
-  Activity, 
-  ExternalLink 
+  BarChart3 
 } from 'lucide-react';
 import { storageService } from '../../services/storageService';
 
-const AVATAR_PRESETS = [
-  'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_30.jpg',
-  'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_31.jpg',
-  'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_32.jpg',
-  'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_33.jpg',
-  'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_34.jpg',
-  'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_35.jpg'
-];
-
 export const AdminStaff = () => {
-  const { staffList, saveStaff, deleteStaff, updateStaffSalary, activityLogs, clearActivityLogs, showToast, showConfirm, navigate } = useBlog();
+  const { staffList, saveStaff, deleteStaff, activityLogs, clearActivityLogs, showToast, showConfirm, navigate } = useBlog();
   const [activeTab, setActiveTab] = useState('profiles'); // 'profiles' | 'permissions' | 'payroll' | 'ga4' | 'activity'
   const [search, setSearch] = useState('');
   const [activityFilter, setActivityFilter] = useState('all');
-  const modalFileInputRef = useRef(null);
-  
-  // Staff Modal / Form state
-  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
-  const [editingStaff, setEditingStaff] = useState(null);
-  const [staffForm, setStaffForm] = useState({
-    name: '',
-    username: '',
-    password: '',
-    email: '',
-    phone: '',
-    refCode: '',
-    role: 'editor',
-    roleName: 'Biên Tập Viên Nội Dung',
-    joinDate: new Date().toISOString().split('T')[0],
-    status: 'active',
-    avatar: AVATAR_PRESETS[0],
-    permissions: {
-      canManagePosts: true,
-      canPublishPosts: false,
-      canManageCategories: false,
-      canViewRevenue: false,
-      canManageStaff: false,
-      canManagePayroll: false,
-      canManageSettings: false
-    }
-  });
-
-  // Payroll Modal state
-  const [isSalaryModalOpen, setIsSalaryModalOpen] = useState(false);
-  const [salaryForm, setSalaryForm] = useState({
-    staffId: '',
-    staffName: '',
-    baseSalary: 10000000,
-    kpiBonus: 0,
-    deduction: 0,
-    payPeriod: '08/2026',
-    paymentStatus: 'paid',
-    paymentDate: new Date().toISOString().split('T')[0]
-  });
 
   const displayStaffList = staffList || [];
 
@@ -100,113 +38,6 @@ export const AdminStaff = () => {
     if (activityFilter === 'all') return true;
     return log.action === activityFilter || log.type === activityFilter;
   });
-
-  // Open Staff Modal for create or edit
-  const handleOpenStaffModal = (staff = null) => {
-    if (staff) {
-      setEditingStaff(staff);
-      setStaffForm({
-        name: staff.name || '',
-        username: staff.username || (staff.email ? staff.email.split('@')[0] : 'user'),
-        password: '',
-        email: staff.email || '',
-        phone: staff.phone || '',
-        refCode: staff.refCode || '',
-        role: staff.role || 'editor',
-        roleName: staff.roleName || 'Biên Tập Viên Nội Dung',
-        joinDate: staff.joinDate || new Date().toISOString().split('T')[0],
-        status: staff.status || 'active',
-        avatar: staff.avatar || AVATAR_PRESETS[0],
-        permissions: staff.permissions || {
-          canManagePosts: true,
-          canPublishPosts: staff.role === 'admin',
-          canManageCategories: staff.role === 'admin',
-          canViewRevenue: staff.role === 'admin',
-          canManageStaff: staff.role === 'admin',
-          canManagePayroll: staff.role === 'admin',
-          canManageSettings: staff.role === 'admin'
-        }
-      });
-    } else {
-      setEditingStaff(null);
-      setStaffForm({
-        name: '',
-        username: '',
-        password: '',
-        email: '',
-        phone: '',
-        refCode: '',
-        role: 'editor',
-        roleName: 'Biên Tập Viên Nội Dung',
-        joinDate: new Date().toISOString().split('T')[0],
-        status: 'active',
-        avatar: AVATAR_PRESETS[0],
-        permissions: {
-          canManagePosts: true,
-          canPublishPosts: false,
-          canManageCategories: false,
-          canViewRevenue: false,
-          canManageStaff: false,
-          canManagePayroll: false,
-          canManageSettings: false
-        }
-      });
-    }
-    setIsStaffModalOpen(true);
-  };
-
-  const handleModalAvatarFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setStaffForm(prev => ({ ...prev, avatar: reader.result }));
-      showToast('Đã tải ảnh đại diện thành công!', 'success');
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSaveStaffSubmit = (e) => {
-    e.preventDefault();
-    if (!staffForm.name.trim() || !staffForm.email.trim()) {
-      showToast('Vui lòng nhập đầy đủ họ tên và email', 'error');
-      return;
-    }
-
-    const payload = {
-      ...(editingStaff || {}),
-      ...staffForm,
-      refCode: (staffForm.refCode || '').toUpperCase().trim(),
-      id: editingStaff?.id || `staff-${Date.now()}`
-    };
-    if (!payload.password || !String(payload.password).trim()) {
-      delete payload.password;
-    }
-
-    saveStaff(payload);
-    setIsStaffModalOpen(false);
-  };
-
-  // Open Salary Modal
-  const handleOpenSalaryModal = (staff) => {
-    setSalaryForm({
-      staffId: staff.id,
-      staffName: staff.name,
-      baseSalary: staff.salary?.baseSalary || 10000000,
-      kpiBonus: staff.salary?.kpiBonus || 0,
-      deduction: staff.salary?.deduction || 0,
-      payPeriod: staff.salary?.payPeriod || '08/2026',
-      paymentStatus: staff.salary?.paymentStatus || 'paid',
-      paymentDate: staff.salary?.paymentDate || new Date().toISOString().split('T')[0]
-    });
-    setIsSalaryModalOpen(true);
-  };
-
-  const handleSaveSalarySubmit = (e) => {
-    e.preventDefault();
-    updateStaffSalary(salaryForm.staffId, salaryForm);
-    setIsSalaryModalOpen(false);
-  };
 
   // Toggle single permission
   const handleTogglePermission = (staff, permKey) => {

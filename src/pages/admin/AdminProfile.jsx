@@ -1,40 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { 
   User, 
   Key, 
   Copy, 
-  ShieldCheck, 
-  Briefcase, 
   Mail, 
-  Phone, 
-  Calendar, 
   Save, 
   TrendingUp, 
   History, 
-  ExternalLink,
-  Sparkles,
   CheckCircle,
   Eye,
   EyeOff,
-  Link2,
   Zap,
-  Upload
+  Upload,
+  BarChart3
 } from 'lucide-react';
 import { ShortLinkModal } from '../../components/admin/ShortLinkModal';
-import { storageService } from '../../services/storageService';
 
 const AVATAR_PRESETS = [
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=300&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=300&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=300&auto=format&fit=crop'
 ];
 
 export const AdminProfile = () => {
-  const { currentUser, staffList, saveStaff, activityLogs, showToast, navigate } = useBlog();
+  const { currentUser, staffList, saveStaff, activityLogs, showToast } = useBlog();
 
   // Find latest staff data from staffList
   const currentStaff = (currentUser && staffList.find(s => s.id === currentUser.id || s.username === currentUser.username)) || currentUser || {
@@ -55,7 +47,6 @@ export const AdminProfile = () => {
       canViewRevenue: true,
       canManageStaff: true,
       canManagePayroll: true,
-      canManageComments: true,
       canManageSettings: true
     }
   };
@@ -71,18 +62,17 @@ export const AdminProfile = () => {
     avatar: currentStaff?.avatar || AVATAR_PRESETS[0]
   });
 
-  // Keep profileForm synced with currentStaff whenever data is loaded from MongoDB
-  useEffect(() => {
-    if (currentStaff) {
-      setProfileForm({
-        name: currentStaff.name || '',
-        email: currentStaff.email || '',
-        phone: currentStaff.phone || '',
-        refCode: currentStaff.refCode || '',
-        avatar: currentStaff.avatar || AVATAR_PRESETS[0]
-      });
-    }
-  }, [currentStaff?.id, currentStaff?.name, currentStaff?.email, currentStaff?.phone, currentStaff?.refCode, currentStaff?.avatar]);
+  const [prevStaffKey, setPrevStaffKey] = useState(() => currentStaff?.id || currentStaff?.username);
+  if ((currentStaff?.id || currentStaff?.username) !== prevStaffKey) {
+    setPrevStaffKey(currentStaff?.id || currentStaff?.username);
+    setProfileForm({
+      name: currentStaff?.name || '',
+      email: currentStaff?.email || '',
+      phone: currentStaff?.phone || '',
+      refCode: currentStaff?.refCode || '',
+      avatar: currentStaff?.avatar || AVATAR_PRESETS[0]
+    });
+  }
 
   // Password change state
   const [passForm, setPassForm] = useState({
@@ -429,10 +419,11 @@ export const AdminProfile = () => {
           <div className="flex justify-end pt-4 border-t border-[#1e293b]">
             <button
               type="submit"
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-blue-500/25 active:scale-95 transition-all"
+              disabled={isSavingProfile}
+              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-blue-500/25 active:scale-95 transition-all cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              <span>Lưu Thay Đổi Hồ Sơ & Mã Seeding</span>
+              <span>{isSavingProfile ? 'Đang Lưu...' : 'Lưu Thay Đổi Hồ Sơ & Mã Seeding'}</span>
             </button>
           </div>
         </form>
@@ -492,10 +483,11 @@ export const AdminProfile = () => {
           <div className="flex justify-end pt-4 border-t border-[#1e293b]">
             <button
               type="submit"
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-blue-500/25 active:scale-95 transition-all"
+              disabled={isSavingPass}
+              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-blue-500/25 active:scale-95 transition-all cursor-pointer"
             >
               <Key className="w-4 h-4" />
-              <span>Cập Nhật Mật Khẩu</span>
+              <span>{isSavingPass ? 'Đang Cập Nhật...' : 'Cập Nhật Mật Khẩu'}</span>
             </button>
           </div>
         </form>

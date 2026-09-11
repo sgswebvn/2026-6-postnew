@@ -23,7 +23,7 @@ function checkDir(dir) {
         'HomePage', 'PostDetailPage', 'CategoryPage', 'TagPage', 'AboutPage',
         'ContactPage', 'PrivacyPolicyPage', 'TermsPage', 'DisclaimerPage',
         'AdminAuthModal', 'AdminLayout', 'AdminDashboard', 'AdminPostsList',
-        'AdminPostEditor', 'AdminCategories', 'AdminAdSense', 'AdminComments',
+        'AdminPostEditor', 'AdminCategories', 'AdminAdSense',
         'AdminSubscribers', 'AdminAuthors', 'AdminSettings', 'AdminStaff',
         'HeroFeatured', 'ArticleCard', 'NewsletterBox', 'AdSenseUnit', 'Badge',
         'ReturningReaderBanner', 'AffiliateShowcaseBox', 'AdSenseSticky', 'ImageIcon'

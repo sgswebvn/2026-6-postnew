@@ -3,7 +3,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { initialPosts, initialCategories, initialAuthors, initialSettings, initialComments, initialSubscribers } from '../server/seedData.js';
+import { initialPosts, initialCategories, initialAuthors, initialSettings, initialSubscribers } from '../server/seedData.js';
 
 let passedTests = 0;
 let failedTests = 0;
@@ -166,7 +166,7 @@ async function run10000StressTests() {
 
   const permKeys = [
     'canManagePosts', 'canPublishPosts', 'canManageCategories', 'canViewRevenue',
-    'canManageStaff', 'canManagePayroll', 'canManageComments', 'canManageSettings'
+    'canManageStaff', 'canManagePayroll', 'canManageSettings'
   ];
 
   for (let i = 0; i < 800; i++) {
@@ -178,7 +178,6 @@ async function run10000StressTests() {
       canViewRevenue: (i % 5 === 0),
       canManageStaff: false,
       canManagePayroll: false,
-      canManageComments: true,
       canManageSettings: false
     };
 

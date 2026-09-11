@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { 
-  Settings, 
   Save, 
   RotateCcw, 
   Globe, 
   Shield, 
   Activity, 
-  Mail, 
   Download, 
   Upload, 
   FileCheck,
@@ -19,7 +17,7 @@ export const AdminSettings = () => {
   const { posts, categories, authors, settings, updateSettings, resetData, showToast, showConfirm } = useBlog();
 
   const [formData, setFormData] = useState({
-    siteName: settings?.siteName || 'THE HORI CLICK',
+    siteName: settings?.siteName || 'THE HORIZON POST',
     tagline: settings?.tagline || 'Definitive Intelligence for Modern Wealth & Technology',
     edition: settings?.edition || 'U.S. Edition',
     description: settings?.description || '',
@@ -42,7 +40,7 @@ export const AdminSettings = () => {
   const handleResetData = () => {
     showConfirm({
       title: 'Khôi Phục Dữ Liệu Ban Đầu',
-      message: 'Khôi phục toàn bộ bài viết, chuyên mục, bình luận và cấu hình về bộ dữ liệu mẫu chuẩn ban đầu?',
+      message: 'Khôi phục toàn bộ bài viết, chuyên mục và cấu hình về bộ dữ liệu mẫu chuẩn ban đầu?',
       confirmText: 'Khôi Phục Ngay',
       variant: 'danger',
       onConfirm: () => {

@@ -402,9 +402,9 @@ export const BlogProvider = ({ children }) => {
     }
   };
 
-  const saveStaff = async (staffMember) => {
+  const saveStaff = async (staffMember, isExplicitNew = false) => {
     try {
-      const updated = await storageService.saveStaff(staffMember);
+      const updated = await storageService.saveStaff(staffMember, isExplicitNew);
       setStaffList(updated);
 
       // Immediately sync currentUser in state and localStorage if updating own profile
@@ -418,7 +418,7 @@ export const BlogProvider = ({ children }) => {
       }
 
       setActivityLogs(storageService.getActivityLogs());
-      showToast(`Đã cập nhật hồ sơ "${staffMember.name}" thành công!`, 'success');
+      showToast(isExplicitNew ? `Đã thêm nhân sự "${staffMember.name}" thành công!` : `Đã cập nhật hồ sơ "${staffMember.name}" thành công!`, 'success');
       return updated;
     } catch (error) {
       showToast(`❌ Không thể lưu thông tin nhân sự: ${error.message}`, 'error');
@@ -460,30 +460,6 @@ export const BlogProvider = ({ children }) => {
 
   const isBookmarked = (slug) => {
     return bookmarks.includes(slug);
-  };
-
-  const addComment = async (slug, comment) => {
-    try {
-      const newComment = await storageService.addComment(slug, comment);
-      showToast('Bình luận của bạn đã được đăng thành công!', 'success');
-      return newComment;
-    } catch (error) {
-      showToast(`❌ Không thể đăng bình luận: ${error.message}`, 'error');
-      throw error;
-    }
-  };
-
-  const likeComment = async (commentId) => {
-    await storageService.likeComment(commentId);
-  };
-
-  const deleteComment = async (commentId) => {
-    try {
-      await storageService.deleteComment(commentId);
-      showToast('Đã xóa bình luận', 'info');
-    } catch (error) {
-      showToast(`❌ Không thể xóa bình luận: ${error.message}`, 'error');
-    }
   };
 
   const addSubscriber = async (email, source) => {
@@ -575,9 +551,6 @@ export const BlogProvider = ({ children }) => {
       updateStaffSalary,
       toggleBookmark,
       isBookmarked,
-      addComment,
-      likeComment,
-      deleteComment,
       addSubscriber,
       deleteSubscriber,
       resetAllData,

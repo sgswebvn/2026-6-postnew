@@ -19,7 +19,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middlewares
-app.use(cors());
+app.use(cors({
+  exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Limit']
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -54,7 +56,7 @@ const isSocialCrawler = (userAgent = '') => {
 
 // Helper: Build Full Open Graph HTML
 const buildPostHtml = (post, reqUrl, refCode = '') => {
-  const title = `${escapeHtml(post.title)} | THE HORI CLICK`;
+  const title = `${escapeHtml(post.title)} | THE HORIZON POST`;
   const cleanExcerpt = escapeHtml(post.excerpt || post.metaDescription || post.title);
   const imageUrl = post.coverImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200';
   const postUrl = `https://www.thehori.click/post/${post.slug}${refCode ? `?ref=${refCode}` : ''}`;
@@ -194,6 +196,11 @@ app.get('/s/:code', async (req, res) => {
 
 // 3. API Routes
 app.use('/api', apiRouter);
+
+// 404 handler for unhandled /api routes
+app.all('/api/*splat', (req, res) => {
+  res.status(404).json({ error: 'Not Found' });
+});
 
 // Serve static assets from React dist
 app.use(express.static(path.resolve(__dirname, '../dist')));

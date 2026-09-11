@@ -4,7 +4,6 @@ import { Users, Plus, Edit2, Trash2, Check, ShieldCheck, CheckCircle } from 'luc
 
 export const AdminAuthors = () => {
   const { posts, authors, addAuthor, updateAuthors, deleteAuthor, showToast, showConfirm } = useBlog();
-  const [editingId, setEditingId] = useState(null);
   const [newAuthor, setNewAuthor] = useState({
     name: '',
     role: '',

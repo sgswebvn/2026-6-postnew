@@ -93,7 +93,7 @@ export const AdminStaffNew = () => {
     }
 
     const payload = {
-      id: `staff-${Date.now()}`,
+      id: `new-${Date.now()}`,
       name: form.name.trim(),
       username: form.username.toLowerCase().trim(),
       password: form.password.trim(),
@@ -125,8 +125,12 @@ export const AdminStaffNew = () => {
       }
     };
 
-    await saveStaff(payload);
-    navigate('/admin/staff');
+    try {
+      await saveStaff(payload, true);
+      navigate('/admin/staff');
+    } catch {
+      // Toast already shown in BlogContext
+    }
   };
 
   const handleCopyLink = () => {

@@ -54,7 +54,7 @@ for (let i = 1; i <= 50; i++) {
     }
   };
 
-  const updatedList = storageService.saveStaff(newStaff);
+  const updatedList = await storageService.saveStaff(newStaff);
   assert(updatedList.some(s => s.id === newStaff.id), `Staff ${newStaff.id} must be in returned list`);
   
   const fetchedList = storageService.getStaffList();
@@ -65,14 +65,23 @@ for (let i = 1; i <= 50; i++) {
 console.log('🔹 Testing Staff Editing & In-Place Update...');
 const testStaffToUpdate = storageService.getStaffList()[0];
 const updatedName = testStaffToUpdate.name + ' [ĐÃ CẬP NHẬT]';
-const listAfterUpdate = storageService.saveStaff({ ...testStaffToUpdate, name: updatedName });
+const listAfterUpdate = await storageService.saveStaff({ ...testStaffToUpdate, name: updatedName });
 const updatedStaffFound = listAfterUpdate.find(s => s.id === testStaffToUpdate.id);
 assert(updatedStaffFound && updatedStaffFound.name === updatedName, 'Staff name should be updated');
 assert(listAfterUpdate.filter(s => s.id === testStaffToUpdate.id).length === 1, 'Staff should not duplicate on update');
 
 // Dimension 3: Verify Post Slug extraction and View Increment
 console.log('🔹 Testing Article Slug resolution & View counter...');
-const posts = storageService.getPosts();
+await storageService.initializeFromDB();
+let posts = storageService.getPosts();
+if (posts.length === 0) {
+  const mockPosts = [
+    { id: 'post-test-1', slug: 'test-article-slug-1', title: 'Test Article 1', views: 10 },
+    { id: 'post-test-2', slug: 'test-article-slug-2', title: 'Test Article 2', views: 25 }
+  ];
+  localStorage.setItem('horizon_posts_v2', JSON.stringify(mockPosts));
+  posts = storageService.getPosts();
+}
 assert(posts.length > 0, 'Posts list must not be empty');
 
 posts.forEach(post => {

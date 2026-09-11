@@ -1,7 +1,7 @@
 import React from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { Badge } from '../common/Badge';
-import { Clock, TrendingUp, ArrowRight } from 'lucide-react';
+import { TrendingUp, ArrowRight } from 'lucide-react';
 import { getOptimizedImageUrl } from '../../utils/imageOptimizer';
 
 export const HeroFeatured = () => {
@@ -104,20 +104,31 @@ export const HeroFeatured = () => {
                 <div
                   key={post.id}
                   onClick={() => navigate(`/post/${post.slug}`)}
-                  className="group cursor-pointer p-3.5 rounded-xl bg-white dark:bg-[#111622] border border-neutral-200 dark:border-neutral-800 hover:border-neutral-400 dark:hover:border-neutral-700 transition-all flex items-start gap-3.5"
+                  className="group cursor-pointer p-3 sm:p-3.5 rounded-xl bg-white dark:bg-[#111622] border border-neutral-200 dark:border-neutral-800 hover:border-neutral-400 dark:hover:border-neutral-700 hover:shadow-xs transition-all flex items-center gap-3 sm:gap-3.5 flex-1 min-h-[92px]"
                 >
-                  <span className="font-serif font-black text-lg text-neutral-400 dark:text-neutral-600 flex-shrink-0 w-5">
+                  <span className="font-serif font-black text-lg text-neutral-400 dark:text-neutral-600 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors shrink-0 w-6 text-center select-none">
                     0{idx + 1}
                   </span>
-                  <div className="space-y-1 flex-1">
+                  <div className="space-y-1 flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-[10px] font-mono text-neutral-500 uppercase">{cat?.name}</span>
-                      <span className="text-neutral-300 dark:text-neutral-700">•</span>
-                      <span className="text-[10px] text-neutral-400 font-mono">{post.readTime}</span>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-blue-600 dark:text-blue-400 font-semibold truncate">
+                        {cat?.name || 'Editorial'}
+                      </span>
+                      <span className="text-neutral-300 dark:text-neutral-700 shrink-0">•</span>
+                      <span className="text-[10px] text-neutral-400 font-mono shrink-0">{post.readTime || '3 min'}</span>
                     </div>
-                    <h3 className="font-serif text-xs font-bold text-neutral-900 dark:text-neutral-100 group-hover:text-neutral-600 dark:group-hover:text-neutral-300 transition-colors line-clamp-2 leading-snug">
+                    <h3 className="font-serif text-xs sm:text-sm font-bold text-neutral-900 dark:text-neutral-100 group-hover:text-neutral-600 dark:group-hover:text-neutral-300 transition-colors line-clamp-2 leading-snug">
                       {post.title}
                     </h3>
+                  </div>
+                  <div className="relative w-20 sm:w-24 h-16 sm:h-20 shrink-0 rounded-lg overflow-hidden bg-neutral-100 dark:bg-neutral-800 border border-neutral-200/70 dark:border-neutral-800">
+                    <img
+                      src={getOptimizedImageUrl(post.coverImage, 360)}
+                      alt={post.title}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                    />
                   </div>
                 </div>
               );

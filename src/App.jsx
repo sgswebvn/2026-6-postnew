@@ -88,7 +88,7 @@ class ErrorBoundary extends React.Component {
 }
 
 const AppContent = () => {
-  const { currentRoute, isAdminAuthenticated, userRole, currentUser, hasPermission } = useBlog();
+  const { currentRoute, isAdminAuthenticated, userRole, hasPermission } = useBlog();
 
   // Router parser
   const renderRoute = () => {
@@ -181,6 +181,7 @@ const AppContent = () => {
           </AdminLayout>
         );
       }
+
 
       // Categories (canManageCategories)
       if (cleanPath === '/admin/categories') {

@@ -1,10 +1,10 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
 import { Post } from '../models/Post.js';
 import { Category } from '../models/Category.js';
 import { Author } from '../models/Author.js';
 import { Setting } from '../models/Setting.js';
-import { Comment } from '../models/Comment.js';
 import { Subscriber } from '../models/Subscriber.js';
 import { Referral } from '../models/Referral.js';
 import { Staff } from '../models/Staff.js';
@@ -37,7 +37,6 @@ import {
   initialCategories,
   initialAuthors,
   initialSettings,
-  initialComments,
   initialSubscribers
 } from '../seedData.js';
 import {
@@ -47,6 +46,24 @@ import {
 } from '../../src/utils/shortLink.js';
 
 const router = express.Router();
+
+// Rate limiter for admin/staff login to prevent brute force
+const authLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Quá nhiều lần thử đăng nhập thất bại. Vui lòng thử lại sau 15 phút.' }
+});
+
+// Rate limiter for public mutations to prevent spam/DoS
+const publicSpamLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Quá nhiều yêu cầu. Vui lòng thử lại sau giây lát.' }
+});
 
 const isMongooseReady = () => mongoose.connection.readyState === 1;
 
@@ -347,7 +364,7 @@ router.post('/upload', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/auth/login', async (req, res) => {
+router.post('/auth/login', authLoginLimiter, async (req, res) => {
   const rawId = req.body?.identifier;
   const rawPass = req.body?.password;
 
@@ -460,6 +477,24 @@ router.get('/posts', optionalAuth, async (req, res) => {
     const query = allowDrafts ? {} : { status: 'published' };
     let find = Post.find(query).sort({ publishedAt: -1 });
     if (!allowDrafts) find = find.select('-content');
+
+    const rawLimit = parseInt(req.query.limit, 10);
+    const rawPage = parseInt(req.query.page, 10);
+    if (!isNaN(rawLimit) && rawLimit > 0) {
+      const page = !isNaN(rawPage) && rawPage > 0 ? rawPage : 1;
+      const skip = (page - 1) * rawLimit;
+      const total = await Post.countDocuments(query);
+      find = find.skip(skip).limit(rawLimit);
+      const posts = await find;
+      res.setHeader('X-Total-Count', String(total));
+      res.setHeader('X-Page', String(page));
+      res.setHeader('X-Limit', String(rawLimit));
+      if (allowDrafts) {
+        return res.json(posts);
+      }
+      return res.json(posts.map((p) => publicPostProjection(p, { includeContent: false })));
+    }
+
     const posts = await find;
     if (allowDrafts) {
       return res.json(posts);
@@ -598,7 +633,7 @@ router.delete('/posts/:id', requireAuth, requireRole(['admin', 'editor', 'author
   }
 });
 
-router.post('/posts/:slug/view', async (req, res) => {
+router.post('/posts/:slug/view', publicSpamLimiter, async (req, res) => {
   const { slug } = req.params;
   try {
     if (!isMongooseReady()) {
@@ -777,59 +812,6 @@ router.post('/settings/reset', requireAuth, requireRole(['admin']), async (req, 
   }
 });
 
-router.get('/comments', async (req, res) => {
-  try {
-    if (isMongooseReady()) {
-      const comments = await Comment.find().sort({ createdAt: -1 });
-      return res.json(comments);
-    }
-    return res.json(memoryStore.comments || initialComments);
-  } catch (error) {
-    return res.json(memoryStore.comments || initialComments);
-  }
-});
-
-router.post('/comments', async (req, res) => {
-  try {
-    const newComment = {
-      ...req.body,
-      id: req.body.id || `comment-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      likes: 0
-    };
-    if (isMongooseReady()) {
-      const created = await Comment.create(newComment);
-      return res.status(201).json(created);
-    }
-    return res.status(503).json({ error: 'Service temporarily unavailable' });
-  } catch (error) {
-    return res.status(400).json({ error: 'Failed to post comment' });
-  }
-});
-
-router.post('/comments/:id/like', async (req, res) => {
-  const { id } = req.params;
-  try {
-    if (isMongooseReady()) {
-      const comment = await Comment.findOneAndUpdate({ id }, { $inc: { likes: 1 } }, { new: true });
-      if (comment) return res.json({ likes: comment.likes });
-    }
-    return res.json({ likes: 1 });
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to like comment' });
-  }
-});
-
-router.delete('/comments/:id', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
-  const { id } = req.params;
-  try {
-    await Comment.deleteOne({ id });
-    return res.status(204).send();
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to delete comment' });
-  }
-});
-
 router.get('/subscribers', requireAuth, requireRole(['admin', 'editor']), async (req, res) => {
   try {
     const subs = await Subscriber.find().sort({ subscribedAt: -1 });
@@ -839,7 +821,7 @@ router.get('/subscribers', requireAuth, requireRole(['admin', 'editor']), async 
   }
 });
 
-router.post('/subscribers', async (req, res) => {
+router.post('/subscribers', publicSpamLimiter, async (req, res) => {
   const { email, source } = req.body;
   if (!email || typeof email !== 'string' || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email is required' });
@@ -1150,7 +1132,7 @@ router.delete('/shortlinks/:id', requireAuth, requireRole(['admin', 'editor', 'a
   }
 });
 
-router.post('/referrals/hit/:refCode', async (req, res) => {
+router.post('/referrals/hit/:refCode', publicSpamLimiter, async (req, res) => {
   const { refCode } = req.params;
   try {
     if (isMongooseReady()) {

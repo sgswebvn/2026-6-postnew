@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { Badge } from '../../components/common/Badge';
-import { FolderTree, Plus, Edit2, Trash2, Check, Sparkles } from 'lucide-react';
+import { Plus, Edit2, Trash2, Check } from 'lucide-react';
 
 const slugifyCategory = (text = '') => {
   return String(text || '')

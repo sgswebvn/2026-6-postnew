@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useBlog } from '../../context/BlogContext';
 import { 
   ArrowLeft, 
@@ -6,15 +6,7 @@ import {
   DollarSign, 
   CreditCard, 
   Calendar, 
-  CheckCircle, 
-  Clock, 
-  BarChart3, 
-  FileText,
-  User,
-  ShieldCheck,
-  Briefcase,
-  ExternalLink,
-  Zap
+  BarChart3 
 } from 'lucide-react';
 
 export const AdminStaffSalary = ({ staffId }) => {
@@ -22,33 +14,33 @@ export const AdminStaffSalary = ({ staffId }) => {
 
   const targetStaff = staffList.find(s => s.id === staffId || s.username === staffId) || null;
 
-  const [form, setForm] = useState({
-    baseSalary: 10000000,
-    kpiBonus: 0,
-    deduction: 0,
-    payPeriod: '08/2026',
-    paymentStatus: 'paid',
-    paymentDate: new Date().toISOString().split('T')[0],
-    bankName: 'Vietcombank',
-    accountNumber: '1012345678',
-    notes: 'Lương cố định + Thưởng KPI theo Google Analytics'
-  });
+  const [form, setForm] = useState(() => ({
+    baseSalary: targetStaff?.salary?.baseSalary || 10000000,
+    kpiBonus: targetStaff?.salary?.kpiBonus || 0,
+    deduction: targetStaff?.salary?.deduction || 0,
+    payPeriod: targetStaff?.salary?.payPeriod || '08/2026',
+    paymentStatus: targetStaff?.salary?.paymentStatus || 'paid',
+    paymentDate: targetStaff?.salary?.paymentDate || '2026-08-01',
+    bankName: targetStaff?.salary?.bankName || 'Vietcombank',
+    accountNumber: targetStaff?.salary?.accountNumber || '1012345678',
+    notes: targetStaff?.salary?.notes || 'Lương cố định + Thưởng KPI theo Google Analytics'
+  }));
 
-  useEffect(() => {
-    if (targetStaff?.salary) {
-      setForm({
-        baseSalary: targetStaff.salary.baseSalary || 10000000,
-        kpiBonus: targetStaff.salary.kpiBonus || 0,
-        deduction: targetStaff.salary.deduction || 0,
-        payPeriod: targetStaff.salary.payPeriod || '08/2026',
-        paymentStatus: targetStaff.salary.paymentStatus || 'paid',
-        paymentDate: targetStaff.salary.paymentDate || new Date().toISOString().split('T')[0],
-        bankName: targetStaff.salary.bankName || 'Vietcombank',
-        accountNumber: targetStaff.salary.accountNumber || '1012345678',
-        notes: targetStaff.salary.notes || ''
-      });
-    }
-  }, [targetStaff]);
+  const [prevId, setPrevId] = useState(() => targetStaff?.id);
+  if (targetStaff?.id !== prevId) {
+    setPrevId(targetStaff?.id);
+    setForm({
+      baseSalary: targetStaff?.salary?.baseSalary || 10000000,
+      kpiBonus: targetStaff?.salary?.kpiBonus || 0,
+      deduction: targetStaff?.salary?.deduction || 0,
+      payPeriod: targetStaff?.salary?.payPeriod || '08/2026',
+      paymentStatus: targetStaff?.salary?.paymentStatus || 'paid',
+      paymentDate: targetStaff?.salary?.paymentDate || '2026-08-01',
+      bankName: targetStaff?.salary?.bankName || 'Vietcombank',
+      accountNumber: targetStaff?.salary?.accountNumber || '1012345678',
+      notes: targetStaff?.salary?.notes || ''
+    });
+  }
 
   const base = Number(form.baseSalary) || 0;
   const bonus = Number(form.kpiBonus) || 0;

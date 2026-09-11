@@ -2,10 +2,9 @@ import {
   initialCategories, 
   initialAuthors, 
   initialPosts, 
-  initialComments, 
   initialSubscribers, 
   initialSettings
-} from '../../server/seedData.js';
+} from '../utils/defaultData.js';
 import { api } from './api.js';
 import { supabaseStorage } from './supabaseStorage.js';
 
@@ -14,7 +13,6 @@ export const STORAGE_KEYS = {
   CATEGORIES: 'horizon_categories_v2',
   SETTINGS: 'horizon_settings_v2',
   AUTHORS: 'horizon_authors_v2',
-  COMMENTS: 'horizon_comments_v2',
   SUBSCRIBERS: 'horizon_subscribers_v2',
   BOOKMARKS: 'horizon_bookmarks_v2',
   ADMIN_AUTH: 'horizon_admin_auth_v2',
@@ -289,25 +287,31 @@ export const storageService = {
     }
   },
 
-  async saveStaff(staffMember) {
+  async saveStaff(staffMember, isExplicitNew = false) {
     const list = this.getStaffList();
     let updated;
-    const isNew = !staffMember.id || staffMember.id.startsWith('new-');
+    const isNew = Boolean(isExplicitNew) || !staffMember.id || String(staffMember.id).startsWith('new-') || !list.some(s => s.id === staffMember.id);
 
     if (isNew) {
       const newStaff = {
         ...staffMember,
-        id: `staff-${Date.now()}`,
-        joinDate: staffMember.joinDate || '08/2026',
-        status: 'active'
+        id: (staffMember.id && !String(staffMember.id).startsWith('new-')) ? staffMember.id : `staff-${Date.now()}`,
+        joinDate: staffMember.joinDate || new Date().toISOString().split('T')[0],
+        status: staffMember.status || 'active'
       };
-      const saved = await api.addStaff(newStaff);
-      updated = [saved || newStaff, ...list];
+      let saved = null;
+      try {
+        saved = await api.addStaff(newStaff);
+      } catch (err) {
+        console.warn('[Staff API Warning]', err?.message || err);
+      }
+      const effectiveNew = saved || newStaff;
+      updated = [effectiveNew, ...list.filter(s => s.id !== effectiveNew.id && s.username !== effectiveNew.username)];
       this.addActivityLog({
         staffName: 'Quản Trị Viên',
         action: 'staff_add',
         title: 'Thêm nhân sự mới',
-        details: `Thêm nhân viên: ${newStaff.name}`,
+        details: `Thêm nhân viên: ${effectiveNew.name}`,
         type: 'success'
       });
     } else {
@@ -315,7 +319,12 @@ export const storageService = {
       if (!payload.password || !String(payload.password).trim()) {
         delete payload.password;
       }
-      const saved = await api.updateStaff(staffMember.id, payload);
+      let saved = null;
+      try {
+        saved = await api.updateStaff(staffMember.id, payload);
+      } catch (err) {
+        console.warn('[Staff API Warning]', err?.message || err);
+      }
       updated = list.map(s => (s.id === staffMember.id || s.username === staffMember.username) ? (saved || { ...s, ...staffMember }) : s);
       this.addActivityLog({
         staffName: 'Quản Trị Viên',
@@ -402,55 +411,6 @@ export const storageService = {
   },
 
   // ==========================================
-  // COMMENTS
-  // ==========================================
-  getAllComments() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEYS.COMMENTS);
-      return raw ? JSON.parse(raw) : initialComments;
-    } catch {
-      return initialComments;
-    }
-  },
-
-  getCommentsByPostSlug(slug) {
-    const comments = this.getAllComments();
-    return comments.filter(c => c.postSlug === slug);
-  },
-
-  async addComment(slug, comment) {
-    const comments = this.getAllComments();
-    const newComment = {
-      id: `comment-${Date.now()}`,
-      postSlug: slug,
-      author: comment.author || 'Độc giả',
-      avatar: comment.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${Date.now()}`,
-      content: comment.content,
-      createdAt: new Date().toISOString(),
-      likes: 0
-    };
-    const saved = await api.addComment(newComment);
-    const updated = [saved || newComment, ...comments];
-    safeSetItem(STORAGE_KEYS.COMMENTS, JSON.stringify(updated));
-    return saved || newComment;
-  },
-
-  async likeComment(commentId) {
-    const comments = this.getAllComments();
-    const updated = comments.map(c => c.id === commentId ? { ...c, likes: (c.likes || 0) + 1 } : c);
-    safeSetItem(STORAGE_KEYS.COMMENTS, JSON.stringify(updated));
-    api.likeComment(commentId).catch(() => {});
-    return updated;
-  },
-
-  async deleteComment(commentId) {
-    await api.deleteComment(commentId);
-    const comments = this.getAllComments().filter(c => c.id !== commentId);
-    safeSetItem(STORAGE_KEYS.COMMENTS, JSON.stringify(comments));
-    return comments;
-  },
-
-  // ==========================================
   // SUBSCRIBERS
   // ==========================================
   getSubscribers() {
@@ -521,13 +481,12 @@ export const storageService = {
   // ==========================================
   async initializeFromDB() {
     try {
-      const [posts, categories, authors, staffList, settings, comments, subscribers] = await Promise.all([
+      const [posts, categories, authors, staffList, settings, subscribers] = await Promise.all([
         api.getPosts().catch(() => null),
         api.getCategories().catch(() => null),
         api.getAuthors().catch(() => null),
         api.getStaffList().catch(() => null),
         api.getSettings().catch(() => null),
-        api.getComments().catch(() => null),
         api.getSubscribers().catch(() => null)
       ]);
 
@@ -552,10 +511,6 @@ export const storageService = {
       if (settings && typeof settings === 'object') {
         safeSetItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
         result.settings = settings;
-      }
-      if (Array.isArray(comments) && comments.length > 0) {
-        safeSetItem(STORAGE_KEYS.COMMENTS, JSON.stringify(comments));
-        result.comments = comments;
       }
       if (Array.isArray(subscribers) && subscribers.length > 0) {
         safeSetItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(subscribers));

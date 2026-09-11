@@ -3,13 +3,11 @@ import { Post } from './models/Post.js';
 import { Category } from './models/Category.js';
 import { Author } from './models/Author.js';
 import { Setting } from './models/Setting.js';
-import { Comment } from './models/Comment.js';
 import { Subscriber } from './models/Subscriber.js';
 import { 
   initialCategories, 
   initialAuthors, 
   initialPosts, 
-  initialComments, 
   initialSubscribers, 
   initialSettings,
   initialActivityLogs
@@ -28,7 +26,6 @@ export const memoryStore = {
   categories: [...initialCategories],
   authors: [...initialAuthors],
   settings: { ...initialSettings },
-  comments: [...initialComments],
   subscribers: [...initialSubscribers],
   staff: [],
   activityLogs: [...initialActivityLogs],
@@ -103,12 +100,6 @@ export async function seedDatabase() {
     if (settingCount === 0) {
       console.log('[MongoDB Seeder] Seeding initial Settings...');
       await Setting.create(initialSettings);
-    }
-
-    const commentCount = await Comment.countDocuments();
-    if (commentCount === 0) {
-      console.log('[MongoDB Seeder] Seeding initial Comments...');
-      await Comment.insertMany(initialComments);
     }
 
     const subscriberCount = await Subscriber.countDocuments();

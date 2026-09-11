@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { initialPosts, initialCategories, initialAuthors, initialSettings, initialComments, initialSubscribers } from '../server/seedData.js';
+import { initialPosts, initialCategories, initialAuthors, initialSettings, initialSubscribers } from '../server/seedData.js';
 
 let passedTests = 0;
 let failedTests = 0;
@@ -142,7 +142,7 @@ async function run5000Tests() {
     '/admin/posts',
     '/admin/categories',
     '/admin/adsense',
-    '/admin/comments',
+    '/admin/profile',
     '/admin/settings',
     '/category/money',
     '/category/tech',
@@ -178,7 +178,7 @@ async function run5000Tests() {
 
   const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
   assert(indexHtml.includes('https://www.thehori.click/'), 'index.html contains canonical URL https://www.thehori.click/', 'Domain');
-  assert(indexHtml.includes('THE HORI CLICK'), 'index.html contains updated brand name THE HORI CLICK', 'Domain');
+  assert(indexHtml.includes('THE HORIZON POST'), 'index.html contains updated brand name THE HORIZON POST', 'Domain');
 
   for (let k = 0; k < 496; k++) {
     const fullArticleCanonical = `${TARGET_DOMAIN}/post/article-${k}`;
@@ -198,7 +198,7 @@ async function run5000Tests() {
     'description': samplePost.excerpt,
     'publisher': {
       '@type': 'Organization',
-      'name': 'THE HORI CLICK',
+      'name': 'THE HORIZON POST',
       'url': 'https://www.thehori.click'
     },
     'mainEntityOfPage': {
@@ -249,12 +249,12 @@ async function run5000Tests() {
   const rbacRoles = ['admin', 'editor'];
   const rbacPermissions = [
     'canManagePosts', 'canPublishPosts', 'canManageCategories', 'canViewRevenue',
-    'canManageStaff', 'canManagePayroll', 'canManageComments', 'canManageSettings'
+    'canManageStaff', 'canManagePayroll', 'canManageSettings'
   ];
 
   rbacRoles.forEach(role => {
     rbacPermissions.forEach(perm => {
-      const allowed = role === 'admin' ? true : ['canManagePosts', 'canManageComments'].includes(perm);
+      const allowed = role === 'admin' ? true : ['canManagePosts', 'canPublishPosts'].includes(perm);
       assert(typeof allowed === 'boolean', `RBAC rule for ${role} on ${perm} evaluated`, 'RBAC');
     });
   });

@@ -10,7 +10,9 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Limit']
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -36,11 +38,11 @@ const escapeHtml = (unsafe = '') => {
 
 // Helper: Build Full Rich Editorial HTML for Mobile Readers & Social Crawlers
 const buildPostHtml = (post, reqUrl, refCode = '') => {
-  const title = `${escapeHtml(post.title)} | THE HORI CLICK`;
+  const title = `${escapeHtml(post.title)} | THE HORIZON POST`;
   const cleanExcerpt = escapeHtml(post.excerpt || post.metaDescription || post.title);
   const imageUrl = post.coverImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200';
   const postUrl = `https://www.thehori.click/post/${post.slug}${refCode ? `?ref=${refCode}` : ''}`;
-  const authorName = escapeHtml(post.authorName || post.createdByName || 'THE HORI CLICK Editorial Board');
+  const authorName = escapeHtml(post.authorName || post.createdByName || 'THE HORIZON POST Editorial Board');
   const authorAvatar = post.authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200';
   const categoryName = escapeHtml(post.category || 'Featured');
   
@@ -68,7 +70,7 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
 
   <!-- Open Graph / Facebook / Zalo / Telegram / Social Preview -->
   <meta property="og:type" content="article" />
-  <meta property="og:site_name" content="THE HORI CLICK" />
+  <meta property="og:site_name" content="THE HORIZON POST" />
   <meta property="og:url" content="${postUrl}" />
   <meta property="og:title" content="${title}" />
   <meta property="og:description" content="${cleanExcerpt}" />
@@ -330,7 +332,7 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
   <header class="header-nav">
     <a href="/" class="brand-link">
       <span class="brand-badge">H</span>
-      <span class="brand-title">THE HORI CLICK</span>
+      <span class="brand-title">THE HORIZON POST</span>
     </a>
     <a href="/" class="home-btn">🏠 Home</a>
   </header>
@@ -369,12 +371,12 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
 
     <!-- Explore More -->
     <a href="/" class="cta-explore">
-      Explore More In-Depth Articles On THE HORI CLICK →
+      Explore More In-Depth Articles On THE HORIZON POST →
     </a>
   </main>
 
   <footer class="footer">
-    <p>© 2026 THE HORI CLICK. Independent US Finance, Technology & Modern Lifestyle Journal.</p>
+    <p>© 2026 THE HORIZON POST. Independent US Finance, Technology & Modern Lifestyle Journal.</p>
   </footer>
 </body>
 </html>`;

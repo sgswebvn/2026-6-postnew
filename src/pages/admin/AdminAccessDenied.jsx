@@ -15,8 +15,6 @@ export const AdminAccessDenied = ({ requiredPermission = 'canManageStaff', featu
         return 'Quản Lý Chuyên Mục & Danh Mục (/admin/categories)';
       case 'canViewRevenue':
         return 'Xem Doanh Thu & Báo Cáo Google AdSense (/admin/adsense)';
-      case 'canManageComments':
-        return 'Kiểm Duyệt Bình Luận (/admin/comments)';
       case 'canManageSettings':
         return 'Cài Đặt Hệ Thống & Cấu Hình SEO (/admin/settings)';
       default:

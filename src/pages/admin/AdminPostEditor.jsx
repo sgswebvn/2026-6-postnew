@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { useBlog } from '../../context/BlogContext';
 import { 
   Save, 
@@ -6,8 +7,6 @@ import {
   Eye, 
   Sparkles, 
   Heading1,
-  Heading2, 
-  Heading3, 
   Bold, 
   Italic, 
   Underline,
@@ -28,23 +27,17 @@ import {
   CheckCircle, 
   Globe, 
   DollarSign,
-  AlertCircle,
   Wand2,
   FileText,
   Video,
-  Link as LinkIcon,
   PlusCircle,
   Upload,
   X,
   ExternalLink,
   Clock,
   Zap,
-  User,
-  Share2,
-  Layers,
   ThumbsUp,
   Lightbulb,
-  TrendingUp,
   Lock
 } from 'lucide-react';
 import { Badge } from '../../components/common/Badge';
@@ -185,11 +178,14 @@ export const AdminPostEditor = ({ postId }) => {
     }
   };
 
+  const prevLoadedPostIdRef = React.useRef(postId);
   useEffect(() => {
-    loadedFromListRef.current = false;
-    loadedFromApiRef.current = false;
-    setFullPost(null);
-    isContentMountedRef.current = false;
+    if (prevLoadedPostIdRef.current !== postId) {
+      prevLoadedPostIdRef.current = postId;
+      loadedFromListRef.current = false;
+      loadedFromApiRef.current = false;
+      isContentMountedRef.current = false;
+    }
     if (!postId) return undefined;
 
     let cancelled = false;
@@ -664,7 +660,7 @@ export const AdminPostEditor = ({ postId }) => {
       const compressed = await compressImage(file, 1400, 0.85);
       setFormData(prev => ({ ...prev, coverImage: compressed }));
       showToast('Đã tải lên và nén ảnh bìa thành công!', 'success');
-    } catch (err) {
+    } catch {
       showToast('Không thể xử lý file ảnh', 'error');
     } finally {
       setUploadingImage(false);
@@ -704,7 +700,7 @@ export const AdminPostEditor = ({ postId }) => {
       setShowImageModal(false);
       setImageCaption('');
       showToast('Đã tải ảnh lên Supabase & chèn vào bài viết thành công!', 'success');
-    } catch (err) {
+    } catch {
       showToast('Lỗi khi tải hoặc nén ảnh', 'error');
     } finally {
       setUploadingImage(false);
@@ -1303,14 +1299,16 @@ export const AdminPostEditor = ({ postId }) => {
                     <div 
                       className="editorial-prose min-h-[250px]"
                       dangerouslySetInnerHTML={{ 
-                        __html: (formData.content && /<(p|div|h[1-6]|ul|ol|table|blockquote|figure)\b[^>]*>/i.test(formData.content))
-                          ? formData.content 
-                          : (formData.content || '')
-                              .split(/\n\s*\n/)
-                              .map(p => p.trim())
-                              .filter(Boolean)
-                              .map(p => `<p>${p.replace(/\n/g, '<br />')}</p>`)
-                              .join('\n') || '<p class="text-neutral-400 italic">Nội dung bài viết sẽ hiển thị tại đây...</p>'
+                        __html: DOMPurify.sanitize(
+                          (formData.content && /<(p|div|h[1-6]|ul|ol|table|blockquote|figure)\b[^>]*>/i.test(formData.content))
+                            ? formData.content 
+                            : (formData.content || '')
+                                .split(/\n\s*\n/)
+                                .map(p => p.trim())
+                                .filter(Boolean)
+                                .map(p => `<p>${p.replace(/\n/g, '<br />')}</p>`)
+                                .join('\n') || '<p class="text-neutral-400 italic">Nội dung bài viết sẽ hiển thị tại đây...</p>'
+                        )
                       }}
                     />
 
@@ -1350,7 +1348,7 @@ export const AdminPostEditor = ({ postId }) => {
                 <span className="text-neutral-300 font-mono">post/{formData.slug || 'slug'}</span>
               </div>
               <h4 className="text-base font-medium text-[#8ab4f8] hover:underline cursor-pointer line-clamp-1">
-                {formData.metaTitle || formData.title || 'Tiêu Đề SEO Hiển Thị Trên Google'} - THE HORI CLICK
+                {formData.metaTitle || formData.title || 'Tiêu Đề SEO Hiển Thị Trên Google'} - THE HORIZON POST
               </h4>
               <p className="text-xs text-[#4d5156] dark:text-[#bdc1c6] line-clamp-2 leading-relaxed">
                 {formData.metaDescription || formData.excerpt || 'Đoạn mô tả ngắn gọn này sẽ xuất hiện bên dưới tiêu đề khi độc giả tìm kiếm bài viết trên Google máy tính và di động.'}

@@ -7,10 +7,8 @@ import {
   Edit3, 
   Trash2, 
   ExternalLink, 
-  Eye, 
   ChevronLeft, 
   ChevronRight, 
-  Sparkles, 
   FileText, 
   Copy, 
   Link2, 
@@ -26,7 +24,7 @@ export const AdminPostsList = () => {
   const [selectedCat, setSelectedCat] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const itemsPerPage = 10;
   const [isShortLinkModalOpen, setIsShortLinkModalOpen] = useState(false);
   const [selectedShortLinkPost, setSelectedShortLinkPost] = useState(null);
 
@@ -235,7 +233,7 @@ export const AdminPostsList = () => {
                       displayDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
                       displayTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
                     }
-                  } catch (e) {}
+                  } catch {}
 
                   return (
                     <tr key={post.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-900/40 transition-colors">

@@ -8,9 +8,6 @@ import {
   ExternalLink,
   Copy,
   ArrowUpRight,
-  ShieldCheck,
-  BarChart3,
-  Calendar,
   Layers,
   Activity,
   History

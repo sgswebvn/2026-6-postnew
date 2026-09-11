@@ -86,7 +86,7 @@ const extraHappy = [
   `https://www.thehori.click/post/${SAMPLE_SLUG}?utm_source=fb`,
   `https://www.thehori.click/post/${SAMPLE_SLUG}?ref=OTHER`,
   `https://www.thehori.click/post/${SAMPLE_SLUG}?ref=OTHER&utm_campaign=zalo`,
-  `https://www.thehori.click/post/${SAMPLE_SLUG}#comments`,
+  `https://www.thehori.click/post/${SAMPLE_SLUG}#discussion-faq`,
   `https://www.thehori.click/post/${SAMPLE_SLUG}/?ref=OLD#top`,
   `  https://www.thehori.click/post/${SAMPLE_SLUG}  `,
   `\nhttps://www.thehori.click/post/${SAMPLE_SLUG}\n`,

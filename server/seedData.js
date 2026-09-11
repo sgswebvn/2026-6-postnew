@@ -1092,42 +1092,6 @@ export const initialPosts = [
   }
 ];
 
-export const initialComments = [
-  {
-    id: 'comment-1',
-    postId: 'post-1',
-    authorName: 'Marcus Vance, PhD',
-    authorRole: 'Senior Contributor & Tech Editor',
-    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_21.jpg',
-    content: 'The quantitative comparison between Treasury ladders and prime money market funds is outstanding. In high-tax states like California and New York, the state tax exemption makes T-Bills the clear mathematical winner.',
-    likes: 12,
-    status: 'approved',
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
-  },
-  {
-    id: 'comment-2',
-    postId: 'post-1',
-    authorName: 'Dr. Elena Rostova, MD',
-    authorRole: 'Health & Longevity Lead',
-    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_22.jpg',
-    content: 'Well-structured cash management reduces chronic financial cortisol spikes, which directly preserves autonomic nervous system balance.',
-    likes: 9,
-    status: 'approved',
-    createdAt: new Date(Date.now() - 86400000).toISOString()
-  },
-  {
-    id: 'comment-3',
-    postId: 'post-7',
-    authorName: 'Sarah Jenkins, CFA',
-    authorRole: 'Financial Markets Lead',
-    avatar: 'https://mmltqgekvpdnezqdavvc.supabase.co/storage/v1/object/public/postnew/uploads/post_img_23.jpg',
-    content: 'We are deploying these multi-agent consensus algorithms in our automated quantitative risk models with exceptional results.',
-    likes: 7,
-    status: 'approved',
-    createdAt: new Date(Date.now() - 43200000).toISOString()
-  }
-];
-
 export const initialSubscribers = [
   { email: 'investor.capital@sanfrancisco-hedge.com', date: new Date('2026-08-15'), source: 'Lead Header Banner' },
   { email: 'sarah.founder@austin-techlab.io', date: new Date('2026-08-18'), source: 'Article Footer Box' },
@@ -1137,7 +1101,7 @@ export const initialSubscribers = [
 
 export const initialSettings = {
   key: 'global_settings',
-  siteName: 'THE HORI CLICK',
+  siteName: 'THE HORIZON POST',
   siteUrl: 'https://www.thehori.click',
   tagline: 'Definitive Intelligence for Modern Wealth & Technology',
   edition: 'U.S. Edition',

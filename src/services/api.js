@@ -1,4 +1,6 @@
-const API_BASE = '/api';
+const API_BASE = typeof window !== 'undefined' 
+  ? '/api' 
+  : (process.env.API_BASE_URL || (process.env.PORT ? `http://localhost:${process.env.PORT}/api` : 'http://localhost:5000/api'));
 
 function getAuthHeaders(extraHeaders = {}) {
   const token = localStorage.getItem('horizon_auth_token') || sessionStorage.getItem('horizon_auth_token');
@@ -357,44 +359,6 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to reset settings');
     return await res.json();
-  },
-
-  // Comments
-  async getComments() {
-    try {
-      const res = await fetch(`${API_BASE}/comments`);
-      return await res.json();
-    } catch {
-      return [];
-    }
-  },
-
-  async addComment(commentData) {
-    const res = await fetch(`${API_BASE}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(commentData)
-    });
-    if (!res.ok) throw new Error('Failed to post comment');
-    return await res.json();
-  },
-
-  async likeComment(id) {
-    try {
-      const res = await fetch(`${API_BASE}/comments/${id}/like`, { method: 'POST' });
-      return await res.json();
-    } catch {
-      return { likes: 1 };
-    }
-  },
-
-  async deleteComment(id) {
-    const res = await fetch(`${API_BASE}/comments/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!res.ok) throw new Error('Failed to delete comment');
-    return { success: true };
   },
 
   // Subscribers

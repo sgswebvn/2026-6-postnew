@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import DOMPurify from 'dompurify';
 import { useBlog } from '../context/BlogContext';
-import { storageService } from '../services/storageService';
 import { telemetryService } from '../services/telemetryService';
 import { Badge } from '../components/common/Badge';
 import { AdSenseUnit } from '../components/ads/AdSenseUnit';
@@ -14,8 +14,6 @@ import { TableOfContents } from '../components/blog/TableOfContents';
 import { getOptimizedImageUrl } from '../utils/imageOptimizer';
 import { 
   Clock, 
-  Eye, 
-  Calendar, 
   ShieldCheck, 
   ChevronRight, 
   Bookmark, 
@@ -24,19 +22,16 @@ import {
   ArrowDown,
   ChevronUp,
   ChevronDown,
-  Type,
   ThumbsUp,
   Lightbulb,
   TrendingUp,
-  Brain,
-  FileText
+  Brain
 } from 'lucide-react';
 import { NotFoundPage } from './NotFoundPage';
 
 export const PostDetailPage = ({ slug }) => {
-  const { posts, categories, authors, settings, navigate, toggleBookmark, bookmarks, incrementPostView, showToast } = useBlog();
+  const { posts, categories, authors, settings, navigate, toggleBookmark, bookmarks, incrementPostView } = useBlog();
   const [fontSize, setFontSize] = useState('base'); // 'sm' | 'base' | 'lg'
-  const [showScrollTop, setShowScrollTop] = useState(false);
   const [userReaction, setUserReaction] = useState(null);
   const [reactionCounts, setReactionCounts] = useState({
     helpful: 24,
@@ -55,42 +50,42 @@ export const PostDetailPage = ({ slug }) => {
   );
 
   const [fetchedPost, setFetchedPost] = useState(null);
-  const [isLoading, setIsLoading] = useState(!localPost || !localPost.content || localPost.content.length <= 500);
+  const hasFullLocal = Boolean(localPost && localPost.content && localPost.content.length > 500);
+  const isLoading = !hasFullLocal && !fetchedPost;
+
+  const [prevSlug, setPrevSlug] = useState(slug);
+  if (prevSlug !== slug) {
+    setPrevSlug(slug);
+    setFetchedPost(null);
+  }
 
   useEffect(() => {
     const key = (slug || '').trim().replace(/\/+$/, '').replace(/-+$/, '');
     if (!key) return undefined;
-
-    setFetchedPost(null);
 
     const local = posts.find(p =>
       p.slug === key ||
       p.id === key ||
       (p.slug && p.slug.toLowerCase() === key.toLowerCase())
     );
-    const hasFullLocal = Boolean(local && local.content && local.content.length > 500);
-    if (hasFullLocal) {
-      setIsLoading(false);
+    const hasLocal = Boolean(local && local.content && local.content.length > 500);
+    if (hasLocal) {
       return undefined;
     }
 
     let cancelled = false;
-    setIsLoading(true);
     fetch(`/api/posts/${encodeURIComponent(key)}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled) return;
         if (data && data.content) setFetchedPost(data);
       })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+      .catch(() => {});
 
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, posts]);
 
   const post = fetchedPost || localPost;
   const isSaved = post ? bookmarks.includes(post.slug || slug) : false;
@@ -115,12 +110,12 @@ export const PostDetailPage = ({ slug }) => {
         cleanupTelemetry();
       }
     };
-  }, [slug, post]);
+  }, [slug, post, incrementPostView]);
 
   // 2. Sync Document Title, Canonical URL, Open Graph & Twitter Social Share Cards
   useEffect(() => {
     if (post) {
-      const siteName = settings?.siteName || 'THE HORI CLICK';
+      const siteName = settings?.siteName || 'THE HORIZON POST';
       const pageTitle = `${post.title} | ${siteName}`;
       const pageDesc = post.excerpt || post.metaDescription || post.title;
       const pageImage = post.coverImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200';
@@ -195,11 +190,7 @@ export const PostDetailPage = ({ slug }) => {
     .filter(p => p.id !== post.id && p.status === 'published' && p.categoryId === post.categoryId)
     .slice(0, 2);
 
-  // Compute Word Count & Reading Time
-  const textContent = (post.content || '').replace(/<[^>]*>/g, ' ');
-  const wordCount = textContent.trim().split(/\s+/).filter(Boolean).length;
-
-  const publishedDate = new Date(post.publishedAt || Date.now());
+  const publishedDate = post.publishedAt ? new Date(post.publishedAt) : new Date('2026-01-01');
   const formattedDate = Number.isNaN(publishedDate.getTime())
     ? ''
     : new Intl.DateTimeFormat('en-US', {
@@ -224,7 +215,7 @@ export const PostDetailPage = ({ slug }) => {
     }],
     'publisher': {
       '@type': 'Organization',
-      'name': settings?.siteName || 'THE HORI CLICK',
+      'name': settings?.siteName || 'THE HORIZON POST',
       'url': 'https://www.thehori.click',
       'logo': {
         '@type': 'ImageObject',
@@ -416,14 +407,16 @@ export const PostDetailPage = ({ slug }) => {
             <div 
               className={`editorial-prose font-sans w-full max-w-full break-words overflow-hidden ${fontSizeClasses[fontSize]}`}
               dangerouslySetInnerHTML={{ 
-                __html: (post.content && /<(p|div|h[1-6]|ul|ol|table|blockquote|figure)\b[^>]*>/i.test(post.content))
-                  ? post.content 
-                  : (post.content || post.excerpt || post.title || '')
-                      .split(/\n\s*\n/)
-                      .map(p => p.trim())
-                      .filter(Boolean)
-                      .map(p => `<p>${p.replace(/\n/g, '<br />')}</p>`)
-                      .join('\n')
+                __html: DOMPurify.sanitize(
+                  (post.content && /<(p|div|h[1-6]|ul|ol|table|blockquote|figure)\b[^>]*>/i.test(post.content))
+                    ? post.content 
+                    : (post.content || post.excerpt || post.title || '')
+                        .split(/\n\s*\n/)
+                        .map(p => p.trim())
+                        .filter(Boolean)
+                        .map(p => `<p>${p.replace(/\n/g, '<br />')}</p>`)
+                        .join('\n')
+                )
               }}
             />
 

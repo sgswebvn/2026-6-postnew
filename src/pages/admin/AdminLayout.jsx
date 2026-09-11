@@ -10,7 +10,6 @@ import {
   LogOut, 
   ExternalLink, 
   Sparkles,
-  MessageSquare,
   Mail,
   Users,
   ShieldCheck,
@@ -71,7 +70,7 @@ export const AdminLayout = ({ children, currentTab = 'dashboard' }) => {
                 </span>
                 <div className="min-w-0 flex-1">
                   <h2 className="font-serif font-bold text-sm leading-tight text-neutral-900 tracking-wide truncate">
-                    {settings?.siteName || 'THE HORI CLICK'}
+                    {settings?.siteName || 'THE HORIZON POST'}
                   </h2>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold truncate ${
