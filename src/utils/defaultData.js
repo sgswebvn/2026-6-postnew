@@ -147,7 +147,7 @@ export const initialSettings = {
   adsense: {
     enabled: true,
     sandboxMode: true,
-    publisherId: 'ca-pub-9876543210123456',
+    publisherId: 'ca-pub-4714090083774338',
     autoAdsEnabled: true,
     slots: {
       headerLeaderboard: { enabled: true, slotId: '1029384756', format: 'horizontal', name: 'Top Header Banner (Leaderboard 728x90)' },

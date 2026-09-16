@@ -90,6 +90,7 @@ export const PostDetailPage = ({ slug }) => {
   const post = fetchedPost || localPost;
   const isSaved = post ? bookmarks.includes(post.slug || slug) : false;
   const recordedSlugRef = React.useRef('');
+  const telemetrySlugRef = React.useRef('');
 
   // 1. Record single view increment & telemetry once per slug
   useEffect(() => {
@@ -102,14 +103,18 @@ export const PostDetailPage = ({ slug }) => {
       }
     }
 
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    const cleanupTelemetry = telemetryService.initArticleTelemetry(slug, post?.title || slug);
+    if (telemetrySlugRef.current !== slug) {
+      telemetrySlugRef.current = slug;
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      const cleanupTelemetry = telemetryService.initArticleTelemetry(slug, post?.title || slug);
 
-    return () => {
-      if (cleanupTelemetry) {
-        cleanupTelemetry();
-      }
-    };
+      return () => {
+        telemetrySlugRef.current = '';
+        if (cleanupTelemetry) {
+          cleanupTelemetry();
+        }
+      };
+    }
   }, [slug, post, incrementPostView]);
 
   // 2. Sync Document Title, Canonical URL, Open Graph & Twitter Social Share Cards

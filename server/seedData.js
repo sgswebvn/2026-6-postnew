@@ -1109,12 +1109,12 @@ export const initialSettings = {
   contactEmail: 'contact@thehori.click',
   businessAddress: '742 Evergreen Terrace, Suite 400, Austin, TX 78701, United States',
   phone: '+1 (512) 890-4421',
-  gaTrackingId: 'G-HORICLICK2026',
+  gaTrackingId: 'G-MZ34K70519',
   searchConsoleCode: 'google-site-verification=hori7890abcdef123456',
   adsense: {
     enabled: true,
     sandboxMode: true,
-    publisherId: 'ca-pub-9876543210123456',
+    publisherId: 'ca-pub-4714090083774338',
     autoAdsEnabled: true,
     slots: {
       headerLeaderboard: { enabled: true, slotId: '1029384756', format: 'horizontal', name: 'Top Header Banner (Leaderboard 728x90)' },

@@ -14,7 +14,7 @@ export const AdSenseUnit = ({
   const slotConfig = settings?.adsense?.slots?.[slotType];
   const isSlotEnabled = Boolean(slotConfig?.enabled);
   const isSandbox = Boolean(settings?.adsense?.sandboxMode);
-  const publisherId = settings?.adsense?.publisherId || 'ca-pub-9876543210123456';
+  const publisherId = settings?.adsense?.publisherId || 'ca-pub-4714090083774338';
   const slotId = slotConfig?.slotId || '1234567890';
 
   useEffect(() => {

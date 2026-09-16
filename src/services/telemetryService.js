@@ -76,6 +76,37 @@ export const telemetryService = {
     }
   },
 
+  // Track SPA Page View across all routes (Home, Categories, Tags, Static, Admin)
+  trackPageView(path, pageTitle, extraParams = {}) {
+    const refCode = this.getReferralCode();
+    const session = this.getSessionInfo();
+    const resolvedPath = path || (typeof window !== 'undefined' ? window.location.pathname : '/');
+    const resolvedTitle = pageTitle || (typeof document !== 'undefined' ? document.title : 'THE HORIZON POST');
+    const resolvedLocation = typeof window !== 'undefined' ? window.location.href : '';
+
+    const payload = {
+      page_title: resolvedTitle,
+      page_location: resolvedLocation,
+      page_path: resolvedPath,
+      staff_ref: refCode || 'DIRECT',
+      staff_code: refCode || 'DIRECT',
+      session_id: session?.sessionId || '',
+      ...extraParams
+    };
+
+    this.sendGA4Event('page_view', payload);
+
+    if (refCode && typeof window !== 'undefined' && typeof window.gtag === 'function') {
+      window.gtag('set', 'user_properties', {
+        staff_referral_code: refCode
+      });
+    }
+
+    if (typeof window !== 'undefined' && window.__HORIZON_DEBUG__) {
+      console.log(`📄 [GA4 PageView] ${resolvedPath} - "${resolvedTitle}"`, payload);
+    }
+  },
+
   // Record an explicit telemetry event
   trackEvent(eventName, payload = {}) {
     const session = this.getSessionInfo();
@@ -126,11 +157,14 @@ export const telemetryService = {
       safeSetItem(SESSION_KEY, JSON.stringify(session));
     }
 
+    const currentHref = typeof window !== 'undefined' ? window.location.href : '';
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : `/post/${postSlug}`;
+
     // Forward to GA4 with staff attribution
     this.sendGA4Event('page_view', {
       page_title: postTitle,
-      page_location: window.location.href,
-      page_path: window.location.pathname,
+      page_location: currentHref,
+      page_path: currentPath,
       staff_ref: refCode || 'DIRECT',
       staff_code: refCode || 'DIRECT'
     });
@@ -140,7 +174,7 @@ export const telemetryService = {
         staff_code: refCode,
         post_slug: postSlug,
         post_title: postTitle,
-        referral_url: window.location.href
+        referral_url: currentHref
       });
       if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
         window.gtag('set', 'user_properties', {

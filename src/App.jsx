@@ -6,6 +6,7 @@ import { Toast } from './components/common/Toast';
 import { CustomDialog } from './components/common/CustomDialog';
 import { SearchModal } from './components/common/SearchModal';
 import { StickyBottomAd } from './components/ads/StickyBottomAd';
+import { telemetryService } from './services/telemetryService';
 
 // Public Pages
 import { HomePage } from './pages/HomePage';
@@ -88,7 +89,50 @@ class ErrorBoundary extends React.Component {
 }
 
 const AppContent = () => {
-  const { currentRoute, isAdminAuthenticated, userRole, hasPermission } = useBlog();
+  const { currentRoute, isAdminAuthenticated, userRole, hasPermission, settings, categories } = useBlog();
+
+  // Automatic SPA Page View Tracking for Google Analytics 4
+  React.useEffect(() => {
+    let route = currentRoute || '/';
+    if (route.startsWith('#')) route = route.replace(/^#/, '');
+    if (!route.startsWith('/')) route = `/${route}`;
+    const cleanPath = route.split('?')[0] || '/';
+
+    // PostDetailPage manages its own comprehensive article telemetry (dwell time, scroll depth, staff ref)
+    if (cleanPath.startsWith('/post/')) return;
+
+    // Resolve human-readable title for standard SPA routes
+    const siteName = settings?.siteName || 'THE HORIZON POST';
+    let title = `${siteName} | Independent US Finance, Tech & Modern Lifestyle Journal`;
+
+    if (cleanPath === '/' || cleanPath === '') {
+      title = `${siteName} | Independent US Finance, Tech & Modern Lifestyle Journal`;
+    } else if (cleanPath.startsWith('/category/')) {
+      const catSlug = cleanPath.replace('/category/', '').replace(/\/+$/, '');
+      const cat = categories?.find(c => c.slug === catSlug);
+      title = `${cat?.name || catSlug} Desk | ${siteName}`;
+    } else if (cleanPath.startsWith('/tag/')) {
+      const tag = cleanPath.replace('/tag/', '').replace(/\/+$/, '');
+      title = `#${decodeURIComponent(tag)} Archive | ${siteName}`;
+    } else if (cleanPath === '/about') {
+      title = `About Us | ${siteName}`;
+    } else if (cleanPath === '/contact') {
+      title = `Contact Editorial Desk | ${siteName}`;
+    } else if (cleanPath === '/privacy-policy') {
+      title = `Privacy Policy | ${siteName}`;
+    } else if (cleanPath === '/terms') {
+      title = `Terms of Service | ${siteName}`;
+    } else if (cleanPath === '/disclaimer') {
+      title = `Financial & Editorial Disclaimer | ${siteName}`;
+    } else if (cleanPath.startsWith('/admin')) {
+      title = `CMS Editorial Portal | ${siteName}`;
+    } else {
+      title = `404 Not Found | ${siteName}`;
+    }
+
+    document.title = title;
+    telemetryService.trackPageView(cleanPath, title);
+  }, [currentRoute, settings?.siteName, categories]);
 
   // Router parser
   const renderRoute = () => {

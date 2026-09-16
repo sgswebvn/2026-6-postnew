@@ -10,12 +10,12 @@ const settingSchema = new mongoose.Schema({
   contactEmail: { type: String, default: 'contact@thehori.click' },
   businessAddress: { type: String, default: '742 Evergreen Terrace, Suite 400, Austin, TX 78701, United States' },
   phone: { type: String, default: '+1 (512) 890-4421' },
-  gaTrackingId: { type: String, default: 'G-HORICLICK2026' },
+  gaTrackingId: { type: String, default: 'G-MZ34K70519' },
   searchConsoleCode: { type: String, default: 'google-site-verification=hori7890abcdef123456' },
   adsense: {
     enabled: { type: Boolean, default: true },
     sandboxMode: { type: Boolean, default: true },
-    publisherId: { type: String, default: 'ca-pub-9876543210123456' },
+    publisherId: { type: String, default: 'ca-pub-4714090083774338' },
     autoAdsEnabled: { type: Boolean, default: true },
     slots: { type: mongoose.Schema.Types.Mixed, default: {} }
   }

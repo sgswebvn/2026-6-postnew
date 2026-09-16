@@ -1,4 +1,5 @@
 # Google AdSense Authorized Digital Sellers (ads.txt)
 # Official Publisher Record for THE HORIZON POST (https://www.thehori.click)
 # [TEST / SIMULATION MODE] - Temporary sandbox publisher ID pending Google AdSense approval
+google.com, pub-4714090083774338, DIRECT, f08c47fec0942fa0
 google.com, pub-9876543210123456, DIRECT, f08c47fec0942fa0

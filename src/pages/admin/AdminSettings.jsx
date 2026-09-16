@@ -24,7 +24,7 @@ export const AdminSettings = () => {
     contactEmail: settings?.contactEmail || 'contact@thehori.click',
     businessAddress: settings?.businessAddress || '742 Evergreen Terrace, Suite 400, Austin, TX 78701, United States',
     phone: settings?.phone || '+1 (512) 890-4421',
-    gaTrackingId: settings?.gaTrackingId || 'G-HORICLICK2026',
+    gaTrackingId: settings?.gaTrackingId || 'G-MZ34K70519',
     searchConsoleCode: settings?.searchConsoleCode || 'google-site-verification=hori7890abcdef123456',
   });
 

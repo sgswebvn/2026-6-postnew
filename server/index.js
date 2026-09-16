@@ -91,13 +91,29 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
       html = html.replace('</head>', `    <meta name="twitter:image" content="${imageUrl}" />\n</head>`);
     }
 
+    if (refCode) {
+      const seedingScript = `\n      gtag('event', 'seeding_referral_click', { staff_code: '${refCode}', post_slug: '${post.slug}' });`;
+      html = html.replace(/gtag\('config'[\s\S]*?\);/i, (match) => `${match}${seedingScript}`);
+    }
+
     return html;
   }
 
   return `<!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-MZ34K70519"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-MZ34K70519');
+    ${refCode ? `gtag('event', 'seeding_referral_click', { staff_code: '${refCode}', post_slug: '${post.slug}' });` : ''}
+  </script>
+  <!-- Google AdSense Verification & Auto Ads -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4714090083774338" crossorigin="anonymous"></script>
   <title>${title}</title>
   <meta property="og:type" content="article" />
   <meta property="og:title" content="${title}" />
@@ -124,9 +140,13 @@ app.get('/post/:slug', async (req, res, next) => {
 
     try {
       if (Post) {
-        post = await Post.findOne({ $or: [{ slug }, { id: slug }], status: 'published' });
+        post = await Post.findOne({ $or: [{ slug }, { id: slug }], status: 'published' }).maxTimeMS(2000);
       }
     } catch (e) {}
+
+    if (!post && memoryStore && memoryStore.posts) {
+      post = memoryStore.posts.find(p => (p.slug === slug || p.id === slug) && p.status === 'published');
+    }
 
     if (post) {
       const html = buildPostHtml(post, req.originalUrl, refCode);

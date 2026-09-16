@@ -326,6 +326,8 @@ const buildPostHtml = (post, reqUrl, refCode = '') => {
     gtag('config', 'G-MZ34K70519');
     ${refCode ? `gtag('event', 'seeding_referral_click', { staff_code: '${refCode}', post_slug: '${post.slug}' });` : ''}
   </script>
+  <!-- Google AdSense Verification & Auto Ads -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4714090083774338" crossorigin="anonymous"></script>
 </head>
 <body>
   <!-- Header -->

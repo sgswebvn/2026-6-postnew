@@ -19,7 +19,7 @@ export const AdminAdSense = () => {
   const [adsConfig, setAdsConfig] = useState(settings?.adsense || {
     enabled: true,
     sandboxMode: true,
-    publisherId: 'ca-pub-9876543210123456',
+    publisherId: 'ca-pub-4714090083774338',
     autoAdsEnabled: true,
     slots: {
       headerLeaderboard: { enabled: true, slotId: '1029384756', format: 'horizontal', name: 'Banner Đầu Trang / Dưới Menu (Leaderboard 728x90)' },
