@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-export default function AdsterraPopunder() {
+export function AdsterraPopunder() {
   useEffect(() => {
     const script = document.createElement("script");
 
