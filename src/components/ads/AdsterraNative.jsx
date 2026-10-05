@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-export default function AdsterraNative() {
+export function AdsterraNative() {
   const adContainer = useRef(null);
 
   useEffect(() => {
