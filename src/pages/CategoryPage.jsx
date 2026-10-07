@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useBlog } from '../context/BlogContext';
 import { ArticleCard } from '../components/blog/ArticleCard';
 import { AdSenseUnit } from '../components/ads/AdSenseUnit';
+import { AdsterraAd } from '../components/ads/AdsterraAd';
 import { Badge } from '../components/common/Badge';
 import { NewsletterBox } from '../components/blog/NewsletterBox';
 import { Layers, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
@@ -62,6 +63,9 @@ export const CategoryPage = ({ slug }) => {
 
       {/* Top Header Leaderboard Ad */}
       <AdSenseUnit slotType="headerLeaderboard" customLabel={`Sponsored ${category.name} Partners`} />
+
+      {/* Adsterra Category Sponsored Banner */}
+      <AdsterraAd label={`Sponsored ${category.name} Partner`} className="my-6" />
 
       {/* Articles Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8">

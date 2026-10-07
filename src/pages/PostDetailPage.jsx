@@ -4,6 +4,8 @@ import { useBlog } from '../context/BlogContext';
 import { telemetryService } from '../services/telemetryService';
 import { Badge } from '../components/common/Badge';
 import { AdSenseUnit } from '../components/ads/AdSenseUnit';
+import { AdsterraAd } from '../components/ads/AdsterraAd';
+import { AdsterraNative } from '../components/ads/AdsterraNative';
 import { AuthorBioCard } from '../components/blog/AuthorBioCard';
 import { SocialShareBar } from '../components/blog/SocialShareBar';
 import { ArticleCard } from '../components/blog/ArticleCard';
@@ -430,6 +432,11 @@ export const PostDetailPage = ({ slug }) => {
               <AdSenseUnit slotType="inArticleMid" customLabel="Strategic Market Insights" />
             )}
 
+            {/* Adsterra In-Article Sponsored Banner */}
+            {post.enableAds !== false && (
+              <AdsterraAd label="Sponsored Dispatch Partner" className="my-6" />
+            )}
+
             {/* Strategic High-Converting Affiliate Recommendation Box */}
             <AffiliateShowcaseBox categorySlug={category?.slug || 'personal-finance'} />
 
@@ -520,6 +527,11 @@ export const PostDetailPage = ({ slug }) => {
 
             {/* Author Bio Card (E-E-A-T Guarantee) */}
             <AuthorBioCard author={author} factChecker={factChecker} />
+
+            {/* Adsterra Native Sponsored Recommendations */}
+            {post.enableAds !== false && (
+              <AdsterraNative title="Sponsored Stories From Around The Web" className="my-8" />
+            )}
 
             {/* Multiplex / Matched Content Ad Unit */}
             {post.enableAds !== false && (

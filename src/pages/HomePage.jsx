@@ -4,6 +4,8 @@ import { HeroFeatured } from '../components/blog/HeroFeatured';
 import { ArticleCard } from '../components/blog/ArticleCard';
 import { NewsletterBox } from '../components/blog/NewsletterBox';
 import { AdSenseUnit } from '../components/ads/AdSenseUnit';
+import { AdsterraAd } from '../components/ads/AdsterraAd';
+import { AdsterraNative } from '../components/ads/AdsterraNative';
 import { Badge } from '../components/common/Badge';
 import { ReturningReaderBanner } from '../components/blog/ReturningReaderBanner';
 import { telemetryService } from '../services/telemetryService';
@@ -73,6 +75,9 @@ export const HomePage = () => {
 
       {/* Magazine Hero Section */}
       <HeroFeatured />
+
+      {/* Adsterra Sponsored Banner */}
+      <AdsterraAd label="Sponsored Dispatch Partner" className="my-6" />
 
       {/* Main Grid: Articles Stream + Sticky Sidebar */}
       <div id="articles-feed-section" className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -179,6 +184,9 @@ export const HomePage = () => {
               </div>
             </div>
           )}
+
+          {/* Adsterra Native Sponsored Recommendations */}
+          <AdsterraNative title="Recommended Stories & Partner Insights" className="my-6" />
 
           {/* High Impact Full-Width Newsletter Callout */}
           <NewsletterBox />

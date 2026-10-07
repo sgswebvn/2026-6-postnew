@@ -2,6 +2,7 @@ import React from 'react';
 import { useBlog } from '../context/BlogContext';
 import { ArticleCard } from '../components/blog/ArticleCard';
 import { AdSenseUnit } from '../components/ads/AdSenseUnit';
+import { AdsterraAd } from '../components/ads/AdsterraAd';
 import { Tag, ChevronRight } from 'lucide-react';
 
 export const TagPage = ({ tag }) => {
@@ -38,6 +39,9 @@ export const TagPage = ({ tag }) => {
       </div>
 
       <AdSenseUnit slotType="headerLeaderboard" customLabel={`Sponsored #${decodedTag} Partners`} />
+
+      {/* Adsterra Tag Sponsored Banner */}
+      <AdsterraAd label={`Sponsored #${decodedTag} Partner`} className="my-6" />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8">
         {taggedPosts.map(post => (

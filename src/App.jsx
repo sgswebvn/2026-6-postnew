@@ -7,8 +7,6 @@ import { CustomDialog } from './components/common/CustomDialog';
 import { SearchModal } from './components/common/SearchModal';
 import { StickyBottomAd } from './components/ads/StickyBottomAd';
 import { telemetryService } from './services/telemetryService';
-import AdsterraAd from "./components/ads/AdsterraAd";
-import { AdsterraNative } from "./components/ads/AdsterraNative";
 import { AdsterraPopunder } from "./components/ads/AdsterraPopunder";
 import { HomePage } from './pages/HomePage';
 import { PostDetailPage } from './pages/PostDetailPage';
@@ -392,9 +390,7 @@ const AppContent = () => {
     return (
       <div className="min-h-screen flex flex-col justify-between bg-[#faf9f6] dark:bg-[#0c1017]">
         <Header />
-        <AdsterraAd />
-<AdsterraNative />
-<AdsterraPopunder />
+        <AdsterraPopunder />
         <main className="flex-1">
           {pageComponent}
         </main>
