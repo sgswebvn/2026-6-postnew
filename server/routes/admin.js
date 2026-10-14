@@ -283,7 +283,7 @@ router.get('/analytics', async (req, res) => {
     const { start, end, prevStart, prevEnd } = getDateRange(range, startDate, endDate);
 
     const setting = await Setting.findOne({ key: 'global_settings' });
-    const gaMeasurementId = setting?.gaTrackingId || process.env.VITE_GA_MEASUREMENT_ID || 'G-MZ34K70519';
+    const gaMeasurementId = setting?.gaTrackingId || process.env.VITE_GA_MEASUREMENT_ID || '';
 
     // Aggregate category performance
     const categoryStats = await Post.aggregate([
@@ -370,7 +370,7 @@ router.get('/posts', async (req, res) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
     const skip = (page - 1) * limit;
 
-    const { search, status, categoryId, author, startDate, endDate } = req.query;
+    const { search, status, categoryId, startDate, endDate } = req.query;
     const query = {};
 
     if (search && typeof search === 'string' && search.trim()) {
@@ -388,10 +388,6 @@ router.get('/posts', async (req, res) => {
 
     if (categoryId && typeof categoryId === 'string' && categoryId.trim()) {
       query.categoryId = categoryId.trim();
-    }
-
-    if (author && typeof author === 'string' && author.trim()) {
-      query.authorName = { $regex: author.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
     }
 
     if (startDate || endDate) {
@@ -583,8 +579,6 @@ router.post('/posts', async (req, res) => {
       content: typeof content === 'string' ? content : '',
       coverImage: typeof coverImage === 'string' ? coverImage.trim() : '',
       categoryId: typeof categoryId === 'string' ? categoryId.trim() : '',
-      authorName: (typeof authorName === 'string' && authorName.trim()) ? authorName.trim() : req.user.name || 'Editorial Team',
-      authorId: req.user.id,
       status: status === 'draft' ? 'draft' : 'published',
       tags: Array.isArray(tags) ? tags.map(t => String(t).trim()).filter(Boolean) : [],
       metaTitle: typeof metaTitle === 'string' ? metaTitle.trim() : '',
@@ -625,7 +619,6 @@ router.put('/posts/:id', async (req, res) => {
       content,
       coverImage,
       categoryId,
-      authorName,
       status,
       tags,
       metaTitle,
@@ -652,7 +645,6 @@ router.put('/posts/:id', async (req, res) => {
     if (excerpt !== undefined) post.excerpt = String(excerpt).trim();
     if (content !== undefined) post.content = String(content);
     if (coverImage !== undefined) post.coverImage = String(coverImage).trim();
-    if (authorName !== undefined) post.authorName = String(authorName).trim();
     if (metaTitle !== undefined) post.metaTitle = String(metaTitle).trim();
     if (metaDescription !== undefined) post.metaDescription = String(metaDescription).trim();
     if (focusKeyword !== undefined) post.focusKeyword = String(focusKeyword).trim();
@@ -977,30 +969,86 @@ router.get('/settings', async (req, res) => {
 
 router.put('/settings', requireAdmin, async (req, res) => {
   try {
-    const { siteName, siteUrl, tagline, contactEmail, businessAddress, phone, gaTrackingId, adsense } = req.body;
+    const {
+      siteName,
+      siteUrl,
+      tagline,
+      description,
+      contactEmail,
+      businessAddress,
+      phone,
+      gaTrackingId,
+      gtmId,
+      metaVerification,
+      seo,
+      adsense
+    } = req.body;
+
+    const updateFields = {
+      updatedAt: new Date()
+    };
+
+    if (siteName !== undefined) updateFields.siteName = String(siteName).trim();
+    if (siteUrl !== undefined) updateFields.siteUrl = String(siteUrl).trim();
+    if (tagline !== undefined) updateFields.tagline = String(tagline).trim();
+    if (description !== undefined) updateFields.description = String(description).trim();
+    if (contactEmail !== undefined) updateFields.contactEmail = String(contactEmail).trim();
+    if (businessAddress !== undefined) updateFields.businessAddress = String(businessAddress).trim();
+    if (phone !== undefined) updateFields.phone = String(phone).trim();
+    if (gaTrackingId !== undefined) updateFields.gaTrackingId = String(gaTrackingId).trim();
+    if (gtmId !== undefined) updateFields.gtmId = String(gtmId).trim();
+
+    if (metaVerification && typeof metaVerification === 'object') {
+      updateFields.metaVerification = {
+        google: typeof metaVerification.google === 'string' ? metaVerification.google.trim() : '',
+        bing: typeof metaVerification.bing === 'string' ? metaVerification.bing.trim() : '',
+        pinterest: typeof metaVerification.pinterest === 'string' ? metaVerification.pinterest.trim() : ''
+      };
+    }
+
+    if (seo && typeof seo === 'object') {
+      updateFields.seo = {
+        metaTitle: typeof seo.metaTitle === 'string' ? seo.metaTitle.trim() : '',
+        metaDescription: typeof seo.metaDescription === 'string' ? seo.metaDescription.trim() : '',
+        defaultKeywords: typeof seo.defaultKeywords === 'string' ? seo.defaultKeywords.trim() : '',
+        ogImage: typeof seo.ogImage === 'string' ? seo.ogImage.trim() : ''
+      };
+    }
+
+    if (adsense && typeof adsense === 'object') {
+      updateFields.adsense = {
+        enabled: Boolean(adsense.enabled),
+        publisherId: typeof adsense.publisherId === 'string' ? adsense.publisherId.trim() : '',
+        autoAds: Boolean(adsense.autoAds),
+        headerAd: {
+          enabled: Boolean(adsense.headerAd?.enabled),
+          slotId: typeof adsense.headerAd?.slotId === 'string' ? adsense.headerAd.slotId.trim() : ''
+        },
+        inArticleAd: {
+          enabled: Boolean(adsense.inArticleAd?.enabled),
+          slotId: typeof adsense.inArticleAd?.slotId === 'string' ? adsense.inArticleAd.slotId.trim() : ''
+        },
+        sidebarAd: {
+          enabled: Boolean(adsense.sidebarAd?.enabled),
+          slotId: typeof adsense.sidebarAd?.slotId === 'string' ? adsense.sidebarAd.slotId.trim() : ''
+        },
+        footerAd: {
+          enabled: Boolean(adsense.footerAd?.enabled),
+          slotId: typeof adsense.footerAd?.slotId === 'string' ? adsense.footerAd.slotId.trim() : ''
+        }
+      };
+    }
 
     const settings = await Setting.findOneAndUpdate(
       { key: 'global_settings' },
-      {
-        $set: {
-          siteName: typeof siteName === 'string' ? siteName.trim() : undefined,
-          siteUrl: typeof siteUrl === 'string' ? siteUrl.trim() : undefined,
-          tagline: typeof tagline === 'string' ? tagline.trim() : undefined,
-          contactEmail: typeof contactEmail === 'string' ? contactEmail.trim() : undefined,
-          businessAddress: typeof businessAddress === 'string' ? businessAddress.trim() : undefined,
-          phone: typeof phone === 'string' ? phone.trim() : undefined,
-          gaTrackingId: typeof gaTrackingId === 'string' ? gaTrackingId.trim() : undefined,
-          adsense: adsense && typeof adsense === 'object' ? {
-            enabled: Boolean(adsense.enabled),
-            publisherId: typeof adsense.publisherId === 'string' ? adsense.publisherId.trim() : 'ca-pub-6469608148906900'
-          } : undefined
-        }
-      },
+      { $set: updateFields },
       { new: true, upsert: true }
     );
 
-    return res.json({ message: 'Settings saved successfully', settings });
+    console.log(`[Admin Settings] Configuration updated by admin: ${req.user.username}`);
+    return res.json({ message: 'Website configuration updated and applied successfully.', settings });
   } catch (err) {
+    console.error('[Update Settings Error]', err);
     return res.status(500).json({ error: 'Failed to update website settings.' });
   }
 });

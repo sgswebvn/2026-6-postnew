@@ -156,7 +156,7 @@ export default function App() {
   if (pathname.startsWith('/post/')) {
     const slug = pathname.replace('/post/', '').split('?')[0].split('#')[0];
     return (
-      <div className="app-root">
+      <div className="app-root public-theme">
         <ScriptInjector settings={settings} pathname={pathname} />
         <PublicNavbar
           settings={settings}
@@ -175,7 +175,7 @@ export default function App() {
   // 2. PUBLIC HOMEPAGE: /
   if (pathname === '/' || (!pathname.startsWith('/admin') && pathname !== '/admin/login')) {
     return (
-      <div className="app-root">
+      <div className="app-root public-theme">
         <ScriptInjector settings={settings} pathname={pathname} />
         <PublicNavbar
           settings={settings}
@@ -190,7 +190,7 @@ export default function App() {
   // 3. ADMIN LOGIN PAGE: /admin/login
   if (pathname === '/admin/login') {
     return (
-      <div className="app-root">
+      <div className="app-root admin-theme">
         <LoginPage
           onLoginSuccess={handleLoginSuccess}
           onViewSite={() => navigate('/')}
@@ -204,7 +204,7 @@ export default function App() {
   if (pathname.startsWith('/admin')) {
     if (authLoading) {
       return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-muted)' }}>
+        <div className="admin-theme" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-muted)' }}>
           Verifying administrative credentials...
         </div>
       );
@@ -213,7 +213,7 @@ export default function App() {
     if (!currentUser) {
       // Unauthenticated admin attempt: present Login Page
       return (
-        <div className="app-root">
+        <div className="app-root admin-theme">
           <LoginPage
             onLoginSuccess={handleLoginSuccess}
             onViewSite={() => navigate('/')}
@@ -228,7 +228,7 @@ export default function App() {
     const targetPostId = editMatch ? editMatch[1] : editingPostId;
 
     return (
-      <div className="app-root">
+      <div className="app-root admin-theme">
         <AdminLayout
           user={currentUser}
           currentTab={activeTab}

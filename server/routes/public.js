@@ -34,7 +34,7 @@ router.get('/posts', async (req, res) => {
         .sort({ publishedAt: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .select('id title slug excerpt coverImage categoryId authorName publishedAt views tags'),
+        .select('id title slug excerpt coverImage categoryId publishedAt views tags'),
       Post.countDocuments(query)
     ]);
 

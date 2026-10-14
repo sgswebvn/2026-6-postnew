@@ -349,6 +349,82 @@ async function runTestSuite() {
     });
     const data = await res.json();
     assert(res.ok && !!data.siteName, `Website settings retrieved: "${data.siteName}" (GA Tracking ID: ${data.gaTrackingId || 'Configured'})`);
+
+    // 16. Dynamic Settings Real Application Verification
+    const updateRes = await fetch(`${BASE_URL}/api/admin/settings`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({
+        siteName: 'THE HORIZON POST',
+        siteUrl: 'https://www.thehori.click',
+        tagline: 'Definitive Intelligence for Modern Wealth & Technology',
+        gaTrackingId: 'G-HORIZON2026',
+        gtmId: 'GTM-TEST999',
+        metaVerification: {
+          google: 'google-verify-test-token-12345',
+          bing: 'bing-verify-67890'
+        },
+        seo: {
+          metaTitle: 'The Horizon Post - AI & Wealth',
+          metaDescription: 'Authoritative analysis on semiconductors and global economy.'
+        },
+        adsense: {
+          enabled: true,
+          publisherId: 'ca-pub-6469608148906900',
+          autoAds: true,
+          headerAd: { enabled: true, slotId: '9876543210' },
+          inArticleAd: { enabled: true, slotId: '8765432109' }
+        }
+      })
+    });
+    const updateData = await updateRes.json();
+    assert(updateRes.ok, 'Admin can update website settings dynamically');
+
+    // 17. Public Settings Endpoint Verification (Must return updated dynamic values)
+    const publicSettingsRes = await fetch(`${BASE_URL}/api/settings`);
+    const publicSettings = await publicSettingsRes.json();
+    assert(
+      publicSettings.gtmId === 'GTM-TEST999' &&
+      publicSettings.metaVerification?.google === 'google-verify-test-token-12345' &&
+      publicSettings.adsense?.headerAd?.slotId === '9876543210',
+      'Public settings endpoint reflects dynamic changes in real time'
+    );
+
+    // 18. Authorless Post Creation & Public Display Verification
+    const authorlessPostRes = await fetch(`${BASE_URL}/api/admin/posts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({
+        title: 'Authorless Clean Article Test',
+        slug: 'authorless-clean-article-test',
+        excerpt: 'Testing post creation without any author fields',
+        content: '<h2>Introduction</h2><p>This article has no author byline anywhere.</p>',
+        categoryId: 'technology',
+        status: 'published'
+      })
+    });
+    const authorlessPost = await authorlessPostRes.json();
+    assert(authorlessPostRes.ok && authorlessPost.post?.slug === 'authorless-clean-article-test', 'Post created cleanly without author requirement');
+
+    // Verify public fetch
+    const publicPostRes = await fetch(`${BASE_URL}/api/posts/authorless-clean-article-test`);
+    const publicPostData = await publicPostRes.json();
+    assert(publicPostRes.ok && publicPostData.post?.title === 'Authorless Clean Article Test', 'Public reader loads authorless article successfully');
+
+    // Cleanup authorless test post
+    if (authorlessPost.post?.id || authorlessPost.post?._id) {
+      const cleanupId = authorlessPost.post.id || authorlessPost.post._id;
+      await fetch(`${BASE_URL}/api/admin/posts/${cleanupId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+    }
   } catch (err) {
     assert(false, `Settings test failed: ${err.message}`);
   }

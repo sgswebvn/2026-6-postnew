@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api, setStoredToken } from '../api/client';
-import { ShieldCheck, Lock, User, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Lock, User, Eye, EyeOff, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
 
 export default function LoginPage({ onLoginSuccess, onViewSite }) {
   const [username, setUsername] = useState('admin');
@@ -39,54 +39,51 @@ export default function LoginPage({ onLoginSuccess, onViewSite }) {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '1.5rem',
-      background: 'radial-gradient(circle at 50% 20%, rgba(37, 99, 235, 0.1) 0%, transparent 60%), #090d16'
+      backgroundColor: '#f8fafc'
     }}>
       <div style={{
-        maxWidth: '440px',
+        maxWidth: '420px',
         width: '100%',
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-strong)',
-        borderRadius: 'var(--radius-xl)',
+        backgroundColor: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '16px',
         padding: '2.5rem 2rem',
-        boxShadow: 'var(--shadow-lg)'
+        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02)'
       }}>
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{
-            width: '54px',
-            height: '54px',
-            borderRadius: 'var(--radius-lg)',
-            background: 'var(--primary-gradient)',
+            width: '52px',
+            height: '52px',
+            borderRadius: '12px',
+            background: '#2563eb',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: 'var(--shadow-glow)',
+            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
             marginBottom: '1rem'
           }}>
-            <ShieldCheck size={30} color="#fff" />
+            <ShieldCheck size={28} color="#ffffff" />
           </div>
 
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.35rem' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', marginBottom: '0.35rem' }}>
             Admin Portal
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Authorized Staff & Editorial Authentication
+          <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
+            Authorized Editorial & Staff Authentication
           </p>
         </div>
 
         {/* Error Alert */}
         {error && (
           <div style={{
-            background: 'var(--danger-bg)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: 'var(--radius-md)',
+            backgroundColor: '#fee2e2',
+            border: '1px solid #fca5a5',
+            borderRadius: '8px',
             padding: '0.75rem 1rem',
-            color: '#f87171',
+            color: '#b91c1c',
             fontSize: '0.85rem',
-            marginBottom: '1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
+            marginBottom: '1.25rem'
           }}>
             <span>{error}</span>
           </div>
@@ -95,13 +92,13 @@ export default function LoginPage({ onLoginSuccess, onViewSite }) {
         {/* Login Form */}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Username or Email</label>
+            <label className="form-label" style={{ color: '#334155' }}>Username or Email</label>
             <div style={{ position: 'relative' }}>
-              <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+              <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
               <input
                 type="text"
                 className="form-input"
-                style={{ paddingLeft: '38px' }}
+                style={{ paddingLeft: '38px', backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1' }}
                 placeholder="Enter username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -112,13 +109,13 @@ export default function LoginPage({ onLoginSuccess, onViewSite }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Password</label>
+            <label className="form-label" style={{ color: '#334155' }}>Password</label>
             <div style={{ position: 'relative' }}>
-              <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+              <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
               <input
                 type={showPassword ? 'text' : 'password'}
                 className="form-input"
-                style={{ paddingLeft: '38px', paddingRight: '40px' }}
+                style={{ paddingLeft: '38px', paddingRight: '40px', backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1' }}
                 placeholder="Enter password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -135,7 +132,7 @@ export default function LoginPage({ onLoginSuccess, onViewSite }) {
                   transform: 'translateY(-50%)',
                   background: 'none',
                   border: 'none',
-                  color: 'var(--text-dim)',
+                  color: '#94a3b8',
                   cursor: 'pointer'
                 }}
               >
@@ -148,40 +145,32 @@ export default function LoginPage({ onLoginSuccess, onViewSite }) {
             type="submit"
             className="btn btn-primary"
             disabled={loading}
-            style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', fontSize: '0.95rem' }}
+            style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
           >
-            {loading ? (
-              <><Loader2 className="animate-spin" size={18} /> Authenticating...</>
-            ) : (
-              <><span>Sign In to Dashboard</span> <ArrowRight size={16} /></>
-            )}
+            {loading ? <Loader2 className="animate-spin" size={16} /> : <ArrowRight size={16} />}
+            <span>{loading ? 'Authenticating...' : 'Sign In to Admin'}</span>
           </button>
         </form>
 
-        {/* First time access helper */}
-        <div style={{
-          marginTop: '1.75rem',
-          padding: '0.85rem',
-          borderRadius: 'var(--radius-md)',
-          background: 'rgba(255, 255, 255, 0.02)',
-          border: '1px solid var(--border-subtle)',
-          fontSize: '0.8rem',
-          color: 'var(--text-dim)',
-          textAlign: 'center'
-        }}>
-          <div>🔒 Protected by rate-limiting & scrypt cryptography</div>
-          <div style={{ marginTop: '0.25rem', color: 'var(--text-muted)' }}>
-            Existing account: <code style={{ color: '#60a5fa' }}>admin</code> / <code style={{ color: '#60a5fa' }}>admin123</code>
-          </div>
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
+        {/* Back to public site */}
+        <div style={{ textAlign: 'center', marginTop: '1.75rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0' }}>
           <button
             type="button"
             onClick={onViewSite}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#2563eb',
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              fontWeight: 600
+            }}
           >
-            ← Return to Public Website
+            <ArrowLeft size={14} />
+            <span>Return to Public Website</span>
           </button>
         </div>
       </div>

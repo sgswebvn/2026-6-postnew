@@ -4,12 +4,12 @@ import {
   ArrowLeft,
   Calendar,
   Eye,
-  User,
   Share2,
   Tag,
   Loader2,
   Check
 } from 'lucide-react';
+import RichContentRenderer from '../common/RichContentRenderer';
 
 export default function PostDetailPage({ slug, onBack, settings }) {
   const [data, setData] = useState(null);
@@ -43,7 +43,7 @@ export default function PostDetailPage({ slug, onBack, settings }) {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '5rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+      <div style={{ maxWidth: '840px', margin: '0 auto', padding: '5rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
         <Loader2 className="animate-spin" size={32} style={{ margin: '0 auto 1rem' }} />
         <div>Loading article from database...</div>
       </div>
@@ -52,7 +52,7 @@ export default function PostDetailPage({ slug, onBack, settings }) {
 
   if (error || !data?.post) {
     return (
-      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '4rem 1.5rem', textAlign: 'center' }}>
+      <div style={{ maxWidth: '840px', margin: '0 auto', padding: '4rem 1.5rem', textAlign: 'center' }}>
         <h2 style={{ fontSize: '1.5rem', color: '#f87171', marginBottom: '1rem' }}>Article Not Found</h2>
         <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>The article you requested might have been moved or unpublished.</p>
         <button onClick={onBack} className="btn btn-primary">
@@ -63,7 +63,8 @@ export default function PostDetailPage({ slug, onBack, settings }) {
   }
 
   const { post, category } = data;
-  const isAdsAllowed = settings?.adsense?.enabled !== false && post.enableAds !== false;
+  const adsConfig = settings?.adsense;
+  const isAdsAllowed = adsConfig?.enabled === true && post.enableAds !== false && !!adsConfig?.publisherId;
 
   return (
     <article style={{ maxWidth: '840px', margin: '0 auto', padding: '2rem 1.5rem 5rem' }}>
@@ -103,7 +104,7 @@ export default function PostDetailPage({ slug, onBack, settings }) {
         {post.title}
       </h1>
 
-      {/* Metadata Bar */}
+      {/* Metadata Bar (No author display - fully removed as requested) */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -115,11 +116,6 @@ export default function PostDetailPage({ slug, onBack, settings }) {
         marginBottom: '2rem',
         flexWrap: 'wrap'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#fff' }}>
-          <User size={15} color="var(--primary)" />
-          <span>By <strong>{post.authorName || 'Editorial Team'}</strong></span>
-        </div>
-
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <Calendar size={15} />
           <span>{new Date(post.publishedAt || post.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
@@ -149,8 +145,8 @@ export default function PostDetailPage({ slug, onBack, settings }) {
         </div>
       )}
 
-      {/* Optional AdSense Leaderboard Slot */}
-      {isAdsAllowed && (
+      {/* Optional AdSense Header Banner Placement */}
+      {isAdsAllowed && adsConfig?.headerAd?.enabled && (
         <div style={{
           background: 'rgba(255, 255, 255, 0.02)',
           border: '1px dashed var(--border-strong)',
@@ -163,7 +159,7 @@ export default function PostDetailPage({ slug, onBack, settings }) {
           textTransform: 'uppercase',
           marginBottom: '2.5rem'
         }}>
-          Google AdSense Placement • Publisher: {settings?.adsense?.publisherId || 'ca-pub-6469608148906900'}
+          Google AdSense Header Slot • ID: {adsConfig.headerAd.slotId || 'Header'}
         </div>
       )}
 
@@ -185,16 +181,32 @@ export default function PostDetailPage({ slug, onBack, settings }) {
         </div>
       )}
 
-      {/* Main Content Body */}
-      <div style={{
-        color: '#cbd5e1',
-        fontSize: '1.1rem',
-        lineHeight: 1.85,
-        whiteSpace: 'pre-wrap',
-        marginBottom: '3rem'
-      }}>
-        {post.content || 'Content not available.'}
+      {/* Main Content Body (Rich formatted with images & YouTube support) */}
+      <div style={{ color: '#cbd5e1', marginBottom: '3rem' }}>
+        <RichContentRenderer
+          content={post.content}
+          adsenseConfig={adsConfig}
+          enableAds={isAdsAllowed}
+        />
       </div>
+
+      {/* Optional AdSense Footer Placement */}
+      {isAdsAllowed && adsConfig?.footerAd?.enabled && (
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px dashed var(--border-strong)',
+          borderRadius: 'var(--radius-md)',
+          padding: '1.25rem',
+          textAlign: 'center',
+          color: 'var(--text-dim)',
+          fontSize: '0.75rem',
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
+          marginBottom: '2.5rem'
+        }}>
+          Google AdSense Footer Slot • ID: {adsConfig.footerAd.slotId || 'Footer'}
+        </div>
+      )}
 
       {/* Tags */}
       {post.tags && post.tags.length > 0 && (

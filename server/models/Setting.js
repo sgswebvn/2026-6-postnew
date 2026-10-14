@@ -2,18 +2,52 @@ import mongoose from 'mongoose';
 
 const settingSchema = new mongoose.Schema({
   key: { type: String, required: true, unique: true, default: 'global_settings' },
-  siteName: { type: String, default: 'THE HORIZON POST' },
-  siteUrl: { type: String, default: 'https://www.thehori.click' },
-  tagline: { type: String, default: 'Definitive Intelligence for Modern Wealth & Technology' },
-  edition: { type: String, default: 'U.S. Edition' },
-  description: { type: String, default: 'In-depth analysis and expert dispatches on US personal finance, artificial intelligence, longevity, and modern living.' },
-  contactEmail: { type: String, default: 'contact@thehori.click' },
-  businessAddress: { type: String, default: '742 Evergreen Terrace, Suite 400, Austin, TX 78701, United States' },
-  phone: { type: String, default: '+1 (512) 890-4421' },
-  gaTrackingId: { type: String, default: 'G-MZ34K70519' },
+  siteName: { type: String, default: 'THE HORIZON POST', trim: true },
+  siteUrl: { type: String, default: 'https://www.thehori.click', trim: true },
+  tagline: { type: String, default: 'Modern Intelligence & Technology Journal', trim: true },
+  description: { type: String, default: 'In-depth analysis on personal finance, artificial intelligence, enterprise technology, and modern living.', trim: true },
+  contactEmail: { type: String, default: 'contact@thehori.click', trim: true },
+  businessAddress: { type: String, default: '', trim: true },
+  phone: { type: String, default: '', trim: true },
+
+  // Tracking & Verification (Defaults empty - no hardcoded IDs)
+  gaTrackingId: { type: String, default: '', trim: true },
+  gtmId: { type: String, default: '', trim: true },
+  metaVerification: {
+    google: { type: String, default: '', trim: true },
+    bing: { type: String, default: '', trim: true },
+    pinterest: { type: String, default: '', trim: true }
+  },
+
+  // SEO Defaults
+  seo: {
+    metaTitle: { type: String, default: '', trim: true },
+    metaDescription: { type: String, default: '', trim: true },
+    defaultKeywords: { type: String, default: '', trim: true },
+    ogImage: { type: String, default: '', trim: true }
+  },
+
+  // Google AdSense Monetization
   adsense: {
-    enabled: { type: Boolean, default: true },
-    publisherId: { type: String, default: 'ca-pub-6469608148906900' }
+    enabled: { type: Boolean, default: false },
+    publisherId: { type: String, default: '', trim: true },
+    autoAds: { type: Boolean, default: false },
+    headerAd: {
+      enabled: { type: Boolean, default: false },
+      slotId: { type: String, default: '', trim: true }
+    },
+    inArticleAd: {
+      enabled: { type: Boolean, default: false },
+      slotId: { type: String, default: '', trim: true }
+    },
+    sidebarAd: {
+      enabled: { type: Boolean, default: false },
+      slotId: { type: String, default: '', trim: true }
+    },
+    footerAd: {
+      enabled: { type: Boolean, default: false },
+      slotId: { type: String, default: '', trim: true }
+    }
   }
 }, {
   timestamps: true,

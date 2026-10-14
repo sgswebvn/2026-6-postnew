@@ -6,10 +6,12 @@ export default function ScriptInjector({ settings, pathname }) {
   useEffect(() => {
     const gaId = settings?.gaTrackingId;
     if (!gaId || typeof gaId !== 'string' || !gaId.startsWith('G-')) {
+      // Remove script if disabled
+      const existing = document.getElementById('ga-gtag-script');
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
       return;
     }
 
-    // Check if gtag script already loaded
     let scriptTag = document.getElementById('ga-gtag-script');
     if (!scriptTag) {
       scriptTag = document.createElement('script');
@@ -18,7 +20,6 @@ export default function ScriptInjector({ settings, pathname }) {
       scriptTag.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`;
       document.head.appendChild(scriptTag);
 
-      // Initialize dataLayer
       window.dataLayer = window.dataLayer || [];
       function gtag() {
         window.dataLayer.push(arguments);
@@ -27,7 +28,6 @@ export default function ScriptInjector({ settings, pathname }) {
       gtag('js', new Date());
     }
 
-    // Send single clean page_view event on route change
     if (typeof window.gtag === 'function') {
       window.gtag('config', gaId, {
         page_path: pathname || window.location.pathname,
@@ -36,7 +36,100 @@ export default function ScriptInjector({ settings, pathname }) {
     }
   }, [settings?.gaTrackingId, pathname]);
 
-  // 2. Custom Header & Footer Script Injection
+  // 2. Google Tag Manager (GTM)
+  useEffect(() => {
+    const gtmId = settings?.gtmId;
+    if (!gtmId || typeof gtmId !== 'string' || !gtmId.startsWith('GTM-')) {
+      const existingScript = document.getElementById('gtm-script');
+      if (existingScript && existingScript.parentNode) existingScript.parentNode.removeChild(existingScript);
+      const existingNoscript = document.getElementById('gtm-noscript');
+      if (existingNoscript && existingNoscript.parentNode) existingNoscript.parentNode.removeChild(existingNoscript);
+      return;
+    }
+
+    if (!document.getElementById('gtm-script')) {
+      const script = document.createElement('script');
+      script.id = 'gtm-script';
+      script.innerHTML = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+      })(window,document,'dataLayer','${gtmId}');`;
+      document.head.appendChild(script);
+
+      const noscript = document.createElement('noscript');
+      noscript.id = 'gtm-noscript';
+      noscript.innerHTML = `<iframe src="https://www.googletagmanager.com/ns.html?id=${encodeURIComponent(gtmId)}" height="0" width="0" style="display:none;visibility:hidden"></iframe>`;
+      document.body.insertBefore(noscript, document.body.firstChild);
+    }
+  }, [settings?.gtmId]);
+
+  // 3. Search Engine Verification Meta Tags & SEO Metadata
+  useEffect(() => {
+    function setMetaTag(name, content) {
+      if (!content) {
+        const el = document.querySelector(`meta[name="${name}"]`);
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+        return;
+      }
+      let el = document.querySelector(`meta[name="${name}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute('name', name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    }
+
+    if (settings?.metaVerification?.google) {
+      setMetaTag('google-site-verification', settings.metaVerification.google);
+    }
+    if (settings?.metaVerification?.bing) {
+      setMetaTag('msvalidate.01', settings.metaVerification.bing);
+    }
+    if (settings?.metaVerification?.pinterest) {
+      setMetaTag('p:domain_verify', settings.metaVerification.pinterest);
+    }
+
+    // Default SEO meta description on homepage
+    if (pathname === '/' || pathname === '') {
+      if (settings?.seo?.metaDescription) {
+        setMetaTag('description', settings.seo.metaDescription);
+      }
+      if (settings?.seo?.defaultKeywords) {
+        setMetaTag('keywords', settings.seo.defaultKeywords);
+      }
+      if (settings?.seo?.metaTitle || settings?.siteName) {
+        document.title = settings.seo?.metaTitle || `${settings.siteName} - ${settings.tagline || 'Modern Intelligence'}`;
+      }
+    }
+  }, [settings?.metaVerification, settings?.seo, settings?.siteName, settings?.tagline, pathname]);
+
+  // 4. Google AdSense Master Script
+  useEffect(() => {
+    const isAdsEnabled = settings?.adsense?.enabled === true;
+    const publisherId = settings?.adsense?.publisherId;
+    const isValidPubId = publisherId && typeof publisherId === 'string' && publisherId.startsWith('ca-pub-');
+
+    let scriptTag = document.getElementById('adsense-master-script');
+
+    if (isAdsEnabled && isValidPubId) {
+      if (!scriptTag) {
+        scriptTag = document.createElement('script');
+        scriptTag.id = 'adsense-master-script';
+        scriptTag.async = true;
+        scriptTag.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(publisherId)}`;
+        scriptTag.crossOrigin = 'anonymous';
+        document.head.appendChild(scriptTag);
+      }
+    } else {
+      if (scriptTag && scriptTag.parentNode) {
+        scriptTag.parentNode.removeChild(scriptTag);
+      }
+    }
+  }, [settings?.adsense?.enabled, settings?.adsense?.publisherId]);
+
+  // 5. Custom Header & Footer Script Injection from Database
   useEffect(() => {
     let cleanupFns = [];
 
@@ -63,8 +156,6 @@ export default function ScriptInjector({ settings, pathname }) {
           wrapper.id = containerId;
           wrapper.style.display = 'none';
 
-          // Safely execute script contents by creating executable script elements
-          // Parsing HTML strings to create active script tags
           const temp = document.createElement('div');
           temp.innerHTML = script.code;
 
@@ -93,7 +184,6 @@ export default function ScriptInjector({ settings, pathname }) {
               if (document.body.contains(wrapper)) document.body.removeChild(wrapper);
             });
           } else {
-            // footer
             document.body.appendChild(wrapper);
             cleanupFns.push(() => {
               if (document.body.contains(wrapper)) document.body.removeChild(wrapper);

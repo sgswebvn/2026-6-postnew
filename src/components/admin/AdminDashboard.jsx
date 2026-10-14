@@ -119,7 +119,7 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
     <div>
       {/* Top Banner / DB Status */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%)',
+        backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-lg)',
         padding: '1.25rem 1.5rem',
@@ -128,31 +128,33 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: '1rem'
+        gap: '1rem',
+        boxShadow: 'var(--shadow-sm)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
           <div style={{
             width: '42px',
             height: '42px',
             borderRadius: 'var(--radius-md)',
-            background: 'rgba(16, 185, 129, 0.15)',
-            color: '#10b981',
+            background: 'var(--success-bg)',
+            color: 'var(--success)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            border: '1px solid rgba(16, 185, 129, 0.2)'
           }}>
             <Database size={22} />
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontWeight: 700, color: '#fff', fontSize: '1rem' }}>MongoDB Atlas Status:</span>
+              <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '1rem' }}>MongoDB Atlas Status:</span>
               <span className="badge badge-published">
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#059669' }} />
                 Online & Synchronized
               </span>
             </div>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.15rem' }}>
-              Connected to database: <code style={{ color: '#60a5fa', fontFamily: 'var(--font-mono)' }}>blogweb</code> • Real data authoritative
+              Connected to database: <code style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>blogweb</code> • Real data authoritative
             </div>
           </div>
         </div>
@@ -169,7 +171,7 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
 
       {/* Filter Bar with 12 Time Presets + Category + Status */}
       <div style={{
-        background: 'var(--bg-surface)',
+        backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-lg)',
         padding: '1rem 1.25rem',
@@ -178,7 +180,8 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
         flexWrap: 'wrap',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: '1rem'
+        gap: '1rem',
+        boxShadow: 'var(--shadow-sm)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           {/* Time Preset */}
@@ -187,7 +190,7 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Period:</span>
             <select
               className="form-select"
-              style={{ padding: '0.35rem 0.65rem', fontSize: '0.85rem', width: 'auto', background: 'var(--bg-main)' }}
+              style={{ padding: '0.35rem 0.65rem', fontSize: '0.85rem', width: 'auto' }}
               value={range}
               onChange={e => setRange(e.target.value)}
             >
@@ -202,7 +205,7 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
             <FolderTree size={16} color="var(--text-dim)" />
             <select
               className="form-select"
-              style={{ padding: '0.35rem 0.65rem', fontSize: '0.85rem', width: 'auto', background: 'var(--bg-main)' }}
+              style={{ padding: '0.35rem 0.65rem', fontSize: '0.85rem', width: 'auto' }}
               value={selectedCat}
               onChange={e => setSelectedCat(e.target.value)}
             >
@@ -218,7 +221,7 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
             <Filter size={16} color="var(--text-dim)" />
             <select
               className="form-select"
-              style={{ padding: '0.35rem 0.65rem', fontSize: '0.85rem', width: 'auto', background: 'var(--bg-main)' }}
+              style={{ padding: '0.35rem 0.65rem', fontSize: '0.85rem', width: 'auto' }}
               value={selectedStatus}
               onChange={e => setSelectedStatus(e.target.value)}
             >
@@ -260,7 +263,7 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
           <span>Refreshing database metrics...</span>
         </div>
       ) : error ? (
-        <div style={{ background: 'var(--danger-bg)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', color: '#f87171' }}>
+        <div style={{ background: 'var(--danger-bg)', border: '1px solid rgba(220, 38, 38, 0.3)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', color: 'var(--danger)' }}>
           <strong>Error connecting to database:</strong> {error}
           <button onClick={loadStats} className="btn btn-secondary btn-sm" style={{ marginTop: '0.75rem', display: 'block' }}>
             Retry Connection
@@ -274,11 +277,11 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Total Articles</span>
-                <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-sm)', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-sm)', background: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <FileText size={18} />
                 </div>
               </div>
-              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
                 {stats?.totalPosts || 0}
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
@@ -290,14 +293,14 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Posts Created/Updated</span>
-                <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-sm)', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-sm)', background: 'var(--success-bg)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Clock size={18} />
                 </div>
               </div>
-              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
                 {stats?.periodPostsCount || 0}
               </div>
-              <div style={{ fontSize: '0.8rem', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: delta.direction === 'up' ? '#10b981' : delta.direction === 'down' ? '#f87171' : 'var(--text-muted)' }}>
+              <div style={{ fontSize: '0.8rem', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: delta.direction === 'up' ? 'var(--success)' : delta.direction === 'down' ? 'var(--danger)' : 'var(--text-muted)' }}>
                 {delta.direction === 'up' && <TrendingUp size={14} />}
                 {delta.direction === 'down' && <TrendingDown size={14} />}
                 <span>{delta.percent}% vs previous period</span>
@@ -308,11 +311,11 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Total Telemetry Views</span>
-                <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-sm)', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-sm)', background: 'var(--warning-bg)', color: 'var(--warning)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Eye size={18} />
                 </div>
               </div>
-              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
                 {(stats?.totalViews || 0).toLocaleString()}
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
@@ -324,11 +327,11 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Taxonomy Categories</span>
-                <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-sm)', background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-sm)', background: 'rgba(124, 58, 237, 0.1)', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <FolderTree size={18} />
                 </div>
               </div>
-              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+              <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
                 {stats?.totalCategories || 0}
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
@@ -341,8 +344,8 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
           <div className="card" style={{ marginBottom: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <BarChart3 size={18} color="#60a5fa" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <BarChart3 size={18} color="var(--primary)" />
                   Publication & Activity Trend
                 </h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.2rem' }}>
@@ -357,7 +360,7 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
             {(!stats?.timelineData || stats.timelineData.length === 0) ? (
               <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <Clock size={36} style={{ margin: '0 auto 0.75rem', opacity: 0.4 }} />
-                <div style={{ fontWeight: 600, color: '#fff', marginBottom: '0.25rem' }}>No publication records in this period</div>
+                <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem' }}>No publication records in this period</div>
                 <p style={{ fontSize: '0.85rem', maxWidth: '400px', margin: '0 auto' }}>
                   Try switching the time range to "Last 30 Days", "This Year", or "All Time" to view article distributions.
                 </p>
@@ -383,7 +386,7 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
                         }}
                         title={`${item._id}: ${item.count} articles, ${item.views} views`}
                       >
-                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#60a5fa', marginBottom: '4px' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '4px' }}>
                           {item.count}
                         </div>
                         <div
@@ -393,8 +396,7 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
                             height: `${heightPercent}%`,
                             background: 'var(--primary-gradient)',
                             borderRadius: '4px 4px 0 0',
-                            transition: 'height 0.3s ease',
-                            boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+                            transition: 'height 0.3s ease'
                           }}
                         />
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '6px', whiteSpace: 'nowrap' }}>
@@ -413,8 +415,8 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
             {/* Top Performing Articles */}
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <TrendingUp size={18} color="#10b981" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <TrendingUp size={18} color="var(--success)" />
                   Top Performing Articles by Views
                 </h3>
                 <button onClick={() => onNavigate('posts')} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
@@ -436,22 +438,22 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '0.75rem 1rem',
-                        background: 'var(--bg-main)',
+                        backgroundColor: '#ffffff',
                         borderRadius: 'var(--radius-md)',
                         border: '1px solid var(--border-subtle)',
                         gap: '0.75rem'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                        <span style={{ fontWeight: 800, color: idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : '#60a5fa', fontSize: '0.9rem', width: '20px' }}>
+                        <span style={{ fontWeight: 800, color: idx === 0 ? '#d97706' : idx === 1 ? '#64748b' : '#2563eb', fontSize: '0.9rem', width: '20px' }}>
                           #{idx + 1}
                         </span>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={post.title}>
+                          <div style={{ fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={post.title}>
                             {post.title}
                           </div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                            {post.categoryId} • <span style={{ color: '#10b981', fontWeight: 600 }}>{(post.views || 0).toLocaleString()} views</span>
+                            {post.categoryId} • <span style={{ color: 'var(--success)', fontWeight: 600 }}>{(post.views || 0).toLocaleString()} views</span>
                           </div>
                         </div>
                       </div>
@@ -483,8 +485,8 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
             {/* Recently Updated Articles */}
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Clock size={18} color="#60a5fa" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Clock size={18} color="var(--primary)" />
                   Recently Updated Articles
                 </h3>
                 <button onClick={() => onNavigate('posts')} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
@@ -506,14 +508,14 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '0.75rem 1rem',
-                        background: 'var(--bg-main)',
+                        backgroundColor: '#ffffff',
                         borderRadius: 'var(--radius-md)',
                         border: '1px solid var(--border-subtle)',
                         gap: '0.75rem'
                       }}
                     >
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={post.title}>
+                        <div style={{ fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={post.title}>
                           {post.title}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>

@@ -146,8 +146,7 @@ export default function AdminLayout({
         <header className="admin-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <button
-              className="btn btn-secondary btn-icon"
-              style={{ display: window.innerWidth <= 900 ? 'inline-flex' : 'none' }}
+              className="btn btn-secondary btn-icon mobile-menu-btn"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               <Menu size={18} />
