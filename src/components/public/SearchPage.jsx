@@ -47,6 +47,9 @@ export default function SearchPage({ initialQuery = '', onNavigate, onSelectPost
   function handleFormSubmit(e) {
     e.preventDefault();
     if (!query.trim()) return;
+    try {
+      window.history.replaceState(null, '', `/search?q=${encodeURIComponent(query.trim())}`);
+    } catch (e) {}
     performSearch(query, 1);
   }
 

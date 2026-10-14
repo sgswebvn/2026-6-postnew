@@ -27,7 +27,16 @@ router.get('/posts', async (req, res) => {
     }
 
     if (categoryId && typeof categoryId === 'string' && categoryId.trim()) {
-      query.categoryId = categoryId.trim();
+      const trimmedCat = categoryId.trim();
+      const matchedCat = await Category.findOne({
+        $or: [{ id: trimmedCat }, { slug: trimmedCat }]
+      }).select('id slug');
+
+      if (matchedCat) {
+        query.categoryId = { $in: [matchedCat.id, matchedCat.slug].filter(Boolean) };
+      } else {
+        query.categoryId = trimmedCat;
+      }
     }
 
     const sortOption = featured ? { views: -1, publishedAt: -1 } : { publishedAt: -1, createdAt: -1 };
@@ -68,7 +77,9 @@ router.get('/posts/:slug', async (req, res) => {
 
     let category = null;
     if (post.categoryId) {
-      category = await Category.findOne({ id: post.categoryId });
+      category = await Category.findOne({
+        $or: [{ id: post.categoryId }, { slug: post.categoryId }]
+      });
     }
 
     // Fetch up to 3 related posts from same category
@@ -141,11 +152,12 @@ router.get('/categories', async (req, res) => {
 router.get('/categories/:slug', async (req, res) => {
   try {
     const slug = req.params.slug.trim().toLowerCase();
+    const cleanSlug = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const category = await Category.findOne({
       $or: [
-        { slug: { $regex: new RegExp(`^${slug}$`, 'i') } },
-        { id: { $regex: new RegExp(`^${slug}$`, 'i') } },
-        { name: { $regex: new RegExp(`^${slug}$`, 'i') } }
+        { slug: { $regex: new RegExp(`^${cleanSlug}$`, 'i') } },
+        { id: { $regex: new RegExp(`^${cleanSlug}$`, 'i') } },
+        { name: { $regex: new RegExp(`^${cleanSlug}$`, 'i') } }
       ]
     });
 

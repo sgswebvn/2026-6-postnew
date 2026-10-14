@@ -8,6 +8,15 @@ import React from 'react';
  * - Responsive YouTube embeds (16:9 aspect ratio)
  * - In-article AdSense insertion if enabled
  */
+// Safe HTML sanitizer to prevent malicious script injection while preserving rich editorial formatting
+function sanitizeContent(html) {
+  if (!html || typeof html !== 'string') return '';
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/href\s*=\s*["']\s*javascript:[^"']*["']/gi, 'href="#"');
+}
+
 export default function RichContentRenderer({ content, adsenseConfig, enableAds }) {
   if (!content) {
     return <p style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>No article content available.</p>;
@@ -49,10 +58,11 @@ export default function RichContentRenderer({ content, adsenseConfig, enableAds 
   }
 
   // Content contains HTML (including <img> and YouTube iframes)
+  const cleanHtml = sanitizeContent(content);
   return (
     <div
       className="article-rich-body"
-      dangerouslySetInnerHTML={{ __html: content }}
+      dangerouslySetInnerHTML={{ __html: cleanHtml }}
     />
   );
 }

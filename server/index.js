@@ -152,9 +152,16 @@ app.get('/ads.txt', async (req, res) => {
     const pubId = setting?.adsense?.publisherId;
 
     let adsTxtContent = '# Google AdSense Verification File\n';
-    if (pubId && pubId.startsWith('ca-pub-')) {
-      const numericPub = pubId.replace('ca-', '');
-      adsTxtContent += `google.com, ${numericPub}, DIRECT, f08c47fec0942fa0\n`;
+    if (pubId && typeof pubId === 'string' && pubId.trim()) {
+      let numericPub = pubId.trim().replace(/^ca-/, '');
+      if (!numericPub.startsWith('pub-') && /^\d+$/.test(numericPub)) {
+        numericPub = `pub-${numericPub}`;
+      }
+      if (numericPub.startsWith('pub-')) {
+        adsTxtContent += `google.com, ${numericPub}, DIRECT, f08c47fec0942fa0\n`;
+      } else {
+        adsTxtContent += '# Publisher ID not configured or pending approval\n';
+      }
     } else {
       adsTxtContent += '# Publisher ID not configured or pending approval\n';
     }

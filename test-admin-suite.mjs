@@ -529,6 +529,105 @@ async function runTestSuite() {
       footerCode.includes("onNavigate('/contact')"),
       'About and Contact links relocated exclusively to Footer, removed from Navbar'
     );
+
+    // 29. Category Slug vs Category ID Resolution in Public Posts API
+    const postsBySlugRes = await fetch(`${BASE_URL}/api/posts?categoryId=ai-frontier-tech`);
+    const postsBySlugData = await postsBySlugRes.json();
+    const postsByIdRes = await fetch(`${BASE_URL}/api/posts?categoryId=cat-tech`);
+    const postsByIdData = await postsByIdRes.json();
+    assert(
+      postsBySlugRes.ok &&
+      postsByIdRes.ok &&
+      postsBySlugData.total === 4 &&
+      postsByIdData.total === 4,
+      'Public posts endpoint resolves category filter identically by slug or by ID (4 posts)'
+    );
+
+    // 30. Boundary Test: Non-existent Category Slug Returns HTTP 404
+    const nonExistentCatRes = await fetch(`${BASE_URL}/api/categories/non-existent-taxonomy-9999`);
+    assert(
+      nonExistentCatRes.status === 404,
+      'Requesting non-existent category slug returns HTTP 404 Not Found'
+    );
+
+    // 31. Security Test: Regex Injection Protection in Category Slug Route
+    const regexCatRes = await fetch(`${BASE_URL}/api/categories/test[brackets(*+`);
+    assert(
+      regexCatRes.status === 404,
+      'Regex special characters in category slug are safely escaped and handled with 404 without crashing'
+    );
+
+    // 32. Boundary Test: Search with Regex Special Characters
+    const regexSearchRes = await fetch(`${BASE_URL}/api/posts?search=${encodeURIComponent('GAAFET (nanosheets)')}`);
+    const regexSearchData = await regexSearchRes.json();
+    assert(
+      regexSearchRes.ok && Array.isArray(regexSearchData.posts),
+      'Search endpoint handles regex special characters without crash or unhandled error'
+    );
+
+    // 33. Security & Validation Test: Contact Form Rejects Malformed Email
+    const badEmailRes = await fetch(`${BASE_URL}/api/contact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Tester',
+        email: 'invalid-email-address',
+        message: 'Hello'
+      })
+    });
+    assert(
+      badEmailRes.status === 400,
+      'Contact form rejects invalid email addresses with HTTP 400 Bad Request'
+    );
+
+    // 34. Boundary Test: Contact Form Rejects Missing Message
+    const missingMsgRes = await fetch(`${BASE_URL}/api/contact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Tester',
+        email: 'valid@example.com',
+        message: ''
+      })
+    });
+    assert(
+      missingMsgRes.status === 400,
+      'Contact form rejects empty message payload with HTTP 400 Bad Request'
+    );
+
+    // 35. Dynamic Ads.txt Handles Both ca-pub- and pub- Formats
+    const adsTxtFormatRes = await fetch(`${BASE_URL}/ads.txt`);
+    const adsTxtFormatText = await adsTxtFormatRes.text();
+    assert(
+      adsTxtFormatRes.ok &&
+      adsTxtFormatText.includes('google.com, pub-6469608148906900, DIRECT, f08c47fec0942fa0'),
+      'Dynamic ads.txt correctly formats publisher record with verified pub- prefix'
+    );
+
+    // 36. HTML Document Metadata & Internationalization Verification
+    const indexHtml = fs.readFileSync('./index.html', 'utf8');
+    assert(
+      indexHtml.includes('<html lang="en">') &&
+      indexHtml.includes('<title>TheHorizon — Modern Intelligence & Technology Journal</title>'),
+      'index.html configured with English language attribute and TheHorizon default title'
+    );
+
+    // 37. Responsive CSS Media Styles for Rich Articles
+    const cssCode = fs.readFileSync('./src/index.css', 'utf8');
+    assert(
+      cssCode.includes('.article-rich-body img') &&
+      cssCode.includes('.article-rich-body iframe') &&
+      cssCode.includes('aspect-ratio: 16 / 9'),
+      'CSS includes responsive 16:9 media rules and max-width image constraints for articles'
+    );
+
+    // 38. Rich Content Renderer Sanitization Verification
+    const rendererCode = fs.readFileSync('./src/components/common/RichContentRenderer.jsx', 'utf8');
+    assert(
+      rendererCode.includes('sanitizeContent') &&
+      rendererCode.includes('replace(/<script\\b'),
+      'RichContentRenderer incorporates HTML sanitization against XSS script injection'
+    );
   } catch (err) {
     assert(false, `Settings test failed: ${err.message}`);
   }
