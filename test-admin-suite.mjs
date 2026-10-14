@@ -425,6 +425,75 @@ async function runTestSuite() {
         headers: { Authorization: `Bearer ${adminToken}` }
       });
     }
+
+    // 19. Dynamic Sitemap.xml Verification
+    const sitemapRes = await fetch(`${BASE_URL}/sitemap.xml`);
+    const sitemapText = await sitemapRes.text();
+    assert(
+      sitemapRes.ok &&
+      sitemapRes.headers.get('content-type')?.includes('xml') &&
+      sitemapText.includes('<urlset') &&
+      sitemapText.includes('/post/'),
+      'Dynamic XML Sitemap generated with published articles and categories'
+    );
+
+    // 20. Dynamic Robots.txt Verification
+    const robotsRes = await fetch(`${BASE_URL}/robots.txt`);
+    const robotsText = await robotsRes.text();
+    assert(
+      robotsRes.ok &&
+      robotsText.includes('Allow: /') &&
+      robotsText.includes('Disallow: /admin'),
+      'Robots.txt blocks crawler access to /admin while permitting public reader indexing'
+    );
+
+    // 21. Dynamic Ads.txt Verification (Google AdSense Authorized Digital Sellers)
+    const adsTxtRes = await fetch(`${BASE_URL}/ads.txt`);
+    const adsTxtText = await adsTxtRes.text();
+    assert(
+      adsTxtRes.ok &&
+      adsTxtText.includes('google.com') &&
+      adsTxtText.includes('DIRECT'),
+      'Ads.txt dynamically served with verified Google AdSense Publisher ID'
+    );
+
+    // 22. Public Category By Slug Verification
+    const catSlugRes = await fetch(`${BASE_URL}/api/categories/ai-frontier-tech`);
+    const catSlugData = await catSlugRes.json();
+    assert(
+      catSlugRes.ok &&
+      catSlugData.category?.slug === 'ai-frontier-tech' &&
+      typeof catSlugData.category?.postCount === 'number',
+      'Public category detail endpoint resolves category by slug with post count'
+    );
+
+    // 23. Public Post Detail Related Articles & Prev/Next Links
+    const testPostRes = await fetch(`${BASE_URL}/api/posts/2nm-silicon-gaafet-nanosheets-backside-power`);
+    const testPostData = await testPostRes.json();
+    assert(
+      testPostRes.ok &&
+      Array.isArray(testPostData.relatedPosts) &&
+      testPostData.post?.title.includes('2nm Silicon'),
+      'Article detail endpoint enriches response with related articles for internal linking'
+    );
+
+    // 24. Public Contact Form Submission
+    const contactRes = await fetch(`${BASE_URL}/api/contact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Editorial Inquirer',
+        email: 'reader@example.com',
+        subject: 'Research inquiry on semiconductors',
+        message: 'Hello, I loved your in-depth article on 2nm GAAFET nodes.'
+      })
+    });
+    const contactData = await contactRes.json();
+    assert(
+      contactRes.ok &&
+      contactData.success === true,
+      'Public contact form submits inquiries safely to editorial desk'
+    );
   } catch (err) {
     assert(false, `Settings test failed: ${err.message}`);
   }

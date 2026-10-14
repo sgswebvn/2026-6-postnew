@@ -8,17 +8,25 @@ import {
   ChevronRight,
   ChevronLeft,
   Loader2,
-  Sparkles
+  Sparkles,
+  ArrowRight,
+  TrendingUp,
+  Tag
 } from 'lucide-react';
 
-export default function HomePage({ onSelectPost }) {
+export default function HomePage({ onSelectPost, onNavigate, settings }) {
   const [posts, setPosts] = useState([]);
+  const [featuredPost, setFeaturedPost] = useState(null);
   const [categories, setCategories] = useState([]);
   const [selectedCat, setSelectedCat] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  const adsConfig = settings?.adsense;
+  const isAdsAllowed = adsConfig?.enabled === true && !!adsConfig?.publisherId;
 
   useEffect(() => {
     loadCategories();
@@ -31,7 +39,7 @@ export default function HomePage({ onSelectPost }) {
   async function loadCategories() {
     try {
       const data = await api.getPublicCategories();
-      setCategories(data);
+      setCategories(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     }
@@ -45,8 +53,17 @@ export default function HomePage({ onSelectPost }) {
       if (search) params.search = search;
 
       const data = await api.getPublicPosts(params);
-      setPosts(data.posts || []);
+      const fetchedPosts = data.posts || [];
+      setPosts(fetchedPosts);
+      setTotal(data.total || 0);
       setTotalPages(data.totalPages || 1);
+
+      // On first page and without filter, set top post as featured story
+      if (page === 1 && !selectedCat && !search && fetchedPosts.length > 0) {
+        setFeaturedPost(fetchedPosts[0]);
+      } else {
+        setFeaturedPost(null);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -60,170 +77,276 @@ export default function HomePage({ onSelectPost }) {
     loadPosts();
   }
 
+  const gridPosts = featuredPost ? posts.slice(1) : posts;
+
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem' }}>
-      {/* Search & Category Filter Pills */}
-      <div style={{ marginBottom: '2.5rem' }}>
-        <form onSubmit={handleSearch} style={{ maxWidth: '600px', margin: '0 auto 1.5rem', position: 'relative' }}>
-          <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
-          <input
-            type="text"
-            className="form-input"
-            style={{
-              paddingLeft: '46px',
-              paddingRight: '90px',
-              height: '50px',
-              borderRadius: '9999px',
-              fontSize: '1rem',
-              background: 'rgba(20, 28, 46, 0.8)',
-              border: '1px solid var(--border-strong)',
-              boxShadow: 'var(--shadow-md)'
-            }}
-            placeholder="Search all published articles..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <button
-            type="submit"
-            className="btn btn-primary"
-            style={{
-              position: 'absolute',
-              right: '6px',
-              top: '6px',
-              bottom: '6px',
-              borderRadius: '9999px',
-              padding: '0 1.25rem'
-            }}
-          >
-            Search
-          </button>
-        </form>
+    <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '2rem 1.5rem 5rem' }}>
+      {/* Category Pills Navigation */}
+      <div style={{
+        display: 'flex',
+        gap: '0.5rem',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        paddingBottom: '1.5rem',
+        borderBottom: '1px solid #e2e8f0',
+        marginBottom: '2.5rem'
+      }}>
+        <button
+          type="button"
+          onClick={() => { setSelectedCat(''); setPage(1); }}
+          style={{
+            cursor: 'pointer',
+            padding: '0.45rem 1rem',
+            fontSize: '0.85rem',
+            borderRadius: '9999px',
+            backgroundColor: selectedCat === '' ? '#0f172a' : '#f8fafc',
+            color: selectedCat === '' ? '#ffffff' : '#475569',
+            border: '1px solid',
+            borderColor: selectedCat === '' ? '#0f172a' : '#e2e8f0',
+            fontWeight: 600,
+            transition: 'all 0.15s ease'
+          }}
+        >
+          All Topics
+        </button>
 
-        {/* Category Pills */}
-        <div style={{
-          display: 'flex',
-          gap: '0.5rem',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          alignItems: 'center'
-        }}>
-          <button
-            onClick={() => { setSelectedCat(''); setPage(1); }}
-            className={`badge ${selectedCat === '' ? 'badge-admin' : ''}`}
-            style={{
-              cursor: 'pointer',
-              padding: '0.45rem 1rem',
-              fontSize: '0.85rem',
-              borderRadius: '9999px',
-              background: selectedCat === '' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-              color: selectedCat === '' ? '#fff' : 'var(--text-muted)',
-              border: '1px solid var(--border-subtle)'
-            }}
-          >
-            All Articles
-          </button>
-
-          {categories.map(c => (
+        {categories.map((c) => {
+          const isSelected = selectedCat === c.id || selectedCat === c.slug;
+          return (
             <button
-              key={c.id}
-              onClick={() => { setSelectedCat(c.id); setPage(1); }}
-              className={`badge`}
+              key={c.id || c.slug}
+              type="button"
+              onClick={() => { setSelectedCat(c.id || c.slug); setPage(1); }}
               style={{
                 cursor: 'pointer',
                 padding: '0.45rem 1rem',
                 fontSize: '0.85rem',
                 borderRadius: '9999px',
-                background: selectedCat === c.id ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                color: selectedCat === c.id ? '#fff' : 'var(--text-muted)',
-                border: '1px solid var(--border-subtle)'
+                backgroundColor: isSelected ? '#0f172a' : '#f8fafc',
+                color: isSelected ? '#ffffff' : '#475569',
+                border: '1px solid',
+                borderColor: isSelected ? '#0f172a' : '#e2e8f0',
+                fontWeight: isSelected ? 600 : 500,
+                transition: 'all 0.15s ease'
               }}
             >
-              {c.name}
+              {c.name} {c.postCount ? `(${c.postCount})` : ''}
             </button>
-          ))}
+          );
+        })}
+      </div>
+
+      {/* Featured Lead Story (Hero Area from Real Database Content) */}
+      {!loading && featuredPost && (
+        <section style={{ marginBottom: '3.5rem' }}>
+          <div
+            onClick={() => onSelectPost(featuredPost.slug)}
+            style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              cursor: 'pointer',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              boxShadow: '0 4px 20px -4px rgba(0, 0, 0, 0.05)',
+              transition: 'border-color 0.2s ease, transform 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#cbd5e1';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#e2e8f0';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            {/* Visual Cover */}
+            <div style={{ minHeight: '340px', backgroundColor: '#f1f5f9', position: 'relative', overflow: 'hidden' }}>
+              {featuredPost.coverImage ? (
+                <img
+                  src={featuredPost.coverImage}
+                  alt={featuredPost.title}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                  <FileText size={48} />
+                </div>
+              )}
+              <div style={{ position: 'absolute', top: '16px', left: '16px' }}>
+                <span className="badge badge-published" style={{ background: '#2563eb', color: '#ffffff', border: 'none', fontWeight: 700 }}>
+                  Lead Story
+                </span>
+              </div>
+            </div>
+
+            {/* Narrative Content */}
+            <div style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1rem', color: '#64748b', fontSize: '0.85rem' }}>
+                <span className="badge" style={{ background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', textTransform: 'capitalize' }}>
+                  {categories.find(c => c.id === featuredPost.categoryId)?.name || 'Analysis'}
+                </span>
+                <span>•</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Calendar size={13} />
+                  <span>{new Date(featuredPost.publishedAt || featuredPost.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                </div>
+                <span>•</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Eye size={13} />
+                  <span>{(featuredPost.views || 0).toLocaleString()} views</span>
+                </div>
+              </div>
+
+              <h2 style={{
+                fontSize: 'clamp(1.5rem, 3vw, 2.15rem)',
+                fontWeight: 850,
+                color: '#0f172a',
+                lineHeight: 1.25,
+                letterSpacing: '-0.025em',
+                marginBottom: '1rem'
+              }}>
+                {featuredPost.title}
+              </h2>
+
+              <p style={{
+                color: '#475569',
+                fontSize: '1rem',
+                lineHeight: 1.65,
+                marginBottom: '1.75rem',
+                display: '-webkit-box',
+                WebkitLineClamp: 4,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden'
+              }}>
+                {featuredPost.excerpt || 'Read our complete in-depth investigation and technical analysis on this subject.'}
+              </p>
+
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#2563eb', fontWeight: 700, fontSize: '0.95rem' }}>
+                <span>Read Full Dispatch</span>
+                <ArrowRight size={16} />
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Optional Top AdSense Leaderboard Placement */}
+      {isAdsAllowed && adsConfig?.headerAd?.enabled && (
+        <div className="ad-slot-container" style={{ marginBottom: '3rem' }}>
+          <div className="ad-slot-label">Advertisement</div>
+          <div style={{ color: '#64748b', fontSize: '0.8rem' }}>
+            Google AdSense Leaderboard Slot • ID: {adsConfig.headerAd.slotId || 'Header'}
+          </div>
+        </div>
+      )}
+
+      {/* Section Header: Latest Dispatches */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+            {selectedCat ? `${categories.find(c => c.id === selectedCat || c.slug === selectedCat)?.name || 'Category'} Articles` : 'Latest Articles'}
+          </h2>
+          <div style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+            {total} published report{total === 1 ? '' : 's'} available
+          </div>
         </div>
       </div>
 
       {/* Articles Grid */}
       {loading ? (
-        <div style={{ padding: '5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <div style={{ padding: '5rem', textAlign: 'center', color: '#64748b' }}>
           <Loader2 className="animate-spin" size={32} style={{ margin: '0 auto 1rem' }} />
-          <div>Loading articles from MongoDB Atlas...</div>
+          <div>Loading articles from database...</div>
         </div>
       ) : posts.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-dim)' }}>
-          No published articles found.
+        <div style={{
+          textAlign: 'center',
+          padding: '4rem 2rem',
+          backgroundColor: '#f8fafc',
+          borderRadius: '12px',
+          border: '1px solid #e2e8f0',
+          color: '#64748b'
+        }}>
+          <FileText size={40} style={{ margin: '0 auto 0.75rem', opacity: 0.4 }} />
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>
+            No Articles Found
+          </h3>
+          <p style={{ fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+            No published articles match the current filter criteria.
+          </p>
+          <button
+            type="button"
+            onClick={() => { setSelectedCat(''); setSearch(''); setPage(1); }}
+            className="btn btn-secondary btn-sm"
+          >
+            Reset Filters
+          </button>
         </div>
       ) : (
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: '1.75rem',
+          gap: '2rem',
           marginBottom: '3rem'
         }}>
-          {posts.map(post => (
+          {gridPosts.map((post) => (
             <article
               key={post.id || post._id}
               onClick={() => onSelectPost(post.slug)}
-              className="content-card"
+              className="card-item"
               style={{
                 cursor: 'pointer',
+                borderRadius: '12px',
+                overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
-                height: '100%',
-                margin: 0,
-                transition: 'transform 0.2s ease, border-color 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.borderColor = 'var(--border-strong)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                backgroundColor: '#ffffff'
               }}
             >
               {/* Cover Image */}
               <div style={{
                 height: '190px',
+                backgroundColor: '#f1f5f9',
                 overflow: 'hidden',
-                background: 'rgba(255,255,255,0.03)',
                 position: 'relative'
               }}>
                 {post.coverImage ? (
                   <img
                     src={post.coverImage}
                     alt={post.title}
+                    loading="lazy"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 ) : (
-                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
                     <FileText size={32} />
                   </div>
                 )}
                 <div style={{ position: 'absolute', top: '12px', left: '12px' }}>
-                  <span className="badge badge-published" style={{ backdropFilter: 'blur(8px)', background: 'rgba(16, 185, 129, 0.85)', color: '#fff' }}>
+                  <span className="badge" style={{ background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(4px)', color: '#0f172a', border: '1px solid rgba(0,0,0,0.06)', fontWeight: 600 }}>
                     {categories.find(c => c.id === post.categoryId)?.name || 'General'}
                   </span>
                 </div>
               </div>
 
-              {/* Content */}
+              {/* Content Body */}
               <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                <h2 style={{
+                <h3 style={{
                   fontSize: '1.15rem',
-                  fontWeight: 700,
-                  color: '#fff',
+                  fontWeight: 750,
+                  color: '#0f172a',
                   lineHeight: 1.4,
                   marginBottom: '0.75rem',
                   letterSpacing: '-0.01em'
                 }}>
                   {post.title}
-                </h2>
+                </h3>
 
                 <p style={{
-                  color: 'var(--text-muted)',
+                  color: '#64748b',
                   fontSize: '0.875rem',
                   lineHeight: 1.6,
                   marginBottom: '1.25rem',
@@ -241,13 +364,13 @@ export default function HomePage({ onSelectPost }) {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   paddingTop: '0.85rem',
-                  borderTop: '1px solid var(--border-subtle)',
-                  color: 'var(--text-dim)',
-                  fontSize: '0.75rem'
+                  borderTop: '1px solid #f1f5f9',
+                  color: '#94a3b8',
+                  fontSize: '0.8rem'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                     <Calendar size={13} />
-                    <span>{new Date(post.publishedAt || post.createdAt).toLocaleDateString('vi-VN')}</span>
+                    <span>{new Date(post.publishedAt || post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -261,20 +384,22 @@ export default function HomePage({ onSelectPost }) {
         </div>
       )}
 
-      {/* Pagination */}
+      {/* Server-Side Pagination */}
       {totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', marginTop: '1rem' }}>
           <button
+            type="button"
             className="btn btn-secondary"
             disabled={page <= 1}
             onClick={() => setPage(p => Math.max(1, p - 1))}
           >
             <ChevronLeft size={16} /> Prev
           </button>
-          <span style={{ display: 'flex', alignItems: 'center', padding: '0 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          <span style={{ display: 'flex', alignItems: 'center', padding: '0 1rem', color: '#475569', fontSize: '0.875rem', fontWeight: 600 }}>
             Page {page} of {totalPages}
           </span>
           <button
+            type="button"
             className="btn btn-secondary"
             disabled={page >= totalPages}
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}

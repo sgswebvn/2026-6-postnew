@@ -1,12 +1,11 @@
 import React, { useEffect } from 'react';
 import { api } from '../../api/client';
 
-export default function ScriptInjector({ settings, pathname }) {
+export default function ScriptInjector({ settings, pathname, currentPost, currentCategory }) {
   // 1. Google Analytics 4 (GA4) Tracking
   useEffect(() => {
     const gaId = settings?.gaTrackingId;
     if (!gaId || typeof gaId !== 'string' || !gaId.startsWith('G-')) {
-      // Remove script if disabled
       const existing = document.getElementById('ga-gtag-script');
       if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
       return;
@@ -64,48 +63,203 @@ export default function ScriptInjector({ settings, pathname }) {
     }
   }, [settings?.gtmId]);
 
-  // 3. Search Engine Verification Meta Tags & SEO Metadata
+  // 3. Technical SEO: Metadata, Canonical, OpenGraph, Twitter, and Robots Directives
   useEffect(() => {
-    function setMetaTag(name, content) {
-      if (!content) {
-        const el = document.querySelector(`meta[name="${name}"]`);
-        if (el && el.parentNode) el.parentNode.removeChild(el);
-        return;
-      }
-      let el = document.querySelector(`meta[name="${name}"]`);
+    function setMeta(nameOrProperty, value, isProperty = false) {
+      if (!value) return;
+      const attr = isProperty ? 'property' : 'name';
+      let el = document.querySelector(`meta[${attr}="${nameOrProperty}"]`);
       if (!el) {
         el = document.createElement('meta');
-        el.setAttribute('name', name);
+        el.setAttribute(attr, nameOrProperty);
         document.head.appendChild(el);
       }
-      el.setAttribute('content', content);
+      el.setAttribute('content', value);
     }
 
-    if (settings?.metaVerification?.google) {
-      setMetaTag('google-site-verification', settings.metaVerification.google);
-    }
-    if (settings?.metaVerification?.bing) {
-      setMetaTag('msvalidate.01', settings.metaVerification.bing);
-    }
-    if (settings?.metaVerification?.pinterest) {
-      setMetaTag('p:domain_verify', settings.metaVerification.pinterest);
+    function setCanonical(url) {
+      let link = document.querySelector('link[rel="canonical"]');
+      if (!link) {
+        link = document.createElement('link');
+        link.setAttribute('rel', 'canonical');
+        document.head.appendChild(link);
+      }
+      link.setAttribute('href', url);
     }
 
-    // Default SEO meta description on homepage
+    const siteName = settings?.siteName || 'THE HORIZON POST';
+    const siteUrl = (settings?.siteUrl || window.location.origin).replace(/\/+$/, '');
+    const currentUrl = `${siteUrl}${pathname}`;
+
+    // A. Robots Directive: Strictly noindex admin & login routes
+    if (pathname.startsWith('/admin')) {
+      setMeta('robots', 'noindex, nofollow');
+      document.title = `Admin Portal | ${siteName}`;
+      return;
+    } else {
+      setMeta('robots', 'index, follow, max-image-preview:large');
+    }
+
+    // Set canonical URL
+    setCanonical(currentUrl);
+
+    // Site-wide metadata defaults
+    setMeta('og:site_name', siteName, true);
+    setMeta('twitter:card', 'summary_large_image');
+
+    // Webmaster verifications
+    if (settings?.metaVerification?.google) setMeta('google-site-verification', settings.metaVerification.google);
+    if (settings?.metaVerification?.bing) setMeta('msvalidate.01', settings.metaVerification.bing);
+    if (settings?.metaVerification?.pinterest) setMeta('p:domain_verify', settings.metaVerification.pinterest);
+
+    // B. Route-specific metadata
     if (pathname === '/' || pathname === '') {
-      if (settings?.seo?.metaDescription) {
-        setMetaTag('description', settings.seo.metaDescription);
-      }
-      if (settings?.seo?.defaultKeywords) {
-        setMetaTag('keywords', settings.seo.defaultKeywords);
-      }
-      if (settings?.seo?.metaTitle || settings?.siteName) {
-        document.title = settings.seo?.metaTitle || `${settings.siteName} - ${settings.tagline || 'Modern Intelligence'}`;
-      }
-    }
-  }, [settings?.metaVerification, settings?.seo, settings?.siteName, settings?.tagline, pathname]);
+      const pageTitle = settings?.seo?.metaTitle || `${siteName} — ${settings?.tagline || 'Modern Intelligence'}`;
+      const pageDesc = settings?.seo?.metaDescription || settings?.tagline || 'In-depth investigative journalism, semiconductor analysis, and macroeconomic intelligence.';
+      document.title = pageTitle;
 
-  // 4. Google AdSense Master Script
+      setMeta('description', pageDesc);
+      setMeta('keywords', settings?.seo?.defaultKeywords || 'technology, finance, semiconductors, artificial intelligence');
+      setMeta('og:title', pageTitle, true);
+      setMeta('og:description', pageDesc, true);
+      setMeta('og:url', currentUrl, true);
+      setMeta('og:type', 'website', true);
+      if (settings?.seo?.ogImage) {
+        setMeta('og:image', settings.seo.ogImage, true);
+        setMeta('twitter:image', settings.seo.ogImage);
+      }
+      setMeta('twitter:title', pageTitle);
+      setMeta('twitter:description', pageDesc);
+    } else if (pathname.startsWith('/post/') && currentPost) {
+      const pageTitle = currentPost.metaTitle || `${currentPost.title} | ${siteName}`;
+      const pageDesc = currentPost.metaDescription || currentPost.excerpt || 'Read full investigative dispatch.';
+      document.title = pageTitle;
+
+      setMeta('description', pageDesc);
+      if (currentPost.tags && currentPost.tags.length > 0) {
+        setMeta('keywords', currentPost.tags.join(', '));
+      }
+      setMeta('og:title', pageTitle, true);
+      setMeta('og:description', pageDesc, true);
+      setMeta('og:url', currentUrl, true);
+      setMeta('og:type', 'article', true);
+      if (currentPost.coverImage) {
+        setMeta('og:image', currentPost.coverImage, true);
+        setMeta('twitter:image', currentPost.coverImage);
+      }
+      setMeta('twitter:title', pageTitle);
+      setMeta('twitter:description', pageDesc);
+    } else if (pathname.startsWith('/category/') && currentCategory) {
+      const pageTitle = `${currentCategory.name} Analysis & Articles | ${siteName}`;
+      const pageDesc = currentCategory.description || `Browse articles and dispatches on ${currentCategory.name}.`;
+      document.title = pageTitle;
+
+      setMeta('description', pageDesc);
+      setMeta('og:title', pageTitle, true);
+      setMeta('og:description', pageDesc, true);
+      setMeta('og:url', currentUrl, true);
+      setMeta('og:type', 'website', true);
+    } else if (pathname === '/about') {
+      document.title = `About Us | ${siteName}`;
+      setMeta('description', `Learn about ${siteName}, our editorial mission, and standards of reporting.`);
+    } else if (pathname === '/contact') {
+      document.title = `Contact Our Editorial Desk | ${siteName}`;
+      setMeta('description', `Get in touch with the editorial team at ${siteName}.`);
+    } else if (pathname === '/privacy-policy') {
+      document.title = `Privacy Policy | ${siteName}`;
+      setMeta('description', `Privacy Policy and data protection disclosures for ${siteName}.`);
+    } else if (pathname === '/terms') {
+      document.title = `Terms of Service | ${siteName}`;
+      setMeta('description', `Terms of Service and legal conditions for ${siteName}.`);
+    } else if (pathname === '/cookie-policy') {
+      document.title = `Cookie Policy | ${siteName}`;
+      setMeta('description', `Information about cookies and tracking technologies used on ${siteName}.`);
+    } else if (pathname === '/search') {
+      document.title = `Search Articles | ${siteName}`;
+    }
+  }, [settings, pathname, currentPost, currentCategory]);
+
+  // 4. JSON-LD Structured Data Injection
+  useEffect(() => {
+    let scriptTag = document.getElementById('json-ld-structured-data');
+    if (!scriptTag) {
+      scriptTag = document.createElement('script');
+      scriptTag.id = 'json-ld-structured-data';
+      scriptTag.type = 'application/ld+json';
+      document.head.appendChild(scriptTag);
+    }
+
+    const siteName = settings?.siteName || 'THE HORIZON POST';
+    const siteUrl = (settings?.siteUrl || window.location.origin).replace(/\/+$/, '');
+
+    // Skip structured data on admin pages
+    if (pathname.startsWith('/admin')) {
+      scriptTag.innerHTML = '';
+      return;
+    }
+
+    let schema = null;
+
+    if (pathname === '/' || pathname === '') {
+      schema = {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: siteName,
+        url: siteUrl,
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: `${siteUrl}/search?q={search_term_string}`,
+          'query-input': 'required name=search_term_string'
+        }
+      };
+    } else if (pathname.startsWith('/post/') && currentPost) {
+      schema = {
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        mainEntityOfPage: {
+          '@type': 'WebPage',
+          '@id': `${siteUrl}/post/${currentPost.slug}`
+        },
+        headline: currentPost.title,
+        description: currentPost.excerpt || currentPost.title,
+        image: currentPost.coverImage ? [currentPost.coverImage] : undefined,
+        datePublished: (currentPost.publishedAt || currentPost.createdAt || new Date()).toISOString(),
+        dateModified: (currentPost.updatedAt || currentPost.publishedAt || new Date()).toISOString(),
+        publisher: {
+          '@type': 'Organization',
+          name: siteName,
+          url: siteUrl
+        }
+      };
+    } else if (pathname.startsWith('/category/') && currentCategory) {
+      schema = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: siteUrl
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: currentCategory.name,
+            item: `${siteUrl}/category/${currentCategory.slug || currentCategory.id}`
+          }
+        ]
+      };
+    }
+
+    if (schema) {
+      scriptTag.innerHTML = JSON.stringify(schema);
+    } else {
+      scriptTag.innerHTML = '';
+    }
+  }, [settings, pathname, currentPost, currentCategory]);
+
+  // 5. Google AdSense Master Script
   useEffect(() => {
     const isAdsEnabled = settings?.adsense?.enabled === true;
     const publisherId = settings?.adsense?.publisherId;
@@ -129,7 +283,7 @@ export default function ScriptInjector({ settings, pathname }) {
     }
   }, [settings?.adsense?.enabled, settings?.adsense?.publisherId]);
 
-  // 5. Custom Header & Footer Script Injection from Database
+  // 6. Custom Header & Footer Script Injection from Database
   useEffect(() => {
     let cleanupFns = [];
 
@@ -144,12 +298,10 @@ export default function ScriptInjector({ settings, pathname }) {
         scripts.forEach((script) => {
           if (!script.enabled) return;
 
-          // Check scope
           if (script.scope === 'home_only' && !isHome) return;
           if (script.scope === 'posts_only' && !isPost) return;
 
           const containerId = `custom-script-${script.id || script._id}`;
-          // Avoid duplicate injection
           if (document.getElementById(containerId)) return;
 
           const wrapper = document.createElement('div');
@@ -172,7 +324,6 @@ export default function ScriptInjector({ settings, pathname }) {
             }
           });
 
-          // Mount to specified target location
           if (script.location === 'header') {
             document.head.appendChild(wrapper);
             cleanupFns.push(() => {

@@ -155,6 +155,8 @@ export const api = {
   },
   getPublicPostBySlug: (slug) => apiRequest(`/posts/${slug}`),
   getPublicCategories: () => apiRequest('/categories'),
+  getPublicCategoryBySlug: (slug) => apiRequest(`/categories/${slug}`),
   getPublicSettings: () => apiRequest('/settings'),
-  getPublicScripts: () => apiRequest('/scripts')
+  getPublicScripts: () => apiRequest('/scripts'),
+  sendContactInquiry: (data) => apiRequest('/contact', { method: 'POST', body: data })
 };

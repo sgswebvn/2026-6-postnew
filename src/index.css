@@ -1035,8 +1035,207 @@ body {
 }
 
 .article-rich-body a {
-  color: #60a5fa;
+  color: #2563eb;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* ============================================================
+   PUBLIC WHITE THEME - Clean, Minimalist Publication UI (#FFFFFF)
+   ============================================================ */
+.public-theme {
+  --bg-main: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f8fafc;
+  --bg-elevated: #ffffff;
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-focus: #2563eb;
+
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-glow: rgba(37, 99, 235, 0.12);
+  --primary-gradient: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  min-height: 100vh;
+}
+
+.public-theme body,
+.public-theme .app-root {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.public-theme h1,
+.public-theme h2,
+.public-theme h3,
+.public-theme h4 {
+  color: #0f172a !important;
+  letter-spacing: -0.02em;
+}
+
+.public-theme .content-card,
+.public-theme .card,
+.public-theme article.card-item {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.public-theme .content-card:hover,
+.public-theme article.card-item:hover {
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.06) !important;
+}
+
+.public-theme .form-input,
+.public-theme .form-select,
+.public-theme .form-textarea {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.public-theme .form-input:focus,
+.public-theme .form-select:focus,
+.public-theme .form-textarea:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+.public-theme .article-rich-body {
+  color: #1e293b;
+  font-size: 1.125rem;
+  line-height: 1.85;
+}
+
+.public-theme .article-rich-body p {
+  color: #334155;
+}
+
+.public-theme .article-rich-body blockquote {
+  border-left: 4px solid #2563eb;
+  background-color: #f8fafc;
+  color: #1e293b;
+}
+
+/* Breadcrumbs */
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.breadcrumbs a {
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.breadcrumbs a:hover {
+  color: #2563eb;
+}
+
+.breadcrumbs .current {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+/* Table of Contents */
+.toc-box {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin: 2rem 0;
+}
+
+.toc-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.toc-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.toc-list li.toc-h3 {
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+}
+
+.toc-list a {
+  color: #475569;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.15s ease;
+}
+
+.toc-list a:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+/* Ad Placement Wrapper with min-height to prevent CLS */
+.ad-slot-container {
+  margin: 2rem 0;
+  padding: 1.25rem;
+  background-color: #fafafa;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  text-align: center;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ad-slot-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+@media (min-width: 769px) {
+  .desktop-nav {
+    display: flex !important;
+  }
+  .mobile-nav-toggle {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .desktop-nav {
+    display: none !important;
+  }
+  .mobile-nav-toggle {
+    display: inline-flex !important;
+  }
 }
 
