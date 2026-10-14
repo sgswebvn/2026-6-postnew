@@ -1,7 +1,8 @@
 import React from 'react';
 
 export default function PrivacyPolicyPage({ settings, onNavigate }) {
-  const siteName = settings?.siteName || 'THE HORIZON POST';
+  const rawSiteName = settings?.siteName || 'TheHorizon';
+  const siteName = rawSiteName.replace(/\s*Post\b/gi, '').trim() || 'TheHorizon';
   const siteUrl = settings?.siteUrl || 'https://www.thehori.click';
   const contactEmail = settings?.contactEmail || 'contact@thehori.click';
 

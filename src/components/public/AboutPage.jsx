@@ -2,6 +2,9 @@ import React from 'react';
 import { BookOpen, ShieldCheck, Target, Award, Users, Mail, ArrowRight } from 'lucide-react';
 
 export default function AboutPage({ settings, onNavigate }) {
+  const rawSiteName = settings?.siteName || 'TheHorizon';
+  const siteName = rawSiteName.replace(/\s*Post\b/gi, '').trim() || 'TheHorizon';
+
   return (
     <div style={{ maxWidth: '840px', margin: '0 auto', padding: '3rem 1.5rem 5rem' }}>
       {/* Breadcrumb */}
@@ -21,7 +24,7 @@ export default function AboutPage({ settings, onNavigate }) {
         marginBottom: '1rem',
         lineHeight: 1.2
       }}>
-        About {settings?.siteName || 'THE HORIZON POST'}
+        About {siteName}
       </h1>
 
       <div style={{
@@ -38,7 +41,7 @@ export default function AboutPage({ settings, onNavigate }) {
       {/* Main Narrative */}
       <div style={{ color: '#1e293b', fontSize: '1.05rem', lineHeight: 1.85, display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
         <p>
-          Founded as an independent digital publication, <strong>{settings?.siteName || 'THE HORIZON POST'}</strong> bridges the gap between deep technical architecture and macroeconomic strategy. In an era saturated with sensationalism and automated noise, we prioritize depth, verified facts, and enduring clarity.
+          Founded as an independent digital publication, <strong>{siteName}</strong> bridges the gap between deep technical architecture and macroeconomic strategy. In an era saturated with sensationalism and automated noise, we prioritize depth, verified facts, and enduring clarity.
         </p>
 
         <div style={{

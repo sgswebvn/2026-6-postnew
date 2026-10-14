@@ -9,9 +9,6 @@ import {
   Loader2,
   Check,
   Clock,
-  List,
-  ChevronDown,
-  ChevronUp,
   ArrowRight,
   Bookmark
 } from 'lucide-react';
@@ -22,7 +19,6 @@ export default function PostDetailPage({ slug, onNavigate, onSelectPost, setting
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [tocOpen, setTocOpen] = useState(true);
 
   useEffect(() => {
     loadPost();
@@ -57,26 +53,6 @@ export default function PostDetailPage({ slug, onNavigate, onSelectPost, setting
     const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   }
-
-  // Extract Table of Contents from HTML content
-  const tocItems = useMemo(() => {
-    if (!data?.post?.content) return [];
-    const content = data.post.content;
-    const regex = /<(h[23])[^>]*>(.*?)<\/\1>/gi;
-    const items = [];
-    let match;
-
-    while ((match = regex.exec(content)) !== null) {
-      const tag = match[1].toLowerCase();
-      // Strip any nested tags inside heading
-      const text = match[2].replace(/<[^>]*>?/gm, '').trim();
-      const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      if (text) {
-        items.push({ tag, text, id });
-      }
-    }
-    return items;
-  }, [data?.post?.content]);
 
   // Calculate estimated reading time
   const readingTimeMinutes = useMemo(() => {
@@ -288,31 +264,6 @@ export default function PostDetailPage({ slug, onNavigate, onSelectPost, setting
           borderRadius: '0 12px 12px 0'
         }}>
           {post.excerpt}
-        </div>
-      )}
-
-      {/* Automatic Table of Contents (TOC) if article has 2+ headings */}
-      {tocItems.length >= 2 && (
-        <div className="toc-box">
-          <div className="toc-title" onClick={() => setTocOpen(!tocOpen)}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <List size={16} color="#2563eb" />
-              <span>Table of Contents</span>
-            </div>
-            {tocOpen ? <ChevronUp size={16} color="#64748b" /> : <ChevronDown size={16} color="#64748b" />}
-          </div>
-
-          {tocOpen && (
-            <ul className="toc-list">
-              {tocItems.map((item, idx) => (
-                <li key={idx} className={item.tag === 'h3' ? 'toc-h3' : 'toc-h2'}>
-                  <a href={`#${item.id}`}>
-                    {item.text}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       )}
 

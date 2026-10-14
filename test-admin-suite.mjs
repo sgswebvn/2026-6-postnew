@@ -358,7 +358,7 @@ async function runTestSuite() {
         Authorization: `Bearer ${adminToken}`
       },
       body: JSON.stringify({
-        siteName: 'THE HORIZON POST',
+        siteName: 'TheHorizon',
         siteUrl: 'https://www.thehori.click',
         tagline: 'Definitive Intelligence for Modern Wealth & Technology',
         gaTrackingId: 'G-HORIZON2026',
@@ -368,7 +368,7 @@ async function runTestSuite() {
           bing: 'bing-verify-67890'
         },
         seo: {
-          metaTitle: 'The Horizon Post - AI & Wealth',
+          metaTitle: 'TheHorizon - AI & Wealth',
           metaDescription: 'Authoritative analysis on semiconductors and global economy.'
         },
         adsense: {
@@ -493,6 +493,41 @@ async function runTestSuite() {
       contactRes.ok &&
       contactData.success === true,
       'Public contact form submits inquiries safely to editorial desk'
+    );
+
+    // 25. TheHorizon Brand Name Verification
+    assert(
+      publicSettings.siteName === 'TheHorizon',
+      'Website settings dynamically confirms brand name is strictly "TheHorizon"'
+    );
+
+    // 26. Verification of Zero Admin in Public UI
+    const fs = await import('fs');
+    const navbarCode = fs.readFileSync('./src/components/public/PublicNavbar.jsx', 'utf8');
+    assert(
+      !navbarCode.includes('/admin') &&
+      !navbarCode.includes('onAdminClick') &&
+      !navbarCode.includes('<span>Admin</span>'),
+      'Public navbar has zero Admin links, buttons, or props'
+    );
+
+    // 27. Verification of Table of Contents Removal
+    const postDetailCode = fs.readFileSync('./src/components/public/PostDetailPage.jsx', 'utf8');
+    assert(
+      !postDetailCode.includes('toc-box') &&
+      !postDetailCode.includes('tocItems') &&
+      !postDetailCode.includes('Table of Contents'),
+      'Post detail page has completely eliminated Table of Contents (TOC)'
+    );
+
+    // 28. About and Contact Relocated Exclusively to Footer
+    const footerCode = fs.readFileSync('./src/components/public/PublicFooter.jsx', 'utf8');
+    assert(
+      !navbarCode.includes("onNavigate('/about')") &&
+      !navbarCode.includes("onNavigate('/contact')") &&
+      footerCode.includes("onNavigate('/about')") &&
+      footerCode.includes("onNavigate('/contact')"),
+      'About and Contact links relocated exclusively to Footer, removed from Navbar'
     );
   } catch (err) {
     assert(false, `Settings test failed: ${err.message}`);

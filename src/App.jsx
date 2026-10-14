@@ -393,7 +393,6 @@ export default function App() {
         settings={settings}
         categories={categories}
         onNavigate={navigate}
-        onAdminClick={() => navigate(currentUser ? '/admin' : '/admin/login')}
       />
       <main style={{ minHeight: 'calc(100vh - 280px)', backgroundColor: '#ffffff' }}>
         {publicContent}

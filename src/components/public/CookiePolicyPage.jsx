@@ -1,7 +1,8 @@
 import React from 'react';
 
 export default function CookiePolicyPage({ settings, onNavigate }) {
-  const siteName = settings?.siteName || 'THE HORIZON POST';
+  const rawSiteName = settings?.siteName || 'TheHorizon';
+  const siteName = rawSiteName.replace(/\s*Post\b/gi, '').trim() || 'TheHorizon';
 
   return (
     <div style={{ maxWidth: '840px', margin: '0 auto', padding: '3rem 1.5rem 5rem' }}>
@@ -50,7 +51,7 @@ export default function CookiePolicyPage({ settings, onNavigate }) {
               A. Strictly Necessary / Essential Cookies
             </h3>
             <p style={{ fontSize: '0.9rem', color: '#475569', margin: 0 }}>
-              These cookies are essential for you to browse the website and use its features, such as accessing secure admin sessions and verifying security tokens.
+              These cookies are essential for you to browse the website and use its features, such as maintaining secure user sessions and verifying security tokens.
             </p>
           </div>
 

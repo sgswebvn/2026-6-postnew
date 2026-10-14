@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const settingSchema = new mongoose.Schema({
   key: { type: String, required: true, unique: true, default: 'global_settings' },
-  siteName: { type: String, default: 'THE HORIZON POST', trim: true },
+  siteName: { type: String, default: 'TheHorizon', trim: true },
   siteUrl: { type: String, default: 'https://www.thehori.click', trim: true },
   tagline: { type: String, default: 'Modern Intelligence & Technology Journal', trim: true },
   description: { type: String, default: 'In-depth analysis on personal finance, artificial intelligence, enterprise technology, and modern living.', trim: true },

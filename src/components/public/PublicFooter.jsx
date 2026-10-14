@@ -3,6 +3,13 @@ import { BookOpen, Mail, Phone, MapPin, ShieldCheck, ArrowRight } from 'lucide-r
 
 export default function PublicFooter({ settings, categories = [], onNavigate }) {
   const currentYear = new Date().getFullYear();
+  const rawSiteName = settings?.siteName || 'TheHorizon';
+  const siteName = rawSiteName.replace(/\s*Post\b/gi, '').trim() || 'TheHorizon';
+
+  // Deduplicate categories
+  const uniqueCategories = Array.from(
+    new Map((categories || []).filter(c => c && c.name).map(c => [c.slug || c.id, c])).values()
+  );
 
   return (
     <footer style={{
@@ -43,7 +50,7 @@ export default function PublicFooter({ settings, categories = [], onNavigate }) 
                 <BookOpen size={18} />
               </div>
               <span style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0f172a', letterSpacing: '-0.02em' }}>
-                {settings?.siteName || 'THE HORIZON POST'}
+                {siteName}
               </span>
             </div>
 
@@ -77,7 +84,7 @@ export default function PublicFooter({ settings, categories = [], onNavigate }) 
               Editorial Pillars
             </h4>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              {categories.slice(0, 6).map((c) => (
+              {uniqueCategories.slice(0, 6).map((c) => (
                 <li key={c.id || c.slug}>
                   <button
                     type="button"
@@ -206,7 +213,7 @@ export default function PublicFooter({ settings, categories = [], onNavigate }) 
           color: '#94a3b8'
         }}>
           <div>
-            © {currentYear} {settings?.siteName || 'THE HORIZON POST'}. All rights reserved.
+            © {currentYear} {siteName}. All rights reserved.
           </div>
           <div>
             Independent Editorial Publishing • Designed for Clarity & Speed

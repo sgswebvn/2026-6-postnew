@@ -87,7 +87,8 @@ export default function ScriptInjector({ settings, pathname, currentPost, curren
       link.setAttribute('href', url);
     }
 
-    const siteName = settings?.siteName || 'THE HORIZON POST';
+    const rawSiteName = settings?.siteName || 'TheHorizon';
+    const siteName = rawSiteName.replace(/\s*Post\b/gi, '').trim() || 'TheHorizon';
     const siteUrl = (settings?.siteUrl || window.location.origin).replace(/\/+$/, '');
     const currentUrl = `${siteUrl}${pathname}`;
 
@@ -114,7 +115,7 @@ export default function ScriptInjector({ settings, pathname, currentPost, curren
 
     // B. Route-specific metadata
     if (pathname === '/' || pathname === '') {
-      const pageTitle = settings?.seo?.metaTitle || `${siteName} — ${settings?.tagline || 'Modern Intelligence'}`;
+      const pageTitle = (settings?.seo?.metaTitle || `${siteName} — ${settings?.tagline || 'Modern Intelligence'}`).replace(/The\s*Horizon\s*Post/gi, 'TheHorizon');
       const pageDesc = settings?.seo?.metaDescription || settings?.tagline || 'In-depth investigative journalism, semiconductor analysis, and macroeconomic intelligence.';
       document.title = pageTitle;
 
@@ -189,7 +190,8 @@ export default function ScriptInjector({ settings, pathname, currentPost, curren
       document.head.appendChild(scriptTag);
     }
 
-    const siteName = settings?.siteName || 'THE HORIZON POST';
+    const rawSiteName = settings?.siteName || 'TheHorizon';
+    const siteName = rawSiteName.replace(/\s*Post\b/gi, '').trim() || 'TheHorizon';
     const siteUrl = (settings?.siteUrl || window.location.origin).replace(/\/+$/, '');
 
     // Skip structured data on admin pages

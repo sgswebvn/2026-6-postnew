@@ -1152,52 +1152,6 @@ body {
   font-weight: 600;
 }
 
-/* Table of Contents */
-.toc-box {
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 1.25rem 1.5rem;
-  margin: 2rem 0;
-}
-
-.toc-title {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-}
-
-.toc-list {
-  list-style: none;
-  padding-left: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
-.toc-list li.toc-h3 {
-  padding-left: 1.25rem;
-  font-size: 0.875rem;
-}
-
-.toc-list a {
-  color: #475569;
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: color 0.15s ease;
-}
-
-.toc-list a:hover {
-  color: #2563eb;
-  text-decoration: underline;
-}
-
 /* Ad Placement Wrapper with min-height to prevent CLS */
 .ad-slot-container {
   margin: 2rem 0;
