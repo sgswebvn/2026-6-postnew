@@ -81,62 +81,6 @@ export default function HomePage({ onSelectPost, onNavigate, settings }) {
 
   return (
     <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '2rem 1.5rem 5rem' }}>
-      {/* Category Pills Navigation */}
-      <div style={{
-        display: 'flex',
-        gap: '0.5rem',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        paddingBottom: '1.5rem',
-        borderBottom: '1px solid #e2e8f0',
-        marginBottom: '2.5rem'
-      }}>
-        <button
-          type="button"
-          onClick={() => { setSelectedCat(''); setPage(1); }}
-          style={{
-            cursor: 'pointer',
-            padding: '0.45rem 1rem',
-            fontSize: '0.85rem',
-            borderRadius: '9999px',
-            backgroundColor: selectedCat === '' ? '#0f172a' : '#f8fafc',
-            color: selectedCat === '' ? '#ffffff' : '#475569',
-            border: '1px solid',
-            borderColor: selectedCat === '' ? '#0f172a' : '#e2e8f0',
-            fontWeight: 600,
-            transition: 'all 0.15s ease'
-          }}
-        >
-          All Topics
-        </button>
-
-        {categories.map((c) => {
-          const isSelected = selectedCat === c.id || selectedCat === c.slug;
-          return (
-            <button
-              key={c.id || c.slug}
-              type="button"
-              onClick={() => { setSelectedCat(c.id || c.slug); setPage(1); }}
-              style={{
-                cursor: 'pointer',
-                padding: '0.45rem 1rem',
-                fontSize: '0.85rem',
-                borderRadius: '9999px',
-                backgroundColor: isSelected ? '#0f172a' : '#f8fafc',
-                color: isSelected ? '#ffffff' : '#475569',
-                border: '1px solid',
-                borderColor: isSelected ? '#0f172a' : '#e2e8f0',
-                fontWeight: isSelected ? 600 : 500,
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {c.name} {c.postCount ? `(${c.postCount})` : ''}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Featured Lead Story (Hero Area from Real Database Content) */}
       {!loading && featuredPost && (
         <section style={{ marginBottom: '3.5rem' }}>
           <div
