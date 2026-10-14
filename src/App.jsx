@@ -1,93 +1,254 @@
-import React from 'react';
-import { Database, ShieldCheck, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { api, setStoredToken, getStoredToken } from './api/client';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboard from './components/admin/AdminDashboard';
+import AdminPosts from './components/admin/AdminPosts';
+import AdminPostForm from './components/admin/AdminPostForm';
+import AdminCategories from './components/admin/AdminCategories';
+import AdminStaff from './components/admin/AdminStaff';
+import AdminSettings from './components/admin/AdminSettings';
+import LoginPage from './pages/LoginPage';
+import PublicNavbar from './components/public/PublicNavbar';
+import HomePage from './components/public/HomePage';
+import PostDetailPage from './components/public/PostDetailPage';
+import { CheckCircle2, AlertCircle, X } from 'lucide-react';
 
 export default function App() {
+  // Navigation: 'public-home' | 'public-detail' | 'admin-login' | 'admin'
+  const [currentView, setCurrentView] = useState('admin');
+  const [adminTab, setAdminTab] = useState('dashboard');
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [activeSlug, setActiveSlug] = useState('');
+
+  // Auth state
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Global settings
+  const [settings, setSettings] = useState(null);
+
+  // Toast state
+  const [toasts, setToasts] = useState([]);
+
+  function showToast(message, type = 'info') {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  }
+
+  function removeToast(id) {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }
+
+  useEffect(() => {
+    checkSession();
+    loadSettings();
+  }, []);
+
+  async function loadSettings() {
+    try {
+      const data = await api.getPublicSettings();
+      setSettings(data);
+    } catch (e) {
+      console.warn('Could not load settings:', e);
+    }
+  }
+
+  async function checkSession() {
+    setAuthLoading(true);
+    try {
+      const res = await api.getMe();
+      if (res && res.user) {
+        setCurrentUser(res.user);
+      } else {
+        setCurrentUser(null);
+      }
+    } catch (e) {
+      setCurrentUser(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await api.logout();
+    } catch (e) {}
+    setStoredToken('');
+    setCurrentUser(null);
+    showToast('Logged out of admin session.', 'info');
+    setCurrentView('admin-login');
+  }
+
+  function handleLoginSuccess(user) {
+    setCurrentUser(user);
+    showToast(`Welcome back, ${user.name || user.username}!`, 'success');
+    setCurrentView('admin');
+    setAdminTab('dashboard');
+  }
+
+  function handleSelectPost(slug) {
+    setActiveSlug(slug);
+    setCurrentView('public-detail');
+  }
+
+  function handleEditPost(id) {
+    setEditingPostId(id);
+    setAdminTab('post-form');
+    setCurrentView('admin');
+  }
+
+  function handleNewPost() {
+    setEditingPostId(null);
+    setAdminTab('post-form');
+    setCurrentView('admin');
+  }
+
+  function handlePreviewPost(slug) {
+    setActiveSlug(slug);
+    setCurrentView('public-detail');
+  }
+
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      padding: '2rem',
-      textAlign: 'center'
-    }}>
-      <div style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-color)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '3rem 2.5rem',
-        maxWidth: '640px',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
-        backdropFilter: 'blur(12px)'
-      }}>
-        <div style={{
-          display: 'inline-flex',
-          padding: '1rem',
-          borderRadius: '50%',
-          background: 'rgba(59, 130, 246, 0.1)',
-          color: '#3b82f6',
-          marginBottom: '1.5rem'
-        }}>
-          <Sparkles size={36} />
+    <div className="app-root">
+      {/* 1. PUBLIC READER VIEWS */}
+      {currentView === 'public-home' && (
+        <div>
+          <PublicNavbar
+            settings={settings}
+            onAdminClick={() => {
+              if (currentUser) {
+                setCurrentView('admin');
+              } else {
+                setCurrentView('admin-login');
+              }
+            }}
+          />
+          <HomePage onSelectPost={handleSelectPost} />
         </div>
+      )}
 
-        <h1 style={{
-          fontSize: '2rem',
-          fontWeight: 700,
-          marginBottom: '0.75rem',
-          letterSpacing: '-0.02em',
-          background: 'var(--accent-gradient)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent'
-        }}>
-          Hệ Thống Đã Được Reset Sạch Sẽ
-        </h1>
-
-        <p style={{
-          color: 'var(--text-secondary)',
-          fontSize: '1rem',
-          marginBottom: '2rem',
-          lineHeight: 1.6
-        }}>
-          Toàn bộ mã nguồn cũ đã được dọn sạch. Cơ sở dữ liệu MongoDB Atlas (Bài viết, Danh mục, Settings, Staffs) và Supabase Storage (Hình ảnh & Tệp tin) đã được bảo toàn nguyên vẹn 100%. Sẵn sàng xây dựng website mới theo yêu cầu của bạn.
-        </p>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '1rem',
-          textAlign: 'left'
-        }}>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-md)',
-            padding: '1rem'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#10b981', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.25rem' }}>
-              <Database size={16} /> MongoDB Atlas
-            </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-              30 Bài viết & Danh mục được bảo toàn
-            </div>
-          </div>
-
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-md)',
-            padding: '1rem'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#3b82f6', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.25rem' }}>
-              <ShieldCheck size={16} /> Supabase Storage
-            </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-              217 Tệp tin & Buckets nguyên vẹn
-            </div>
-          </div>
+      {currentView === 'public-detail' && (
+        <div>
+          <PublicNavbar
+            settings={settings}
+            onAdminClick={() => {
+              if (currentUser) {
+                setCurrentView('admin');
+              } else {
+                setCurrentView('admin-login');
+              }
+            }}
+          />
+          <PostDetailPage
+            slug={activeSlug}
+            settings={settings}
+            onBack={() => setCurrentView('public-home')}
+          />
         </div>
-      </div>
+      )}
+
+      {/* 2. ADMIN LOGIN PAGE */}
+      {currentView === 'admin-login' && (
+        <LoginPage
+          onLoginSuccess={handleLoginSuccess}
+          onViewSite={() => setCurrentView('public-home')}
+        />
+      )}
+
+      {/* 3. ADMIN PORTAL (Requires login) */}
+      {currentView === 'admin' && (
+        authLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--text-muted)' }}>
+            Verifying administrative access...
+          </div>
+        ) : !currentUser ? (
+          <LoginPage
+            onLoginSuccess={handleLoginSuccess}
+            onViewSite={() => setCurrentView('public-home')}
+          />
+        ) : (
+          <AdminLayout
+            user={currentUser}
+            currentTab={adminTab}
+            onTabChange={(tab) => {
+              setAdminTab(tab);
+              if (tab !== 'post-form') setEditingPostId(null);
+            }}
+            onLogout={handleLogout}
+            onViewSite={() => setCurrentView('public-home')}
+            onNewPost={handleNewPost}
+          >
+            {adminTab === 'dashboard' && (
+              <AdminDashboard
+                onNavigate={(tab) => setAdminTab(tab)}
+                onEditPost={handleEditPost}
+                onPreviewPost={handlePreviewPost}
+              />
+            )}
+
+            {adminTab === 'posts' && (
+              <AdminPosts
+                onNewPost={handleNewPost}
+                onEditPost={handleEditPost}
+                onPreviewPost={handlePreviewPost}
+                showToast={showToast}
+              />
+            )}
+
+            {adminTab === 'post-form' && (
+              <AdminPostForm
+                postId={editingPostId}
+                onBack={() => setAdminTab('posts')}
+                onSuccess={() => setAdminTab('posts')}
+                showToast={showToast}
+              />
+            )}
+
+            {adminTab === 'categories' && (
+              <AdminCategories showToast={showToast} />
+            )}
+
+            {adminTab === 'staff' && (
+              <AdminStaff
+                currentUser={currentUser}
+                showToast={showToast}
+              />
+            )}
+
+            {adminTab === 'settings' && (
+              <AdminSettings showToast={showToast} />
+            )}
+          </AdminLayout>
+        )
+      )}
+
+      {/* Toast Notifications */}
+      {toasts.length > 0 && (
+        <div className="toast-container">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`toast ${toast.type === 'success' ? 'toast-success' : toast.type === 'error' ? 'toast-error' : ''}`}
+            >
+              {toast.type === 'success' ? (
+                <CheckCircle2 size={16} color="#10b981" />
+              ) : (
+                <AlertCircle size={16} color="#f87171" />
+              )}
+              <span style={{ flex: 1 }}>{toast.message}</span>
+              <button
+                onClick={() => removeToast(toast.id)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 0 }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
