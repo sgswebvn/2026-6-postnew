@@ -2,6 +2,7 @@ import express from 'express';
 import { Post } from '../models/Post.js';
 import { Category } from '../models/Category.js';
 import { Setting } from '../models/Setting.js';
+import { CustomScript } from '../models/CustomScript.js';
 
 const router = express.Router();
 
@@ -100,6 +101,18 @@ router.get('/settings', async (req, res) => {
     return res.json(settings || {});
   } catch (err) {
     return res.status(500).json({ error: 'Failed to retrieve settings.' });
+  }
+});
+
+// GET /api/scripts (Public active header/footer scripts)
+router.get('/scripts', async (req, res) => {
+  try {
+    const scripts = await CustomScript.find({ enabled: true })
+      .select('id name code location scope')
+      .lean();
+    return res.json(scripts);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to load scripts.' });
   }
 });
 

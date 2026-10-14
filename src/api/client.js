@@ -35,7 +35,6 @@ export async function apiRequest(endpoint, options = {}) {
   const res = await fetch(`${API_BASE}${endpoint}`, config);
 
   if (res.status === 401) {
-    // If unauthorized, clear token if it wasn't a login attempt
     if (!endpoint.includes('/auth/login')) {
       setStoredToken('');
     }
@@ -63,8 +62,17 @@ export const api = {
   getMe: () => apiRequest('/auth/me'),
   logout: () => apiRequest('/auth/logout', { method: 'POST' }),
 
-  // Admin Stats
-  getStats: () => apiRequest('/admin/stats'),
+  // Admin Stats & Time Range
+  getStats: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/stats${query ? `?${query}` : ''}`);
+  },
+
+  // Admin Analytics
+  getAnalytics: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/analytics${query ? `?${query}` : ''}`);
+  },
 
   // Admin Posts
   getPosts: (params = {}) => {
@@ -77,11 +85,34 @@ export const api = {
   deletePost: (id) => apiRequest(`/admin/posts/${id}`, { method: 'DELETE' }),
   togglePostStatus: (id) => apiRequest(`/admin/posts/${id}/status`, { method: 'PATCH' }),
 
+  // Bulk Post Actions
+  bulkPostAction: (action, ids, selectAllMatching = false, filterQuery = {}) => {
+    return apiRequest('/admin/posts/bulk', {
+      method: 'POST',
+      body: { action, ids, selectAllMatching, filterQuery }
+    });
+  },
+
+  // Danger Zone: Purge all posts
+  deleteAllPosts: (confirmationPhrase) => {
+    return apiRequest('/admin/posts/delete-all', {
+      method: 'POST',
+      body: { confirmationPhrase }
+    });
+  },
+
   // Admin Categories
   getCategories: () => apiRequest('/admin/categories'),
   createCategory: (data) => apiRequest('/admin/categories', { method: 'POST', body: data }),
   updateCategory: (id, data) => apiRequest(`/admin/categories/${id}`, { method: 'PUT', body: data }),
   deleteCategory: (id) => apiRequest(`/admin/categories/${id}`, { method: 'DELETE' }),
+
+  // Admin Custom Scripts (Header / Footer / GTM)
+  getScripts: () => apiRequest('/admin/scripts'),
+  createScript: (data) => apiRequest('/admin/scripts', { method: 'POST', body: data }),
+  updateScript: (id, data) => apiRequest(`/admin/scripts/${id}`, { method: 'PUT', body: data }),
+  deleteScript: (id) => apiRequest(`/admin/scripts/${id}`, { method: 'DELETE' }),
+  toggleScript: (id) => apiRequest(`/admin/scripts/${id}/toggle`, { method: 'PATCH' }),
 
   // Admin Settings
   getSettings: () => apiRequest('/admin/settings'),
@@ -124,5 +155,6 @@ export const api = {
   },
   getPublicPostBySlug: (slug) => apiRequest(`/posts/${slug}`),
   getPublicCategories: () => apiRequest('/categories'),
-  getPublicSettings: () => apiRequest('/settings')
+  getPublicSettings: () => apiRequest('/settings'),
+  getPublicScripts: () => apiRequest('/scripts')
 };

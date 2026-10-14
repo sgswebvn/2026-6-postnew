@@ -1,15 +1,44 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { Post } from '../models/Post.js';
 import { Category } from '../models/Category.js';
 import { Staff } from '../models/Staff.js';
 import { Setting } from '../models/Setting.js';
+import { CustomScript } from '../models/CustomScript.js';
 import { requireAuth, requireAdmin, sanitizeStaff, hashPassword } from '../auth.js';
 import { isDbConnected } from '../db.js';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
 
 // Apply auth to all admin routes
 router.use(requireAuth);
+
+// Helper to synchronize postCount across all categories
+export async function refreshAllCategoryPostCounts() {
+  try {
+    const counts = await Post.aggregate([
+      { $match: { status: 'published' } },
+      { $group: { _id: '$categoryId', count: { $sum: 1 } } }
+    ]);
+    const countMap = {};
+    counts.forEach(c => {
+      if (c._id) countMap[c._id] = c.count;
+    });
+
+    const categories = await Category.find();
+    for (const cat of categories) {
+      const newCount = countMap[cat.id] || countMap[cat.slug] || 0;
+      if (cat.postCount !== newCount) {
+        cat.postCount = newCount;
+        await cat.save();
+      }
+    }
+  } catch (e) {
+    console.warn('[refreshAllCategoryPostCounts Error]', e.message);
+  }
+}
 
 // Helper to slugify text safely supporting Unicode / Vietnamese
 export function generateSlug(text) {
@@ -24,11 +53,139 @@ export function generateSlug(text) {
     .slice(0, 100);
 }
 
+// Helper to calculate exact date ranges and equivalent previous period for comparison
+export function getDateRange(rangeKey, customStart, customEnd) {
+  const now = new Date();
+  let start = new Date();
+  let end = new Date();
+  let prevStart = new Date();
+  let prevEnd = new Date();
+
+  end.setHours(23, 59, 59, 999);
+
+  switch (rangeKey) {
+    case 'today':
+      start.setHours(0, 0, 0, 0);
+      prevStart = new Date(start);
+      prevStart.setDate(prevStart.getDate() - 1);
+      prevEnd = new Date(start);
+      prevEnd.setMilliseconds(-1);
+      break;
+    case 'yesterday':
+      start.setDate(start.getDate() - 1);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(start);
+      end.setHours(23, 59, 59, 999);
+      prevStart = new Date(start);
+      prevStart.setDate(prevStart.getDate() - 1);
+      prevEnd = new Date(start);
+      prevEnd.setMilliseconds(-1);
+      break;
+    case '7d':
+      start.setDate(now.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+      prevStart = new Date(start);
+      prevStart.setDate(prevStart.getDate() - 7);
+      prevEnd = new Date(start);
+      prevEnd.setMilliseconds(-1);
+      break;
+    case '30d':
+      start.setDate(now.getDate() - 29);
+      start.setHours(0, 0, 0, 0);
+      prevStart = new Date(start);
+      prevStart.setDate(prevStart.getDate() - 30);
+      prevEnd = new Date(start);
+      prevEnd.setMilliseconds(-1);
+      break;
+    case '90d':
+      start.setDate(now.getDate() - 89);
+      start.setHours(0, 0, 0, 0);
+      prevStart = new Date(start);
+      prevStart.setDate(prevStart.getDate() - 90);
+      prevEnd = new Date(start);
+      prevEnd.setMilliseconds(-1);
+      break;
+    case 'this_month':
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      prevEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      break;
+    case 'last_month':
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      prevStart = new Date(now.getFullYear(), now.getMonth() - 2, 1, 0, 0, 0, 0);
+      prevEnd = new Date(now.getFullYear(), now.getMonth() - 1, 0, 23, 59, 59, 999);
+      break;
+    case 'this_quarter': {
+      const q = Math.floor(now.getMonth() / 3);
+      start = new Date(now.getFullYear(), q * 3, 1, 0, 0, 0, 0);
+      prevStart = new Date(now.getFullYear(), (q - 1) * 3, 1, 0, 0, 0, 0);
+      prevEnd = new Date(now.getFullYear(), q * 3, 0, 23, 59, 59, 999);
+      break;
+    }
+    case 'last_quarter': {
+      const q = Math.floor(now.getMonth() / 3);
+      start = new Date(now.getFullYear(), (q - 1) * 3, 1, 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), q * 3, 0, 23, 59, 59, 999);
+      prevStart = new Date(now.getFullYear(), (q - 2) * 3, 1, 0, 0, 0, 0);
+      prevEnd = new Date(now.getFullYear(), (q - 1) * 3, 0, 23, 59, 59, 999);
+      break;
+    }
+    case 'this_year':
+      start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      prevStart = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
+      prevEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+      break;
+    case 'last_year':
+      start = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
+      end = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+      prevStart = new Date(now.getFullYear() - 2, 0, 1, 0, 0, 0, 0);
+      prevEnd = new Date(now.getFullYear() - 2, 11, 31, 23, 59, 59, 999);
+      break;
+    case 'custom':
+      if (customStart) {
+        start = new Date(customStart);
+        start.setHours(0, 0, 0, 0);
+      }
+      if (customEnd) {
+        end = new Date(customEnd);
+        end.setHours(23, 59, 59, 999);
+      }
+      const diffMs = Math.max(86400000, end - start);
+      prevEnd = new Date(start.getTime() - 1);
+      prevStart = new Date(start.getTime() - diffMs);
+      break;
+    default:
+      start.setDate(now.getDate() - 29);
+      start.setHours(0, 0, 0, 0);
+      prevStart = new Date(start);
+      prevStart.setDate(prevStart.getDate() - 30);
+      prevEnd = new Date(start);
+      prevEnd.setMilliseconds(-1);
+      break;
+  }
+
+  return { start, end, prevStart, prevEnd };
+}
+
 // ==========================================
-// 1. DASHBOARD OVERVIEW STATS
+// 1. DASHBOARD OVERVIEW & ADVANCED ANALYTICS
 // ==========================================
 router.get('/stats', async (req, res) => {
   try {
+    const { range = '30d', startDate, endDate, categoryId, status } = req.query;
+    const { start, end, prevStart, prevEnd } = getDateRange(range, startDate, endDate);
+
+    // Build base query
+    const baseQuery = {};
+    if (categoryId && typeof categoryId === 'string' && categoryId.trim()) {
+      baseQuery.categoryId = categoryId.trim();
+    }
+    if (status && ['published', 'draft'].includes(status)) {
+      baseQuery.status = status;
+    }
+
+    // Cumulative stats
     const [
       totalPosts,
       publishedPosts,
@@ -38,29 +195,80 @@ router.get('/stats', async (req, res) => {
       viewsAggregation,
       recentPosts
     ] = await Promise.all([
-      Post.countDocuments(),
-      Post.countDocuments({ status: 'published' }),
-      Post.countDocuments({ status: 'draft' }),
+      Post.countDocuments(baseQuery),
+      Post.countDocuments({ ...baseQuery, status: 'published' }),
+      Post.countDocuments({ ...baseQuery, status: 'draft' }),
       Category.countDocuments(),
       Staff.countDocuments(),
-      Post.aggregate([{ $group: { _id: null, totalViews: { $sum: '$views' } } }]),
-      Post.find()
+      Post.aggregate([
+        { $match: baseQuery },
+        { $group: { _id: null, totalViews: { $sum: '$views' } } }
+      ]),
+      Post.find(baseQuery)
         .sort({ createdAt: -1 })
-        .limit(5)
+        .limit(6)
         .select('id title slug status views categoryId publishedAt createdAt')
     ]);
 
     const totalViews = viewsAggregation[0]?.totalViews || 0;
 
+    // Period-specific queries
+    const periodFilter = {
+      ...baseQuery,
+      createdAt: { $gte: start, $lte: end }
+    };
+    const prevPeriodFilter = {
+      ...baseQuery,
+      createdAt: { $gte: prevStart, $lte: prevEnd }
+    };
+
+    const [periodPostsCount, prevPeriodPostsCount] = await Promise.all([
+      Post.countDocuments(periodFilter),
+      Post.countDocuments(prevPeriodFilter)
+    ]);
+
+    // Top performing posts by views in scope
+    const topPosts = await Post.find(baseQuery)
+      .sort({ views: -1 })
+      .limit(6)
+      .select('id title slug views categoryId status publishedAt');
+
+    // Daily distribution timeline for visual chart
+    const timelineData = await Post.aggregate([
+      {
+        $match: {
+          ...baseQuery,
+          createdAt: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+          views: { $sum: '$views' }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
     return res.json({
+      range,
+      dateRange: {
+        start: start.toISOString(),
+        end: end.toISOString()
+      },
       totalPosts,
       publishedPosts,
       draftPosts,
       totalCategories,
       totalStaff,
       totalViews,
+      periodPostsCount,
+      prevPeriodPostsCount,
       dbConnected: isDbConnected(),
-      recentPosts
+      recentPosts,
+      topPosts,
+      timelineData
     });
   } catch (err) {
     console.error('[Admin Stats Error]', err);
@@ -68,23 +276,109 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// Analytics View Data
+router.get('/analytics', async (req, res) => {
+  try {
+    const { range = '30d', startDate, endDate } = req.query;
+    const { start, end, prevStart, prevEnd } = getDateRange(range, startDate, endDate);
+
+    const setting = await Setting.findOne({ key: 'global_settings' });
+    const gaMeasurementId = setting?.gaTrackingId || process.env.VITE_GA_MEASUREMENT_ID || 'G-MZ34K70519';
+
+    // Aggregate category performance
+    const categoryStats = await Post.aggregate([
+      {
+        $group: {
+          _id: '$categoryId',
+          count: { $sum: 1 },
+          totalViews: { $sum: '$views' },
+          avgViews: { $avg: '$views' }
+        }
+      },
+      { $sort: { totalViews: -1 } }
+    ]);
+
+    // Match category names
+    const allCategories = await Category.find();
+    const categoriesMap = {};
+    allCategories.forEach(c => { categoriesMap[c.id] = c.name; });
+
+    const enrichedCategoryStats = categoryStats.map(c => ({
+      categoryId: c._id || 'general',
+      categoryName: categoriesMap[c._id] || c._id || 'General',
+      count: c.count,
+      totalViews: c.totalViews,
+      avgViews: Math.round(c.avgViews || 0)
+    }));
+
+    // Top 10 landing pages
+    const topLandingPages = await Post.find({ status: 'published' })
+      .sort({ views: -1 })
+      .limit(10)
+      .select('id title slug views categoryId publishedAt');
+
+    // First-party Views Timeline
+    const timeline = await Post.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          posts: { $sum: 1 },
+          views: { $sum: '$views' }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Check GA4 Data API credentials status
+    const hasGa4ApiCredentials = Boolean(
+      process.env.GA4_PROPERTY_ID &&
+      (process.env.GOOGLE_APPLICATION_CREDENTIALS || (process.env.GA4_CLIENT_EMAIL && process.env.GA4_PRIVATE_KEY))
+    );
+
+    return res.json({
+      range,
+      dateRange: { start: start.toISOString(), end: end.toISOString() },
+      gaMeasurementId,
+      gaStatus: {
+        connected: hasGa4ApiCredentials,
+        measurementId: gaMeasurementId,
+        status: hasGa4ApiCredentials ? 'connected' : 'tracking_only'
+      },
+      ga4Status: hasGa4ApiCredentials ? 'connected' : 'tracking_only',
+      hasGa4ApiCredentials,
+      categoryStats: enrichedCategoryStats,
+      topLandingPages,
+      timeline
+    });
+  } catch (err) {
+    console.error('[Analytics Error]', err);
+    return res.status(500).json({ error: 'Failed to retrieve analytics data.' });
+  }
+});
+
 // ==========================================
-// 2. POSTS MANAGEMENT (CRUD + PAGINATION + FILTERS)
+// 2. POSTS MANAGEMENT (CRUD + BULK ACTIONS + MULTI-PAGE SELECT + PURGE ALL)
 // ==========================================
 router.get('/posts', async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
     const skip = (page - 1) * limit;
 
-    const { search, status, categoryId } = req.query;
+    const { search, status, categoryId, author, startDate, endDate } = req.query;
     const query = {};
 
     if (search && typeof search === 'string' && search.trim()) {
       const cleanSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$or = [
         { title: { $regex: cleanSearch, $options: 'i' } },
-        { slug: { $regex: cleanSearch, $options: 'i' } }
+        { slug: { $regex: cleanSearch, $options: 'i' } },
+        { excerpt: { $regex: cleanSearch, $options: 'i' } }
       ];
     }
 
@@ -94,6 +388,20 @@ router.get('/posts', async (req, res) => {
 
     if (categoryId && typeof categoryId === 'string' && categoryId.trim()) {
       query.categoryId = categoryId.trim();
+    }
+
+    if (author && typeof author === 'string' && author.trim()) {
+      query.authorName = { $regex: author.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+    }
+
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) {
+        const endD = new Date(endDate);
+        endD.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = endD;
+      }
     }
 
     const [posts, total] = await Promise.all([
@@ -110,6 +418,108 @@ router.get('/posts', async (req, res) => {
   } catch (err) {
     console.error('[Admin Get Posts Error]', err);
     return res.status(500).json({ error: 'Failed to retrieve posts.' });
+  }
+});
+
+// Bulk Post Actions (Select multiple -> Publish / Draft / Delete)
+router.post('/posts/bulk', async (req, res) => {
+  try {
+    const { action, ids, selectAllMatching, filterQuery } = req.body;
+
+    if (!['publish', 'draft', 'delete'].includes(action)) {
+      return res.status(400).json({ error: 'Invalid bulk action. Allowed: publish, draft, delete.' });
+    }
+
+    let targetQuery = {};
+    if (selectAllMatching) {
+      // Build query from filters
+      if (filterQuery?.search) {
+        const clean = String(filterQuery.search).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        targetQuery.$or = [{ title: { $regex: clean, $options: 'i' } }, { slug: { $regex: clean, $options: 'i' } }];
+      }
+      if (filterQuery?.status && ['published', 'draft'].includes(filterQuery.status)) {
+        targetQuery.status = filterQuery.status;
+      }
+      if (filterQuery?.categoryId) {
+        targetQuery.categoryId = filterQuery.categoryId;
+      }
+    } else {
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'No article IDs provided for bulk action.' });
+      }
+      const validObjectIds = ids.filter(id => mongoose.isValidObjectId(id));
+      const queryOr = [{ id: { $in: ids } }];
+      if (validObjectIds.length > 0) {
+        queryOr.push({ _id: { $in: validObjectIds } });
+      }
+      targetQuery = { $or: queryOr };
+    }
+
+    if (action === 'publish') {
+      const result = await Post.updateMany(targetQuery, {
+        $set: { status: 'published', updatedAt: new Date() }
+      });
+      // Recalculate categories post counts
+      await refreshAllCategoryPostCounts();
+      return res.json({ message: `Successfully published ${result.modifiedCount} articles.` });
+    }
+
+    if (action === 'draft') {
+      const result = await Post.updateMany(targetQuery, {
+        $set: { status: 'draft', updatedAt: new Date() }
+      });
+      await refreshAllCategoryPostCounts();
+      return res.json({ message: `Successfully changed ${result.modifiedCount} articles to draft.` });
+    }
+
+    if (action === 'delete') {
+      const result = await Post.deleteMany(targetQuery);
+      await refreshAllCategoryPostCounts();
+      return res.json({ message: `Successfully deleted ${result.deletedCount} articles.` });
+    }
+  } catch (err) {
+    console.error('[Bulk Action Error]', err);
+    return res.status(500).json({ error: 'Failed to execute bulk action.' });
+  }
+});
+
+// Danger Zone: Delete ALL Posts from database with exact confirmation phrase
+router.post('/posts/delete-all', requireAdmin, async (req, res) => {
+  try {
+    const { confirmationPhrase } = req.body;
+
+    if (confirmationPhrase !== 'DELETE ALL POSTS') {
+      return res.status(400).json({
+        error: 'Confirmation phrase mismatch. You must type "DELETE ALL POSTS" exactly to proceed.'
+      });
+    }
+
+    // Safety: Create automated local JSON snapshot before deletion so nothing is lost
+    const countBefore = await Post.countDocuments();
+    if (countBefore > 0) {
+      const allPosts = await Post.find().lean();
+      const backupDir = 'c:/DevWeb/backup_pre_reset_2026';
+      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(backupDir, `safety_snapshot_before_delete_all_${Date.now()}.json`),
+        JSON.stringify(allPosts, null, 2)
+      );
+    }
+
+    // Delete all posts
+    const result = await Post.deleteMany({});
+
+    // Reset category post counts to 0
+    await Category.updateMany({}, { $set: { postCount: 0 } });
+
+    console.log(`[Admin Action] Purged all ${result.deletedCount} posts by admin: ${req.user.username}`);
+    return res.json({
+      message: `Successfully deleted all ${result.deletedCount} articles from MongoDB Atlas. Categories and settings remain preserved.`,
+      deletedCount: result.deletedCount
+    });
+  } catch (err) {
+    console.error('[Delete All Posts Error]', err);
+    return res.status(500).json({ error: 'Failed to delete all posts.' });
   }
 });
 
@@ -186,7 +596,6 @@ router.post('/posts', async (req, res) => {
 
     await newPost.save();
 
-    // Update category post count
     if (newPost.categoryId) {
       const count = await Post.countDocuments({ categoryId: newPost.categoryId, status: 'published' });
       await Category.updateOne({ id: newPost.categoryId }, { postCount: count });
@@ -264,7 +673,6 @@ router.put('/posts/:id', async (req, res) => {
 
     await post.save();
 
-    // Refresh category post count
     if (oldCategoryId) {
       const oldCount = await Post.countDocuments({ categoryId: oldCategoryId, status: 'published' });
       await Category.updateOne({ id: oldCategoryId }, { postCount: oldCount });
@@ -319,6 +727,11 @@ router.patch('/posts/:id/status', async (req, res) => {
     }
     await post.save();
 
+    if (post.categoryId) {
+      const count = await Post.countDocuments({ categoryId: post.categoryId, status: 'published' });
+      await Category.updateOne({ id: post.categoryId }, { postCount: count });
+    }
+
     return res.json({ message: `Post status changed to ${post.status}`, post });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to toggle status.' });
@@ -331,7 +744,6 @@ router.patch('/posts/:id/status', async (req, res) => {
 router.get('/categories', async (req, res) => {
   try {
     const categories = await Category.find().sort({ name: 1 });
-    // Recount real published posts for each category
     const categoriesWithCount = await Promise.all(categories.map(async (cat) => {
       const count = await Post.countDocuments({ categoryId: cat.id, status: 'published' });
       return {
@@ -423,7 +835,6 @@ router.delete('/categories/:id', async (req, res) => {
       return res.status(404).json({ error: 'Category not found.' });
     }
 
-    // Check if posts are attached
     const postCount = await Post.countDocuments({ categoryId: category.id });
     if (postCount > 0) {
       return res.status(400).json({
@@ -431,7 +842,7 @@ router.delete('/categories/:id', async (req, res) => {
       });
     }
 
-    await Category.deleteOne({ id: category.id });
+    await Category.deleteOne({ _id: category._id });
     return res.json({ message: 'Category deleted successfully.' });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to delete category.' });
@@ -439,7 +850,118 @@ router.delete('/categories/:id', async (req, res) => {
 });
 
 // ==========================================
-// 4. WEBSITE SETTINGS
+// 4. HEADER / FOOTER CUSTOM SCRIPTS (Like WordPress)
+// ==========================================
+router.get('/scripts', requireAdmin, async (req, res) => {
+  try {
+    const scripts = await CustomScript.find().sort({ createdAt: -1 });
+    return res.json(scripts);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to retrieve scripts.' });
+  }
+});
+
+router.post('/scripts', requireAdmin, async (req, res) => {
+  try {
+    const { name, description, code, location, scope, enabled } = req.body;
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Script name is required.' });
+    }
+    if (!code || typeof code !== 'string' || !code.trim()) {
+      return res.status(400).json({ error: 'Script code content is required.' });
+    }
+
+    const validLocations = ['header', 'body_start', 'footer'];
+    const validScopes = ['all', 'home_only', 'posts_only'];
+
+    const script = new CustomScript({
+      id: `script-${Date.now()}`,
+      name: name.trim(),
+      description: typeof description === 'string' ? description.trim() : '',
+      code: code.trim(),
+      location: validLocations.includes(location) ? location : 'header',
+      scope: validScopes.includes(scope) ? scope : 'all',
+      enabled: enabled !== false,
+      createdBy: req.user.username
+    });
+
+    await script.save();
+    return res.status(201).json({ message: 'Script added successfully.', script });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to create script.' });
+  }
+});
+
+router.put('/scripts/:id', requireAdmin, async (req, res) => {
+  try {
+    const validObjectIds = mongoose.isValidObjectId(req.params.id) ? [{ _id: req.params.id }] : [];
+    const script = await CustomScript.findOne({
+      $or: [{ id: req.params.id }, ...validObjectIds]
+    });
+
+    if (!script) {
+      return res.status(404).json({ error: 'Script not found.' });
+    }
+
+    const { name, description, code, location, scope, enabled } = req.body;
+
+    if (name) script.name = String(name).trim();
+    if (description !== undefined) script.description = String(description).trim();
+    if (code) script.code = String(code).trim();
+    if (location && ['header', 'body_start', 'footer'].includes(location)) {
+      script.location = location;
+    }
+    if (scope && ['all', 'home_only', 'posts_only'].includes(scope)) {
+      script.scope = scope;
+    }
+    if (enabled !== undefined) script.enabled = Boolean(enabled);
+
+    await script.save();
+    return res.json({ message: 'Script updated successfully.', script });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update script.' });
+  }
+});
+
+router.delete('/scripts/:id', requireAdmin, async (req, res) => {
+  try {
+    const validObjectIds = mongoose.isValidObjectId(req.params.id) ? [{ _id: req.params.id }] : [];
+    const script = await CustomScript.findOneAndDelete({
+      $or: [{ id: req.params.id }, ...validObjectIds]
+    });
+
+    if (!script) {
+      return res.status(404).json({ error: 'Script not found.' });
+    }
+
+    return res.json({ message: 'Script removed successfully.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to delete script.' });
+  }
+});
+
+router.patch('/scripts/:id/toggle', requireAdmin, async (req, res) => {
+  try {
+    const validObjectIds = mongoose.isValidObjectId(req.params.id) ? [{ _id: req.params.id }] : [];
+    const script = await CustomScript.findOne({
+      $or: [{ id: req.params.id }, ...validObjectIds]
+    });
+
+    if (!script) {
+      return res.status(404).json({ error: 'Script not found.' });
+    }
+
+    script.enabled = !script.enabled;
+    await script.save();
+    return res.json({ message: `Script ${script.enabled ? 'enabled' : 'disabled'}.`, script });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to toggle script status.' });
+  }
+});
+
+// ==========================================
+// 5. WEBSITE SETTINGS
 // ==========================================
 router.get('/settings', async (req, res) => {
   try {
@@ -484,7 +1006,7 @@ router.put('/settings', requireAdmin, async (req, res) => {
 });
 
 // ==========================================
-// 5. STAFF MANAGEMENT (Admin only)
+// 6. STAFF MANAGEMENT (Admin only)
 // ==========================================
 router.get('/staff', requireAdmin, async (req, res) => {
   try {
@@ -552,7 +1074,6 @@ router.put('/staff/:id', requireAdmin, async (req, res) => {
       staff.role = role;
     }
     if (status && ['active', 'inactive'].includes(status)) {
-      // Prevent admin from locking their own account
       if (staff.id === req.user.id && status === 'inactive') {
         return res.status(400).json({ error: 'You cannot deactivate your own account.' });
       }
@@ -560,7 +1081,7 @@ router.put('/staff/:id', requireAdmin, async (req, res) => {
     }
     if (password && typeof password === 'string' && password.trim().length >= 6) {
       staff.password = hashPassword(password.trim());
-      staff.tokenVersion = (staff.tokenVersion || 0) + 1; // Invalidate previous sessions
+      staff.tokenVersion = (staff.tokenVersion || 0) + 1;
     }
 
     await staff.save();
@@ -592,7 +1113,7 @@ router.delete('/staff/:id', requireAdmin, async (req, res) => {
 });
 
 // ==========================================
-// 6. IMAGE UPLOAD VIA SUPABASE STORAGE
+// 7. IMAGE UPLOAD VIA SUPABASE STORAGE
 // ==========================================
 router.post('/upload', async (req, res) => {
   try {
@@ -602,7 +1123,6 @@ router.post('/upload', async (req, res) => {
       return res.status(400).json({ error: 'Image base64 data is required.' });
     }
 
-    // Supported mime types
     const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     const type = mimeType || 'image/webp';
     if (!allowedMime.includes(type)) {
@@ -612,7 +1132,6 @@ router.post('/upload', async (req, res) => {
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
 
-    // Max 5MB size limit
     if (buffer.length > 5 * 1024 * 1024) {
       return res.status(400).json({ error: 'Image size exceeds maximum limit of 5MB.' });
     }

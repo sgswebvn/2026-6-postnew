@@ -5,20 +5,20 @@ import AdminDashboard from './components/admin/AdminDashboard';
 import AdminPosts from './components/admin/AdminPosts';
 import AdminPostForm from './components/admin/AdminPostForm';
 import AdminCategories from './components/admin/AdminCategories';
+import AdminAnalytics from './components/admin/AdminAnalytics';
+import AdminScripts from './components/admin/AdminScripts';
 import AdminStaff from './components/admin/AdminStaff';
 import AdminSettings from './components/admin/AdminSettings';
 import LoginPage from './pages/LoginPage';
 import PublicNavbar from './components/public/PublicNavbar';
 import HomePage from './components/public/HomePage';
 import PostDetailPage from './components/public/PostDetailPage';
-import { CheckCircle2, AlertCircle, X } from 'lucide-react';
+import ScriptInjector from './components/public/ScriptInjector';
+import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 export default function App() {
-  // Navigation: 'public-home' | 'public-detail' | 'admin-login' | 'admin'
-  const [currentView, setCurrentView] = useState('admin');
-  const [adminTab, setAdminTab] = useState('dashboard');
-  const [editingPostId, setEditingPostId] = useState(null);
-  const [activeSlug, setActiveSlug] = useState('');
+  // Current browser URL pathname
+  const [pathname, setPathname] = useState(window.location.pathname || '/');
 
   // Auth state
   const [currentUser, setCurrentUser] = useState(null);
@@ -27,32 +27,52 @@ export default function App() {
   // Global settings
   const [settings, setSettings] = useState(null);
 
-  // Toast state
+  // Toast notification state
   const [toasts, setToasts] = useState([]);
 
-  function showToast(message, type = 'info') {
-    const id = Date.now() + Math.random();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4000);
-  }
+  // Post editor state for sub-routes
+  const [editingPostId, setEditingPostId] = useState(null);
 
-  function removeToast(id) {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  }
+  // Router listener for popstate (Back / Forward navigation)
+  useEffect(() => {
+    function handlePopState() {
+      setPathname(window.location.pathname || '/');
+    }
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     checkSession();
     loadSettings();
   }, []);
 
+  function navigate(path) {
+    if (path !== window.location.pathname) {
+      window.history.pushState(null, '', path);
+    }
+    setPathname(path);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showToast(message, type = 'info') {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4500);
+  }
+
+  function removeToast(id) {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }
+
   async function loadSettings() {
     try {
       const data = await api.getPublicSettings();
       setSettings(data);
     } catch (e) {
-      console.warn('Could not load settings:', e);
+      console.warn('Could not load public settings:', e);
     }
   }
 
@@ -78,177 +98,242 @@ export default function App() {
     } catch (e) {}
     setStoredToken('');
     setCurrentUser(null);
-    showToast('Logged out of admin session.', 'info');
-    setCurrentView('admin-login');
+    showToast('You have logged out of the admin panel.', 'info');
+    navigate('/admin/login');
   }
 
   function handleLoginSuccess(user) {
     setCurrentUser(user);
     showToast(`Welcome back, ${user.name || user.username}!`, 'success');
-    setCurrentView('admin');
-    setAdminTab('dashboard');
+    navigate('/admin');
   }
 
-  function handleSelectPost(slug) {
-    setActiveSlug(slug);
-    setCurrentView('public-detail');
+  // Determine active admin tab based on URL path
+  function getActiveAdminTab() {
+    if (pathname === '/admin/posts/new') return 'post-form';
+    if (pathname.startsWith('/admin/posts/edit/')) return 'post-form';
+    if (pathname.startsWith('/admin/posts')) return 'posts';
+    if (pathname.startsWith('/admin/categories')) return 'categories';
+    if (pathname.startsWith('/admin/analytics')) return 'analytics';
+    if (pathname.startsWith('/admin/settings/scripts')) return 'scripts';
+    if (pathname.startsWith('/admin/settings')) return 'settings';
+    if (pathname.startsWith('/admin/staff')) return 'staff';
+    return 'dashboard';
   }
 
-  function handleEditPost(id) {
-    setEditingPostId(id);
-    setAdminTab('post-form');
-    setCurrentView('admin');
+  function handleAdminTabChange(tab) {
+    switch (tab) {
+      case 'dashboard':
+        navigate('/admin');
+        break;
+      case 'posts':
+        navigate('/admin/posts');
+        break;
+      case 'categories':
+        navigate('/admin/categories');
+        break;
+      case 'analytics':
+        navigate('/admin/analytics');
+        break;
+      case 'scripts':
+        navigate('/admin/settings/scripts');
+        break;
+      case 'settings':
+        navigate('/admin/settings');
+        break;
+      case 'staff':
+        navigate('/admin/staff');
+        break;
+      default:
+        navigate('/admin');
+        break;
+    }
   }
 
-  function handleNewPost() {
-    setEditingPostId(null);
-    setAdminTab('post-form');
-    setCurrentView('admin');
+  // --- ROUTE RENDERING ---
+
+  // 1. PUBLIC ARTICLE DETAIL VIEW: /post/:slug
+  if (pathname.startsWith('/post/')) {
+    const slug = pathname.replace('/post/', '').split('?')[0].split('#')[0];
+    return (
+      <div className="app-root">
+        <ScriptInjector settings={settings} pathname={pathname} />
+        <PublicNavbar
+          settings={settings}
+          onAdminClick={() => navigate(currentUser ? '/admin' : '/admin/login')}
+        />
+        <PostDetailPage
+          slug={slug}
+          settings={settings}
+          onBack={() => navigate('/')}
+        />
+        {renderToastContainer()}
+      </div>
+    );
   }
 
-  function handlePreviewPost(slug) {
-    setActiveSlug(slug);
-    setCurrentView('public-detail');
+  // 2. PUBLIC HOMEPAGE: /
+  if (pathname === '/' || (!pathname.startsWith('/admin') && pathname !== '/admin/login')) {
+    return (
+      <div className="app-root">
+        <ScriptInjector settings={settings} pathname={pathname} />
+        <PublicNavbar
+          settings={settings}
+          onAdminClick={() => navigate(currentUser ? '/admin' : '/admin/login')}
+        />
+        <HomePage onSelectPost={(slug) => navigate(`/post/${slug}`)} />
+        {renderToastContainer()}
+      </div>
+    );
   }
 
-  return (
-    <div className="app-root">
-      {/* 1. PUBLIC READER VIEWS */}
-      {currentView === 'public-home' && (
-        <div>
-          <PublicNavbar
-            settings={settings}
-            onAdminClick={() => {
-              if (currentUser) {
-                setCurrentView('admin');
-              } else {
-                setCurrentView('admin-login');
-              }
-            }}
-          />
-          <HomePage onSelectPost={handleSelectPost} />
-        </div>
-      )}
-
-      {currentView === 'public-detail' && (
-        <div>
-          <PublicNavbar
-            settings={settings}
-            onAdminClick={() => {
-              if (currentUser) {
-                setCurrentView('admin');
-              } else {
-                setCurrentView('admin-login');
-              }
-            }}
-          />
-          <PostDetailPage
-            slug={activeSlug}
-            settings={settings}
-            onBack={() => setCurrentView('public-home')}
-          />
-        </div>
-      )}
-
-      {/* 2. ADMIN LOGIN PAGE */}
-      {currentView === 'admin-login' && (
+  // 3. ADMIN LOGIN PAGE: /admin/login
+  if (pathname === '/admin/login') {
+    return (
+      <div className="app-root">
         <LoginPage
           onLoginSuccess={handleLoginSuccess}
-          onViewSite={() => setCurrentView('public-home')}
+          onViewSite={() => navigate('/')}
         />
-      )}
+        {renderToastContainer()}
+      </div>
+    );
+  }
 
-      {/* 3. ADMIN PORTAL (Requires login) */}
-      {currentView === 'admin' && (
-        authLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--text-muted)' }}>
-            Verifying administrative access...
-          </div>
-        ) : !currentUser ? (
+  // 4. ADMIN PORTAL (PROTECTED ROUTES: /admin, /admin/posts, /admin/analytics, etc.)
+  if (pathname.startsWith('/admin')) {
+    if (authLoading) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-muted)' }}>
+          Verifying administrative credentials...
+        </div>
+      );
+    }
+
+    if (!currentUser) {
+      // Unauthenticated admin attempt: present Login Page
+      return (
+        <div className="app-root">
           <LoginPage
             onLoginSuccess={handleLoginSuccess}
-            onViewSite={() => setCurrentView('public-home')}
+            onViewSite={() => navigate('/')}
           />
-        ) : (
-          <AdminLayout
-            user={currentUser}
-            currentTab={adminTab}
-            onTabChange={(tab) => {
-              setAdminTab(tab);
-              if (tab !== 'post-form') setEditingPostId(null);
-            }}
-            onLogout={handleLogout}
-            onViewSite={() => setCurrentView('public-home')}
-            onNewPost={handleNewPost}
-          >
-            {adminTab === 'dashboard' && (
-              <AdminDashboard
-                onNavigate={(tab) => setAdminTab(tab)}
-                onEditPost={handleEditPost}
-                onPreviewPost={handlePreviewPost}
-              />
-            )}
-
-            {adminTab === 'posts' && (
-              <AdminPosts
-                onNewPost={handleNewPost}
-                onEditPost={handleEditPost}
-                onPreviewPost={handlePreviewPost}
-                showToast={showToast}
-              />
-            )}
-
-            {adminTab === 'post-form' && (
-              <AdminPostForm
-                postId={editingPostId}
-                onBack={() => setAdminTab('posts')}
-                onSuccess={() => setAdminTab('posts')}
-                showToast={showToast}
-              />
-            )}
-
-            {adminTab === 'categories' && (
-              <AdminCategories showToast={showToast} />
-            )}
-
-            {adminTab === 'staff' && (
-              <AdminStaff
-                currentUser={currentUser}
-                showToast={showToast}
-              />
-            )}
-
-            {adminTab === 'settings' && (
-              <AdminSettings showToast={showToast} />
-            )}
-          </AdminLayout>
-        )
-      )}
-
-      {/* Toast Notifications */}
-      {toasts.length > 0 && (
-        <div className="toast-container">
-          {toasts.map((toast) => (
-            <div
-              key={toast.id}
-              className={`toast ${toast.type === 'success' ? 'toast-success' : toast.type === 'error' ? 'toast-error' : ''}`}
-            >
-              {toast.type === 'success' ? (
-                <CheckCircle2 size={16} color="#10b981" />
-              ) : (
-                <AlertCircle size={16} color="#f87171" />
-              )}
-              <span style={{ flex: 1 }}>{toast.message}</span>
-              <button
-                onClick={() => removeToast(toast.id)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 0 }}
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
+          {renderToastContainer()}
         </div>
-      )}
-    </div>
-  );
+      );
+    }
+
+    const activeTab = getActiveAdminTab();
+    const editMatch = pathname.match(/^\/admin\/posts\/edit\/([^/]+)/);
+    const targetPostId = editMatch ? editMatch[1] : editingPostId;
+
+    return (
+      <div className="app-root">
+        <AdminLayout
+          user={currentUser}
+          currentTab={activeTab}
+          onTabChange={handleAdminTabChange}
+          onLogout={handleLogout}
+          onViewSite={() => navigate('/')}
+          onNewPost={() => {
+            setEditingPostId(null);
+            navigate('/admin/posts/new');
+          }}
+        >
+          {activeTab === 'dashboard' && (
+            <AdminDashboard
+              onNavigate={handleAdminTabChange}
+              onEditPost={(id) => {
+                setEditingPostId(id);
+                navigate(`/admin/posts/edit/${id}`);
+              }}
+              onPreviewPost={(slug) => navigate(`/post/${slug}`)}
+            />
+          )}
+
+          {activeTab === 'posts' && (
+            <AdminPosts
+              onNewPost={() => {
+                setEditingPostId(null);
+                navigate('/admin/posts/new');
+              }}
+              onEditPost={(id) => {
+                setEditingPostId(id);
+                navigate(`/admin/posts/edit/${id}`);
+              }}
+              onPreviewPost={(slug) => navigate(`/post/${slug}`)}
+              showToast={showToast}
+            />
+          )}
+
+          {activeTab === 'post-form' && (
+            <AdminPostForm
+              postId={targetPostId}
+              onBack={() => navigate('/admin/posts')}
+              onSuccess={() => navigate('/admin/posts')}
+              showToast={showToast}
+            />
+          )}
+
+          {activeTab === 'categories' && (
+            <AdminCategories showToast={showToast} />
+          )}
+
+          {activeTab === 'analytics' && (
+            <AdminAnalytics showToast={showToast} />
+          )}
+
+          {activeTab === 'scripts' && (
+            <AdminScripts showToast={showToast} />
+          )}
+
+          {activeTab === 'staff' && (
+            <AdminStaff
+              currentUser={currentUser}
+              showToast={showToast}
+            />
+          )}
+
+          {activeTab === 'settings' && (
+            <AdminSettings showToast={showToast} />
+          )}
+        </AdminLayout>
+
+        {renderToastContainer()}
+      </div>
+    );
+  }
+
+  // Toast container renderer helper
+  function renderToastContainer() {
+    if (toasts.length === 0) return null;
+    return (
+      <div className="toast-container">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`toast ${
+              toast.type === 'success'
+                ? 'toast-success'
+                : toast.type === 'error'
+                ? 'toast-error'
+                : ''
+            }`}
+          >
+            {toast.type === 'success' && <CheckCircle2 size={16} color="#10b981" />}
+            {toast.type === 'error' && <AlertCircle size={16} color="#f87171" />}
+            {toast.type === 'warning' && <AlertTriangle size={16} color="#f59e0b" />}
+            {toast.type === 'info' && <Info size={16} color="#60a5fa" />}
+            <span style={{ flex: 1 }}>{toast.message}</span>
+            <button
+              onClick={() => removeToast(toast.id)}
+              style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 0 }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  }
 }

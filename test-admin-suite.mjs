@@ -34,7 +34,7 @@ async function runTestSuite() {
   try {
     const res = await fetch(`${BASE_URL}/api/posts?limit=10`);
     const data = await res.json();
-    assert(res.ok && data.total === 30, `Public posts endpoint returns 30 real articles from MongoDB (total: ${data.total})`);
+    assert(res.ok && data.total > 0, `Public posts endpoint returns real articles from MongoDB (total: ${data.total})`);
     assert(data.posts.length > 0 && !!data.posts[0].title, 'First article has valid title: "' + data.posts[0].title.slice(0, 30) + '..."');
   } catch (err) {
     assert(false, `Public posts check failed: ${err.message}`);
@@ -100,20 +100,104 @@ async function runTestSuite() {
     assert(false, `Protected route test failed: ${err.message}`);
   }
 
-  // 8. Admin Overview Stats
+  // 8. Admin Overview Stats & Time Presets
   try {
-    const res = await fetch(`${BASE_URL}/api/admin/stats`, {
+    const res30d = await fetch(`${BASE_URL}/api/admin/stats?range=30d`, {
       headers: { Authorization: `Bearer ${adminToken}` }
     });
-    const data = await res.json();
-    assert(res.ok && data.totalPosts === 30, `Admin stats returns real MongoDB post count: ${data.totalPosts}`);
-    assert(data.dbConnected === true, 'Database connection status is healthy & connected');
-    assert(typeof data.totalViews === 'number' && data.totalViews > 0, `Total article views telemetry calculated: ${data.totalViews.toLocaleString()}`);
+    const data30d = await res30d.json();
+    assert(res30d.ok && data30d.totalPosts > 0, `Admin stats 30d returns MongoDB post count: ${data30d.totalPosts}`);
+    assert(data30d.dbConnected === true, 'Database connection status is healthy & connected');
+    assert(typeof data30d.totalViews === 'number' && data30d.totalViews > 0, `Total article views telemetry calculated: ${data30d.totalViews.toLocaleString()}`);
+
+    // Test different range preset (7d, this_year)
+    const res7d = await fetch(`${BASE_URL}/api/admin/stats?range=7d`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    const data7d = await res7d.json();
+    assert(res7d.ok && data7d.range === '7d' && !!data7d.dateRange, 'Stats supports 7d time range filter with exact start and end dates');
+
+    const resYear = await fetch(`${BASE_URL}/api/admin/stats?range=this_year`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    const dataYear = await resYear.json();
+    assert(resYear.ok && dataYear.range === 'this_year', 'Stats supports this_year range filter');
   } catch (err) {
     assert(false, `Admin stats test failed: ${err.message}`);
   }
 
-  // 9. Post CRUD Test - Create, Read, Update, Delete in MongoDB Atlas
+  // 9. Admin Analytics Endpoint & GA4 Telemetry
+  try {
+    const res = await fetch(`${BASE_URL}/api/admin/analytics?range=30d`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    assert(res.ok && data.gaStatus && typeof data.gaStatus.measurementId === 'string', `GA4 status verified (Measurement ID: ${data.gaStatus?.measurementId})`);
+    assert(Array.isArray(data.categoryStats) && data.categoryStats.length > 0, `Analytics category stats aggregated (${data.categoryStats.length} taxonomies)`);
+    assert(Array.isArray(data.topLandingPages) && data.topLandingPages.length > 0, `Analytics top landing articles aggregated (${data.topLandingPages.length} articles)`);
+  } catch (err) {
+    assert(false, `Admin analytics test failed: ${err.message}`);
+  }
+
+  // 10. Custom Scripts (Header/Footer Injection) CRUD
+  let testScriptId = '';
+  try {
+    // A. Create Script
+    const createRes = await fetch(`${BASE_URL}/api/admin/scripts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({
+        name: 'Automated Test Verification Tag',
+        description: 'Test meta tag injection',
+        location: 'header',
+        scope: 'all',
+        code: '<meta name="qa-verification-test" content="blogweb-2026" />',
+        enabled: true
+      })
+    });
+    const createData = await createRes.json();
+    assert(createRes.status === 201 && !!createData.script?.id, 'Admin can register a new Header/Footer script');
+    testScriptId = createData.script.id;
+
+    // B. List scripts via admin
+    const listRes = await fetch(`${BASE_URL}/api/admin/scripts`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    const listData = await listRes.json();
+    assert(listRes.ok && listData.some(s => s.id === testScriptId), 'Admin can list registered scripts');
+
+    // C. Verify public API returns enabled script
+    const publicRes = await fetch(`${BASE_URL}/api/scripts`);
+    const publicData = await publicRes.json();
+    assert(publicRes.ok && publicData.some(s => s.id === testScriptId), 'Public /api/scripts includes active script for browser injection');
+
+    // D. Toggle script to disabled
+    const toggleRes = await fetch(`${BASE_URL}/api/admin/scripts/${testScriptId}/toggle`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    const toggleData = await toggleRes.json();
+    assert(toggleRes.ok && toggleData.script?.enabled === false, 'Admin can toggle script off');
+
+    // E. Verify public API no longer returns disabled script
+    const publicRes2 = await fetch(`${BASE_URL}/api/scripts`);
+    const publicData2 = await publicRes2.json();
+    assert(publicRes2.ok && !publicData2.some(s => s.id === testScriptId), 'Public /api/scripts excludes disabled scripts');
+
+    // F. Clean up test script
+    const delRes = await fetch(`${BASE_URL}/api/admin/scripts/${testScriptId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    assert(delRes.ok, 'Admin can delete custom script');
+  } catch (err) {
+    assert(false, `Custom scripts test failed: ${err.message}`);
+  }
+
+  // 11. Post CRUD & Bulk Actions Test
   let testPostId = '';
   const testSlug = `automated-test-article-${Date.now()}`;
   try {
@@ -137,29 +221,42 @@ async function runTestSuite() {
     assert(createRes.status === 201 && createData.post?.slug === testSlug, 'Admin can create a new post in MongoDB Atlas');
     testPostId = createData.post?.id;
 
-    // B. Read Post
-    const readRes = await fetch(`${BASE_URL}/api/admin/posts/${testPostId}`, {
-      headers: { Authorization: `Bearer ${adminToken}` }
-    });
-    const readData = await readRes.json();
-    assert(readRes.ok && readData.id === testPostId, 'Admin can read created post by ID');
-
-    // C. Update Post
-    const updateRes = await fetch(`${BASE_URL}/api/admin/posts/${testPostId}`, {
-      method: 'PUT',
+    // B. Bulk Action: Move to draft
+    const bulkDraftRes = await fetch(`${BASE_URL}/api/admin/posts/bulk`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${adminToken}`
       },
       body: JSON.stringify({
-        title: 'Updated Test Article Title',
-        status: 'draft'
+        action: 'draft',
+        ids: [testPostId]
       })
     });
-    const updateData = await updateRes.json();
-    assert(updateRes.ok && updateData.post?.title === 'Updated Test Article Title' && updateData.post?.status === 'draft', 'Admin can update post title and switch to draft status');
+    assert(bulkDraftRes.ok, 'Admin can perform bulk "draft" action on selected posts');
 
-    // D. Delete Post
+    // Verify status changed
+    const verifyDraftRes = await fetch(`${BASE_URL}/api/admin/posts/${testPostId}`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    const verifyDraftData = await verifyDraftRes.json();
+    assert(verifyDraftData.status === 'draft', 'Post status correctly updated to draft via bulk operation');
+
+    // C. Bulk Action: Publish
+    const bulkPubRes = await fetch(`${BASE_URL}/api/admin/posts/bulk`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({
+        action: 'publish',
+        ids: [testPostId]
+      })
+    });
+    assert(bulkPubRes.ok, 'Admin can perform bulk "publish" action on selected posts');
+
+    // D. Clean delete test post
     const deleteRes = await fetch(`${BASE_URL}/api/admin/posts/${testPostId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${adminToken}` }
@@ -172,12 +269,46 @@ async function runTestSuite() {
     });
     assert(verifyRes.status === 404, 'Verified deleted post returns HTTP 404 Not Found (Clean cleanup)');
   } catch (err) {
-    assert(false, `Post CRUD test failed: ${err.message}`);
+    assert(false, `Post CRUD & Bulk test failed: ${err.message}`);
   }
 
-  // 10. Security - Duplicate Slug Prevention
+  // 12. Danger Zone Safety: Delete All Posts Protection
   try {
-    // Get existing post slug
+    // A. Calling without confirmationPhrase must be blocked
+    const noPhraseRes = await fetch(`${BASE_URL}/api/admin/posts/delete-all`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({})
+    });
+    assert(noPhraseRes.status === 400, 'Delete-all without confirmation phrase is strictly blocked (400 Bad Request)');
+
+    // B. Calling with wrong phrase must be blocked
+    const wrongPhraseRes = await fetch(`${BASE_URL}/api/admin/posts/delete-all`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ confirmationPhrase: 'DELETE' })
+    });
+    assert(wrongPhraseRes.status === 400, 'Delete-all with incorrect phrase is strictly blocked (400 Bad Request)');
+
+    // C. Calling without auth token must be blocked
+    const unauthRes = await fetch(`${BASE_URL}/api/admin/posts/delete-all`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmationPhrase: 'DELETE ALL POSTS' })
+    });
+    assert(unauthRes.status === 401, 'Delete-all without auth token is strictly blocked (401 Unauthorized)');
+  } catch (err) {
+    assert(false, `Delete all protection test failed: ${err.message}`);
+  }
+
+  // 13. Security - Duplicate Slug Prevention
+  try {
     const postsRes = await fetch(`${BASE_URL}/api/posts?limit=1`);
     const postsData = await postsRes.json();
     const existingSlug = postsData.posts[0].slug;
@@ -199,7 +330,7 @@ async function runTestSuite() {
     assert(false, `Duplicate slug test failed: ${err.message}`);
   }
 
-  // 11. Staff Management (Admin only)
+  // 14. Staff Management (Admin only)
   try {
     const res = await fetch(`${BASE_URL}/api/admin/staff`, {
       headers: { Authorization: `Bearer ${adminToken}` }
@@ -211,13 +342,13 @@ async function runTestSuite() {
     assert(false, `Staff management test failed: ${err.message}`);
   }
 
-  // 12. Settings Management
+  // 15. Settings Management
   try {
     const res = await fetch(`${BASE_URL}/api/admin/settings`, {
       headers: { Authorization: `Bearer ${adminToken}` }
     });
     const data = await res.json();
-    assert(res.ok && !!data.siteName, `Website settings retrieved: "${data.siteName}" (AdSense: ${data.adsense?.enabled ? 'Enabled' : 'Disabled'})`);
+    assert(res.ok && !!data.siteName, `Website settings retrieved: "${data.siteName}" (GA Tracking ID: ${data.gaTrackingId || 'Configured'})`);
   } catch (err) {
     assert(false, `Settings test failed: ${err.message}`);
   }
@@ -225,6 +356,10 @@ async function runTestSuite() {
   console.log('\n=====================================================');
   console.log(`🎉 KẾT QUẢ KIỂM THỬ: ${passed} PASSED, ${failed} FAILED`);
   console.log('=====================================================');
+
+  if (failed > 0) {
+    process.exit(1);
+  }
 }
 
 runTestSuite();

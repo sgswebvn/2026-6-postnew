@@ -11,7 +11,9 @@ import {
   Menu,
   X,
   ShieldCheck,
-  Globe
+  Globe,
+  TrendingUp,
+  Code2
 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -29,6 +31,8 @@ export default function AdminLayout({
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'posts', label: 'Articles & Posts', icon: FileText },
     { id: 'categories', label: 'Categories', icon: FolderTree },
+    { id: 'analytics', label: 'Traffic & Analytics', icon: TrendingUp },
+    { id: 'scripts', label: 'Header/Footer Scripts', icon: Code2 },
     ...(user?.role === 'admin' ? [{ id: 'staff', label: 'Staff & Roles', icon: Users }] : []),
     ...(user?.role === 'admin' ? [{ id: 'settings', label: 'Site Settings', icon: Settings }] : [])
   ];
@@ -37,6 +41,17 @@ export default function AdminLayout({
     onTabChange(id);
     setMobileMenuOpen(false);
   }
+
+  const titleMap = {
+    dashboard: 'Administrative Overview',
+    posts: 'Editorial Post Management',
+    'post-form': 'Article Content Editor',
+    categories: 'Taxonomy Categories',
+    analytics: 'Traffic & Audience Analytics',
+    scripts: 'Header & Footer Script Injection',
+    staff: 'Staff Access & Editorial Roles',
+    settings: 'Site Configuration & SEO'
+  };
 
   return (
     <div className="app-layout">
@@ -138,8 +153,8 @@ export default function AdminLayout({
               <Menu size={18} />
             </button>
             <div className="header-title-wrap">
-              <h1 style={{ textTransform: 'capitalize' }}>
-                {currentTab === 'post-form' ? 'Post Editor' : currentTab}
+              <h1 style={{ textTransform: 'none' }}>
+                {titleMap[currentTab] || currentTab}
               </h1>
             </div>
           </div>
