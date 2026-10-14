@@ -8,7 +8,10 @@ import { Setting } from './models/Setting.js';
 import fs from 'fs';
 import path from 'path';
 
-let isConnected = false;
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
 
 const DEFAULT_CATEGORIES = [
   { id: 'cat-finance', name: 'Personal Finance & Wealth', slug: 'personal-finance', description: 'High-yield cash management, Treasury bills, and wealth building.', color: 'emerald', icon: 'TrendingUp' },
@@ -21,21 +24,31 @@ const DEFAULT_CATEGORIES = [
 ];
 
 export async function connectDB() {
-  if (isConnected && mongoose.connection.readyState === 1) {
+  if (cached.conn && mongoose.connection.readyState === 1) {
     return { connected: true, dbName: mongoose.connection.db?.databaseName };
   }
 
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    throw new Error('MONGODB_URI is not configured in .env');
+    throw new Error('MONGODB_URI is not configured in environment variables');
+  }
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 8000
+    }).then((mongooseInstance) => {
+      const dbName = mongooseInstance.connection.db?.databaseName || 'blogweb';
+      console.log(`[MongoDB] Connected successfully to database: "${dbName}"`);
+      return mongooseInstance;
+    }).catch(err => {
+      cached.promise = null;
+      throw err;
+    });
   }
 
   try {
-    await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 8000,
-      connectTimeoutMS: 8000
-    });
-    isConnected = true;
+    cached.conn = await cached.promise;
     const dbName = mongoose.connection.db?.databaseName || 'blogweb';
     console.log(`[MongoDB] Connected successfully to database: "${dbName}"`);
 
@@ -60,12 +73,11 @@ export async function connectDB() {
 
     return { connected: true, dbName };
   } catch (err) {
-    isConnected = false;
     console.error('[MongoDB Error]', err.message);
     throw err;
   }
 }
 
 export function isDbConnected() {
-  return isConnected && mongoose.connection.readyState === 1;
+  return mongoose.connection.readyState === 1;
 }
