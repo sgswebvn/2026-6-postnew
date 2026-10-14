@@ -46,7 +46,8 @@ router.get('/posts', async (req, res) => {
         .sort(sortOption)
         .skip(skip)
         .limit(limit)
-        .select('id title slug excerpt coverImage categoryId publishedAt createdAt views tags enableAds'),
+        .select('id title slug excerpt coverImage categoryId publishedAt createdAt views tags enableAds')
+        .lean(),
       Post.countDocuments(query)
     ]);
 
@@ -69,7 +70,7 @@ router.get('/posts/:slug', async (req, res) => {
       { slug: req.params.slug, status: 'published' },
       { $inc: { views: 1 } },
       { new: true }
-    );
+    ).lean();
 
     if (!post) {
       return res.status(404).json({ error: 'Article not found.' });
@@ -79,7 +80,7 @@ router.get('/posts/:slug', async (req, res) => {
     if (post.categoryId) {
       category = await Category.findOne({
         $or: [{ id: post.categoryId }, { slug: post.categoryId }]
-      });
+      }).lean();
     }
 
     // Fetch up to 3 related posts from same category
@@ -92,7 +93,8 @@ router.get('/posts/:slug', async (req, res) => {
       })
         .sort({ publishedAt: -1 })
         .limit(3)
-        .select('id title slug excerpt coverImage categoryId publishedAt views');
+        .select('id title slug excerpt coverImage categoryId publishedAt views')
+        .lean();
     }
 
     // Previous and Next articles for continuous reading
@@ -106,7 +108,8 @@ router.get('/posts/:slug', async (req, res) => {
         ]
       })
         .sort({ publishedAt: -1, _id: -1 })
-        .select('title slug'),
+        .select('title slug')
+        .lean(),
       Post.findOne({
         status: 'published',
         $or: [
@@ -116,6 +119,7 @@ router.get('/posts/:slug', async (req, res) => {
       })
         .sort({ publishedAt: 1, _id: 1 })
         .select('title slug')
+        .lean()
     ]);
 
     return res.json({
@@ -134,14 +138,29 @@ router.get('/posts/:slug', async (req, res) => {
 // GET /api/categories - All public categories with live article count
 router.get('/categories', async (req, res) => {
   try {
-    const categories = await Category.find().sort({ name: 1 });
-    const result = await Promise.all(categories.map(async (cat) => {
-      const count = await Post.countDocuments({ categoryId: cat.id, status: 'published' });
+    const [categories, counts] = await Promise.all([
+      Category.find().sort({ name: 1 }).lean(),
+      Post.aggregate([
+        { $match: { status: 'published' } },
+        { $group: { _id: '$categoryId', count: { $sum: 1 } } }
+      ])
+    ]);
+
+    const countMap = {};
+    counts.forEach(c => {
+      if (c._id) countMap[c._id] = c.count;
+    });
+
+    const result = categories.map(cat => {
+      const idCount = countMap[cat.id] || 0;
+      const slugCount = (cat.slug && cat.slug !== cat.id) ? (countMap[cat.slug] || 0) : 0;
+      const mongoIdCount = (cat._id && String(cat._id) !== cat.id) ? (countMap[String(cat._id)] || 0) : 0;
       return {
-        ...cat.toObject(),
-        postCount: count
+        ...cat,
+        postCount: idCount + slugCount + mongoIdCount
       };
-    }));
+    });
+
     return res.json(result);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to retrieve categories.' });

@@ -29,7 +29,10 @@ export async function refreshAllCategoryPostCounts() {
 
     const categories = await Category.find();
     for (const cat of categories) {
-      const newCount = countMap[cat.id] || countMap[cat.slug] || 0;
+      const idCount = countMap[cat.id] || 0;
+      const slugCount = (cat.slug && cat.slug !== cat.id) ? (countMap[cat.slug] || 0) : 0;
+      const mongoIdCount = (cat._id && String(cat._id) !== cat.id) ? (countMap[String(cat._id)] || 0) : 0;
+      const newCount = idCount + slugCount + mongoIdCount;
       if (cat.postCount !== newCount) {
         cat.postCount = newCount;
         await cat.save();
@@ -469,6 +472,11 @@ router.post('/posts/bulk', async (req, res) => {
     }
 
     if (action === 'delete') {
+      if (selectAllMatching && Object.keys(targetQuery).length === 0) {
+        return res.status(400).json({
+          error: 'Bulk deletion across all articles without filters is blocked for safety. Please specify filters or use the Danger Zone.'
+        });
+      }
       const result = await Post.deleteMany(targetQuery);
       await refreshAllCategoryPostCounts();
       return res.json({ message: `Successfully deleted ${result.deletedCount} articles.` });
@@ -619,6 +627,7 @@ router.put('/posts/:id', async (req, res) => {
       content,
       coverImage,
       categoryId,
+      authorName,
       status,
       tags,
       metaTitle,
@@ -645,13 +654,13 @@ router.put('/posts/:id', async (req, res) => {
     if (excerpt !== undefined) post.excerpt = String(excerpt).trim();
     if (content !== undefined) post.content = String(content);
     if (coverImage !== undefined) post.coverImage = String(coverImage).trim();
+    if (authorName !== undefined) post.authorName = String(authorName).trim();
     if (metaTitle !== undefined) post.metaTitle = String(metaTitle).trim();
     if (metaDescription !== undefined) post.metaDescription = String(metaDescription).trim();
     if (focusKeyword !== undefined) post.focusKeyword = String(focusKeyword).trim();
     if (enableAds !== undefined) post.enableAds = Boolean(enableAds);
     if (Array.isArray(tags)) post.tags = tags.map(t => String(t).trim()).filter(Boolean);
 
-    const oldCategoryId = post.categoryId;
     if (categoryId !== undefined) {
       post.categoryId = String(categoryId).trim();
     }
@@ -664,15 +673,7 @@ router.put('/posts/:id', async (req, res) => {
     }
 
     await post.save();
-
-    if (oldCategoryId) {
-      const oldCount = await Post.countDocuments({ categoryId: oldCategoryId, status: 'published' });
-      await Category.updateOne({ id: oldCategoryId }, { postCount: oldCount });
-    }
-    if (post.categoryId && post.categoryId !== oldCategoryId) {
-      const newCount = await Post.countDocuments({ categoryId: post.categoryId, status: 'published' });
-      await Category.updateOne({ id: post.categoryId }, { postCount: newCount });
-    }
+    await refreshAllCategoryPostCounts();
 
     return res.json({ message: 'Post updated successfully', post });
   } catch (err) {
@@ -803,7 +804,13 @@ router.put('/categories/:id', async (req, res) => {
         if (existing) {
           return res.status(400).json({ error: `Slug "${newSlug}" already in use.` });
         }
+        const oldSlug = category.slug;
         category.slug = newSlug;
+        // Keep articles referencing oldSlug linked without data loss
+        await Post.updateMany(
+          { categoryId: oldSlug },
+          { $set: { categoryId: category.id || newSlug } }
+        );
       }
     }
     if (description !== undefined) category.description = String(description).trim();
@@ -811,6 +818,7 @@ router.put('/categories/:id', async (req, res) => {
     if (icon !== undefined) category.icon = String(icon).trim();
 
     await category.save();
+    await refreshAllCategoryPostCounts();
     return res.json({ message: 'Category updated successfully', category });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to update category.' });
@@ -827,7 +835,13 @@ router.delete('/categories/:id', async (req, res) => {
       return res.status(404).json({ error: 'Category not found.' });
     }
 
-    const postCount = await Post.countDocuments({ categoryId: category.id });
+    const postCount = await Post.countDocuments({
+      $or: [
+        { categoryId: category.id },
+        { categoryId: category.slug },
+        ...(category._id ? [{ categoryId: String(category._id) }] : [])
+      ]
+    });
     if (postCount > 0) {
       return res.status(400).json({
         error: `Cannot delete category: ${postCount} posts are currently assigned to this category. Please reassign them first.`
@@ -835,6 +849,7 @@ router.delete('/categories/:id', async (req, res) => {
     }
 
     await Category.deleteOne({ _id: category._id });
+    await refreshAllCategoryPostCounts();
     return res.json({ message: 'Category deleted successfully.' });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to delete category.' });

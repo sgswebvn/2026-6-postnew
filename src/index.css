@@ -1291,4 +1291,98 @@ body {
   margin: 2rem 0;
 }
 
+/* ========================================================
+   STANDARDIZED MODERN LOADING SPINNER & STATES (THEHORIZON)
+   ======================================================== */
+.horizon-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem;
+  color: #64748b;
+  width: 100%;
+}
+
+.horizon-loading-container.inline {
+  display: inline-flex;
+  flex-direction: row;
+  padding: 0;
+  gap: 0.5rem;
+  width: auto;
+}
+
+.horizon-loading-container.full-page {
+  min-height: 100vh;
+  background-color: #ffffff;
+}
+
+.horizon-spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border-style: solid;
+  border-color: #e2e8f0;
+  border-top-color: #0f172a;
+  animation: horizon-spin 0.75s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.horizon-spinner.sm {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+.horizon-spinner.md {
+  width: 26px;
+  height: 26px;
+  border-width: 2.5px;
+}
+
+.horizon-spinner.lg {
+  width: 38px;
+  height: 38px;
+  border-width: 3px;
+}
+
+.horizon-spinner.accent {
+  border-top-color: #2563eb;
+}
+
+.horizon-loading-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: #64748b;
+  user-select: none;
+}
+
+.horizon-loading-text.sm {
+  font-size: 0.8rem;
+}
+
+@keyframes horizon-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: horizon-spin 0.75s linear infinite;
+}
+
+/* Reduced Motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .horizon-spinner,
+  .animate-spin {
+    animation: horizon-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes horizon-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.96); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+}
+
+
 

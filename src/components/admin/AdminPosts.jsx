@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import LoadingSpinner from '../common/LoadingSpinner';
 import {
   FileText,
   Search,
@@ -408,10 +409,7 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
       {/* Posts Table */}
       <div className="card">
         {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem', gap: '0.75rem', color: 'var(--text-muted)' }}>
-            <Loader2 className="animate-spin" size={24} />
-            <span>Loading articles from database...</span>
-          </div>
+          <LoadingSpinner minHeight="240px" label="Loading" />
         ) : posts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text-muted)' }}>
             <FileText size={48} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />

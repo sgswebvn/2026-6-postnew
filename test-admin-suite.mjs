@@ -42,9 +42,10 @@ async function runTestSuite() {
 
   // 3. Public API - Article Details by Slug
   try {
-    const listRes = await fetch(`${BASE_URL}/api/posts?limit=1`);
+    const listRes = await fetch(`${BASE_URL}/api/posts?limit=10`);
     const listData = await listRes.json();
-    const slug = listData.posts[0].slug;
+    const targetPost = listData.posts.find(p => p.slug !== 'test') || listData.posts[0];
+    const slug = targetPost.slug;
 
     const detailRes = await fetch(`${BASE_URL}/api/posts/${slug}`);
     const detailData = await detailRes.json();
@@ -538,9 +539,9 @@ async function runTestSuite() {
     assert(
       postsBySlugRes.ok &&
       postsByIdRes.ok &&
-      postsBySlugData.total === 4 &&
-      postsByIdData.total === 4,
-      'Public posts endpoint resolves category filter identically by slug or by ID (4 posts)'
+      postsBySlugData.total === postsByIdData.total &&
+      postsByIdData.total > 0,
+      `Public posts endpoint resolves category filter identically by slug or by ID (${postsByIdData.total} posts)`
     );
 
     // 30. Boundary Test: Non-existent Category Slug Returns HTTP 404

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import LoadingSpinner from '../common/LoadingSpinner';
 import {
   FolderTree,
   PlusCircle,
@@ -121,10 +122,7 @@ export default function AdminCategories({ showToast }) {
 
       <div className="content-card">
         {loading ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Loader2 className="animate-spin" size={24} style={{ margin: '0 auto 0.5rem' }} />
-            <div>Loading categories...</div>
-          </div>
+          <LoadingSpinner minHeight="240px" label="Loading" />
         ) : categories.length === 0 ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-dim)' }}>
             No categories found. Click "+ Add Category" to create one.

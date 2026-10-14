@@ -23,6 +23,7 @@ import TermsPage from './components/public/TermsPage';
 import CookiePolicyPage from './components/public/CookiePolicyPage';
 import NotFoundPage from './components/public/NotFoundPage';
 import ScriptInjector from './components/public/ScriptInjector';
+import LoadingSpinner from './components/common/LoadingSpinner';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 export default function App() {
@@ -227,8 +228,8 @@ export default function App() {
   if (pathname.startsWith('/admin')) {
     if (authLoading) {
       return (
-        <div className="admin-theme" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f8fafc', color: '#64748b' }}>
-          Verifying administrative credentials...
+        <div className="admin-theme" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#ffffff' }}>
+          <LoadingSpinner size="md" label="Loading" />
         </div>
       );
     }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api/client';
-import { Search, Calendar, Eye, ChevronLeft, ChevronRight, Loader2, FileText, ArrowLeft } from 'lucide-react';
+import LoadingSpinner from '../common/LoadingSpinner';
+import { Search, Calendar, Eye, ChevronLeft, ChevronRight, FileText, ArrowLeft } from 'lucide-react';
 
 export default function SearchPage({ initialQuery = '', onNavigate, onSelectPost }) {
   const [query, setQuery] = useState(initialQuery);
@@ -111,10 +112,7 @@ export default function SearchPage({ initialQuery = '', onNavigate, onSelectPost
 
       {/* Results */}
       {loading ? (
-        <div style={{ padding: '4rem', textAlign: 'center', color: '#64748b' }}>
-          <Loader2 className="animate-spin" size={32} style={{ margin: '0 auto 1rem' }} />
-          <div>Searching database...</div>
-        </div>
+        <LoadingSpinner minHeight="260px" label="Loading" />
       ) : hasSearched && posts.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem 2rem', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b' }}>
           <FileText size={40} style={{ margin: '0 auto 0.75rem', opacity: 0.4 }} />

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import LoadingSpinner from '../common/LoadingSpinner';
 import {
   Code2,
   Plus,
@@ -175,10 +176,7 @@ export default function AdminScripts({ showToast }) {
       {/* Script List Table */}
       <div className="card">
         {loading ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Loader2 className="animate-spin" size={24} style={{ margin: '0 auto 0.5rem' }} />
-            <div>Loading registered scripts...</div>
-          </div>
+          <LoadingSpinner minHeight="240px" label="Loading" />
         ) : scripts.length === 0 ? (
           <div style={{ padding: '3.5rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
             <FileCode size={40} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />

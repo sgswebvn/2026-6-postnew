@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import LoadingSpinner from '../common/LoadingSpinner';
 import {
   Users,
   PlusCircle,
@@ -141,10 +142,7 @@ export default function AdminStaff({ currentUser, showToast }) {
 
       <div className="content-card">
         {loading ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Loader2 className="animate-spin" size={24} style={{ margin: '0 auto 0.5rem' }} />
-            <div>Loading team members...</div>
-          </div>
+          <LoadingSpinner minHeight="240px" label="Loading" />
         ) : staffList.length === 0 ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-dim)' }}>
             No staff records found.

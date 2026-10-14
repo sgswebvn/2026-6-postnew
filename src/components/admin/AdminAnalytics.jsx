@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import LoadingSpinner from '../common/LoadingSpinner';
 import {
   BarChart2,
   TrendingUp,
@@ -216,10 +217,7 @@ export default function AdminAnalytics({ showToast }) {
       </div>
 
       {loading ? (
-        <div style={{ padding: '4rem', textAlign: 'center', color: '#64748b' }}>
-          <Loader2 className="animate-spin" size={28} style={{ margin: '0 auto 0.75rem' }} />
-          <div>Aggregating real traffic telemetry from database...</div>
-        </div>
+        <LoadingSpinner minHeight="280px" label="Loading" />
       ) : (
         <>
           {/* Top Audience KPI Cards */}

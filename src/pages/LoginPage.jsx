@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api, setStoredToken } from '../api/client';
-import { ShieldCheck, Lock, User, Eye, EyeOff, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import { ShieldCheck, Lock, User, Eye, EyeOff, ArrowRight, ArrowLeft } from 'lucide-react';
 
 export default function LoginPage({ onLoginSuccess, onViewSite }) {
   const [username, setUsername] = useState('admin');
@@ -147,8 +148,14 @@ export default function LoginPage({ onLoginSuccess, onViewSite }) {
             disabled={loading}
             style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
           >
-            {loading ? <Loader2 className="animate-spin" size={16} /> : <ArrowRight size={16} />}
-            <span>{loading ? 'Authenticating...' : 'Sign In to Admin'}</span>
+            {loading ? (
+              <LoadingSpinner inline={true} size="sm" label="Loading" variant="default" />
+            ) : (
+              <>
+                <span>Sign In to Admin</span>
+                <ArrowRight size={16} />
+              </>
+            )}
           </button>
         </form>
 

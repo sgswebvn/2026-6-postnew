@@ -1,16 +1,18 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../../api/client';
+import LoadingSpinner from '../common/LoadingSpinner';
 import {
   ArrowLeft,
   Calendar,
   Eye,
   Share2,
   Tag,
-  Loader2,
   Check,
   Clock,
   ArrowRight,
-  Bookmark
+  Bookmark,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import RichContentRenderer from '../common/RichContentRenderer';
 
@@ -64,9 +66,8 @@ export default function PostDetailPage({ slug, onNavigate, onSelectPost, setting
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '820px', margin: '0 auto', padding: '6rem 1.5rem', textAlign: 'center', color: '#64748b' }}>
-        <Loader2 className="animate-spin" size={32} style={{ margin: '0 auto 1rem' }} />
-        <div>Loading article dispatch...</div>
+      <div style={{ maxWidth: '820px', margin: '0 auto', padding: '6rem 1.5rem', textAlign: 'center' }}>
+        <LoadingSpinner minHeight="360px" label="Loading" />
       </div>
     );
   }
@@ -74,16 +75,22 @@ export default function PostDetailPage({ slug, onNavigate, onSelectPost, setting
   if (error || !data?.post) {
     return (
       <div style={{ maxWidth: '720px', margin: '0 auto', padding: '5rem 1.5rem', textAlign: 'center' }}>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#ef4444', marginBottom: '0.75rem' }}>
+        <AlertCircle size={44} style={{ color: '#ef4444', margin: '0 auto 1rem' }} />
+        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.75rem' }}>
           Article Not Found
         </h2>
         <p style={{ color: '#64748b', fontSize: '1rem', marginBottom: '1.5rem' }}>
-          The article you requested may have been moved, updated, or unpublished.
+          {error || 'The article you requested may have been moved, updated, or unpublished.'}
         </p>
-        <button type="button" onClick={() => onNavigate('/')} className="btn btn-primary">
-          <ArrowLeft size={16} />
-          <span>Return to Homepage</span>
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem' }}>
+          <button type="button" onClick={loadPost} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            <RefreshCw size={14} /> Retry
+          </button>
+          <button type="button" onClick={() => onNavigate('/')} className="btn btn-primary btn-sm">
+            <ArrowLeft size={14} />
+            <span>Return to Homepage</span>
+          </button>
+        </div>
       </div>
     );
   }
@@ -234,6 +241,8 @@ export default function PostDetailPage({ slug, onNavigate, onSelectPost, setting
           <img
             src={post.coverImage}
             alt={post.title}
+            fetchPriority="high"
+            decoding="async"
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         </div>

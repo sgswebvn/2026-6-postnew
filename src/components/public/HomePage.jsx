@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import LoadingSpinner from '../common/LoadingSpinner';
 import {
   Search,
   Calendar,
@@ -7,11 +8,12 @@ import {
   FileText,
   ChevronRight,
   ChevronLeft,
-  Loader2,
   Sparkles,
   ArrowRight,
   TrendingUp,
-  Tag
+  Tag,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 
 export default function HomePage({ onSelectPost, onNavigate, settings }) {
@@ -24,6 +26,7 @@ export default function HomePage({ onSelectPost, onNavigate, settings }) {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const adsConfig = settings?.adsense;
   const isAdsAllowed = adsConfig?.enabled === true && !!adsConfig?.publisherId;
@@ -47,6 +50,7 @@ export default function HomePage({ onSelectPost, onNavigate, settings }) {
 
   async function loadPosts() {
     setLoading(true);
+    setError('');
     try {
       const params = { page, limit: 12 };
       if (selectedCat) params.categoryId = selectedCat;
@@ -66,6 +70,7 @@ export default function HomePage({ onSelectPost, onNavigate, settings }) {
       }
     } catch (err) {
       console.error(err);
+      setError('Unable to load articles at this time.');
     } finally {
       setLoading(false);
     }
@@ -200,9 +205,31 @@ export default function HomePage({ onSelectPost, onNavigate, settings }) {
 
       {/* Articles Grid */}
       {loading ? (
-        <div style={{ padding: '5rem', textAlign: 'center', color: '#64748b' }}>
-          <Loader2 className="animate-spin" size={32} style={{ margin: '0 auto 1rem' }} />
-          <div>Loading articles from database...</div>
+        <LoadingSpinner minHeight="280px" label="Loading" />
+      ) : error ? (
+        <div style={{
+          textAlign: 'center',
+          padding: '3rem 2rem',
+          backgroundColor: '#fff5f5',
+          borderRadius: '12px',
+          border: '1px solid #fed7d7',
+          color: '#c53030'
+        }}>
+          <AlertCircle size={36} style={{ margin: '0 auto 0.75rem', color: '#e53e3e' }} />
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+            {error}
+          </h3>
+          <p style={{ fontSize: '0.9rem', color: '#742a2a', marginBottom: '1.25rem' }}>
+            Please check your network connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={loadPosts}
+            className="btn btn-primary btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <RefreshCw size={14} /> Retry
+          </button>
         </div>
       ) : posts.length === 0 ? (
         <div style={{

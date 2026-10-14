@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../../api/client';
+import LoadingSpinner from '../common/LoadingSpinner';
 import {
   FolderTree,
   Calendar,
   Eye,
   ChevronLeft,
   ChevronRight,
-  Loader2,
   FileText,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 
 export default function CategoryPage({ slug, onNavigate, onSelectPost }) {
@@ -19,6 +21,7 @@ export default function CategoryPage({ slug, onNavigate, onSelectPost }) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const lastLoadedSlugRef = useRef('');
 
   useEffect(() => {
     loadCategoryAndPosts();
@@ -29,26 +32,30 @@ export default function CategoryPage({ slug, onNavigate, onSelectPost }) {
     setLoading(true);
     setError('');
     try {
-      // 1. Fetch Category metadata
-      let catData = null;
-      try {
-        const catRes = await api.getPublicCategoryBySlug(slug);
-        catData = catRes.category;
-      } catch (e) {
-        // Fallback: look up in categories list
-        const allCats = await api.getPublicCategories();
-        catData = allCats.find(c => c.slug === slug || c.id === slug) || null;
+      let catData = category;
+
+      // Only fetch category metadata if slug changed or not loaded yet
+      if (!catData || lastLoadedSlugRef.current !== slug) {
+        try {
+          const catRes = await api.getPublicCategoryBySlug(slug);
+          catData = catRes.category;
+        } catch (e) {
+          // Fallback: look up in categories list
+          const allCats = await api.getPublicCategories();
+          catData = allCats.find(c => c.slug === slug || c.id === slug) || null;
+        }
+
+        if (!catData) {
+          setError('Category could not be found.');
+          setLoading(false);
+          return;
+        }
+
+        setCategory(catData);
+        lastLoadedSlugRef.current = slug;
       }
 
-      if (!catData) {
-        setError('Category could not be found.');
-        setLoading(false);
-        return;
-      }
-
-      setCategory(catData);
-
-      // 2. Fetch posts in this category
+      // Fetch posts in this category
       const targetCatId = catData.id || catData.slug;
       const postsRes = await api.getPublicPosts({
         categoryId: targetCatId,
@@ -66,11 +73,10 @@ export default function CategoryPage({ slug, onNavigate, onSelectPost }) {
     }
   }
 
-  if (loading) {
+  if (loading && !category) {
     return (
-      <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '5rem 1.5rem', textAlign: 'center', color: '#64748b' }}>
-        <Loader2 className="animate-spin" size={32} style={{ margin: '0 auto 1rem' }} />
-        <div>Loading category dispatches...</div>
+      <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '5rem 1.5rem', textAlign: 'center' }}>
+        <LoadingSpinner minHeight="320px" label="Loading" />
       </div>
     );
   }
@@ -78,16 +84,22 @@ export default function CategoryPage({ slug, onNavigate, onSelectPost }) {
   if (error || !category) {
     return (
       <div style={{ maxWidth: '720px', margin: '0 auto', padding: '5rem 1.5rem', textAlign: 'center' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444', marginBottom: '0.75rem' }}>
+        <AlertCircle size={44} style={{ color: '#ef4444', margin: '0 auto 1rem' }} />
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.75rem' }}>
           Category Not Found
         </h2>
         <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-          The editorial taxonomy you requested does not exist or may have been reorganized.
+          {error || 'The editorial taxonomy you requested does not exist or may have been reorganized.'}
         </p>
-        <button type="button" onClick={() => onNavigate('/')} className="btn btn-primary">
-          <ArrowLeft size={16} />
-          <span>Return to Homepage</span>
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem' }}>
+          <button type="button" onClick={loadCategoryAndPosts} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            <RefreshCw size={14} /> Retry
+          </button>
+          <button type="button" onClick={() => onNavigate('/')} className="btn btn-primary btn-sm">
+            <ArrowLeft size={14} />
+            <span>Return to Homepage</span>
+          </button>
+        </div>
       </div>
     );
   }
@@ -141,7 +153,9 @@ export default function CategoryPage({ slug, onNavigate, onSelectPost }) {
       </div>
 
       {/* Posts Grid */}
-      {posts.length === 0 ? (
+      {loading ? (
+        <LoadingSpinner minHeight="280px" label="Loading" />
+      ) : posts.length === 0 ? (
         <div style={{
           textAlign: 'center',
           padding: '4rem 2rem',

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import LoadingSpinner from '../common/LoadingSpinner';
 import {
   FileText,
   CheckCircle2,
@@ -258,10 +259,7 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '0.75rem', color: 'var(--text-muted)' }}>
-          <Loader2 className="animate-spin" size={24} />
-          <span>Refreshing database metrics...</span>
-        </div>
+        <LoadingSpinner minHeight="300px" label="Loading" />
       ) : error ? (
         <div style={{ background: 'var(--danger-bg)', border: '1px solid rgba(220, 38, 38, 0.3)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', color: 'var(--danger)' }}>
           <strong>Error connecting to database:</strong> {error}
