@@ -1448,6 +1448,224 @@ body {
 }
 
 /* ========================================================
+   INDEPENDENT MEDIA BLOCKS, RESIZING & DND (THEHORIZON)
+   ======================================================== */
+.media-block {
+  position: relative;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 4px;
+}
+
+/* In the admin visual editor, show outline and toolbar on hover or selection */
+.admin-visual-editor .media-block:hover {
+  border-color: #cbd5e1;
+}
+
+.admin-visual-editor .media-block.is-selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.admin-visual-editor .media-block.is-dragging {
+  opacity: 0.45;
+  border-style: dashed;
+  border-color: #94a3b8;
+}
+
+/* Drop Indicator Lines */
+.admin-visual-editor .drop-indicator-top {
+  border-top: 3px solid #2563eb !important;
+}
+
+.admin-visual-editor .drop-indicator-bottom {
+  border-bottom: 3px solid #2563eb !important;
+}
+
+/* Floating Action Toolbar on Media Block */
+.media-block-toolbar {
+  position: absolute;
+  top: -38px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: 6px;
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 4px 8px;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.28);
+  z-index: 40;
+  font-size: 12px;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.admin-visual-editor .media-block:hover .media-block-toolbar,
+.admin-visual-editor .media-block.is-selected .media-block-toolbar {
+  display: flex;
+}
+
+.media-toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.media-toolbar-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #cbd5e1;
+  padding: 0 4px;
+}
+
+.media-drag-handle {
+  cursor: grab;
+  padding: 2px 6px;
+  font-size: 13px;
+  color: #94a3b8;
+  border-radius: 4px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.media-drag-handle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.media-drag-handle:active {
+  cursor: grabbing;
+}
+
+.media-btn {
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.media-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.media-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.media-delete-btn {
+  color: #fca5a5;
+  font-weight: 700;
+  padding: 3px 8px;
+  margin-left: 2px;
+  border-radius: 4px;
+}
+
+.media-delete-btn:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+/* Mouse Resize Corner Handles */
+.media-resize-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #2563eb;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  display: none;
+  z-index: 35;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: transform 0.1s ease;
+}
+
+.media-resize-handle:hover {
+  transform: scale(1.25);
+}
+
+.admin-visual-editor .media-block:hover .media-resize-handle,
+.admin-visual-editor .media-block.is-selected .media-resize-handle {
+  display: block;
+}
+
+.media-resize-se {
+  bottom: -6px;
+  right: -6px;
+  cursor: nwse-resize;
+}
+
+.media-resize-sw {
+  bottom: -6px;
+  left: -6px;
+  cursor: nesw-resize;
+}
+
+/* Instant Upload Preview & Overlays */
+.media-upload-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+  border-radius: 10px;
+  z-index: 20;
+}
+
+.media-upload-error {
+  position: absolute;
+  inset: 0;
+  background: rgba(254, 242, 242, 0.94);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #dc2626;
+  border-radius: 10px;
+  z-index: 20;
+  padding: 1rem;
+}
+
+/* Public Article Detail: pristine styling with 0 editor chrome */
+.article-rich-body .media-block {
+  border: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.article-rich-body .media-block-toolbar,
+.article-rich-body .media-resize-handle {
+  display: none !important;
+}
+
+/* ========================================================
    STANDARDIZED MODERN LOADING SPINNER & STATES (THEHORIZON)
    ======================================================== */
 .horizon-loading-container {

@@ -68,28 +68,45 @@ export function isYouTubeShortsUrl(url) {
 }
 
 /**
- * Creates responsive HTML embed code for a YouTube video
+ * Creates independent responsive HTML embed code for a YouTube video
  * - Standard videos: 16:9 aspect ratio
  * - YouTube Shorts: vertical 9:16 layout, max-width 380px centered
  * Uses secure https://www.youtube-nocookie.com domain
  */
-export function createYouTubeEmbed(urlOrId, options = {}) {
-  const videoId = extractYouTubeId(urlOrId);
-  if (!videoId) return null;
+export function buildYouTubeMediaBlockHtml({ videoId, isShorts = false, isInteractive = false }) {
+  if (!videoId) return '';
 
-  const isShorts = options.isShorts || isYouTubeShortsUrl(urlOrId);
+  const toolbarHtml = isInteractive ? `
+  <header class="media-block-toolbar" contenteditable="false">
+    <div class="media-toolbar-group">
+      <span class="media-drag-handle" title="Drag to reorder" draggable="true">⠿ Drag</span>
+      <button type="button" class="media-btn media-move-up" title="Move Up">▲</button>
+      <button type="button" class="media-btn media-move-down" title="Move Down">▼</button>
+    </div>
+    <span class="media-toolbar-label" style="font-size:11px;color:#cbd5e1;padding:0 6px;">${isShorts ? 'YouTube Shorts' : 'YouTube Video'}</span>
+    <button type="button" class="media-btn media-delete-btn" title="Remove video block">✕</button>
+  </header>` : '';
 
   if (isShorts) {
-    return `\n<div class="youtube-shorts-wrapper" contenteditable="false" style="max-width:380px;margin:2rem auto;text-align:center;">
+    return `\n<div class="media-block media-block-youtube youtube-shorts-wrapper" data-media-type="youtube" data-yt-id="${videoId}" style="max-width:380px;margin:2rem auto;text-align:center;position:relative;" contenteditable="false">${toolbarHtml}
   <div class="video-container video-shorts" style="position:relative;padding-bottom:177.77%;height:0;overflow:hidden;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.12);background:#000;">
-    <iframe src="https://www.youtube-nocookie.com/embed/${videoId}" title="YouTube Shorts player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe>
+    <iframe src="https://www.youtube-nocookie.com/embed/${videoId}" title="YouTube Shorts player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe>
   </div>
 </div>\n`;
   }
 
-  return `\n<div class="video-container" contenteditable="false" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin:2rem 0;box-shadow:0 6px 18px rgba(0,0,0,0.08);background:#000;">
-  <iframe src="https://www.youtube-nocookie.com/embed/${videoId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe>
+  return `\n<div class="media-block media-block-youtube" data-media-type="youtube" data-yt-id="${videoId}" style="margin:2rem 0;position:relative;" contenteditable="false">${toolbarHtml}
+  <div class="video-container" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08);background:#000;">
+    <iframe src="https://www.youtube-nocookie.com/embed/${videoId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe>
+  </div>
 </div>\n`;
+}
+
+export function createYouTubeEmbed(urlOrId, options = {}) {
+  const videoId = extractYouTubeId(urlOrId);
+  if (!videoId) return null;
+  const isShorts = options.isShorts || isYouTubeShortsUrl(urlOrId);
+  return buildYouTubeMediaBlockHtml({ videoId, isShorts, isInteractive: !!options.interactive });
 }
 
 /**
@@ -113,25 +130,140 @@ export function isValidImageUrl(url) {
 }
 
 /**
- * Creates responsive HTML embed code for an image
- * Includes loading="lazy", non-distorting responsive CSS, and graceful error fallback
+ * Creates responsive HTML embed code for an independent image media block
+ * Includes drag/delete toolbar when interactive, mouse resize handles, loading="lazy",
+ * proportional responsive styling, and caption support.
  */
-export function createImageEmbed(url, alt = 'Article illustration', caption = '') {
+export function buildImageMediaBlockHtml({ url, alt = 'Article illustration', caption = '', width = null, align = 'center', isInteractive = false }) {
   if (!url || typeof url !== 'string') return '';
   const cleanUrl = url.trim();
   const cleanAlt = (alt || 'Article illustration').replace(/"/g, '&quot;');
+  const numWidth = width ? parseInt(width, 10) : null;
+  const safeAlign = ['left', 'center', 'right'].includes(align) ? align : 'center';
+  const widthStyle = numWidth ? `max-width:${numWidth}px;` : 'max-width:100%;';
+
+  let marginStyle = 'margin:2rem auto;';
+  if (safeAlign === 'left') marginStyle = 'margin:2rem auto 2rem 0;';
+  if (safeAlign === 'right') marginStyle = 'margin:2rem 0 2rem auto;';
+
   const cleanCaption = caption
-    ? `<figcaption style="text-align:center;font-size:0.85rem;color:#64748b;margin-top:0.5rem;font-style:italic;">${caption.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</figcaption>`
+    ? `<figcaption class="media-caption" style="text-align:center;font-size:0.85rem;color:#64748b;margin-top:0.5rem;font-style:italic;">${caption.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</figcaption>`
     : '';
 
-  return `\n<figure class="article-image-block" contenteditable="false" style="margin:2rem auto;text-align:center;max-width:100%;">
-  <img src="${cleanUrl}" alt="${cleanAlt}" loading="lazy" style="max-width:100%;height:auto;border-radius:10px;margin:0 auto;display:block;box-shadow:0 4px 12px rgba(0,0,0,0.06);" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\\'padding:1.25rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:0.875rem;\\'>⚠️ Image failed to load: ${cleanUrl}</div>';" />${cleanCaption}
+  const toolbarHtml = isInteractive ? `
+  <header class="media-block-toolbar" contenteditable="false">
+    <div class="media-toolbar-group">
+      <span class="media-drag-handle" title="Drag to reorder" draggable="true">⠿ Drag</span>
+      <button type="button" class="media-btn media-move-up" title="Move Up">▲</button>
+      <button type="button" class="media-btn media-move-down" title="Move Down">▼</button>
+    </div>
+    <div class="media-toolbar-group">
+      <button type="button" class="media-btn media-align-left ${safeAlign === 'left' ? 'active' : ''}" data-align-btn="left" title="Align Left">Left</button>
+      <button type="button" class="media-btn media-align-center ${safeAlign === 'center' ? 'active' : ''}" data-align-btn="center" title="Align Center">Center</button>
+      <button type="button" class="media-btn media-align-right ${safeAlign === 'right' ? 'active' : ''}" data-align-btn="right" title="Align Right">Right</button>
+    </div>
+    <button type="button" class="media-btn media-delete-btn" title="Remove image block">✕</button>
+  </header>` : '';
+
+  const resizeHandlesHtml = isInteractive ? `
+    <span class="media-resize-handle media-resize-se" data-handle="se" title="Drag corner to resize width"></span>
+    <span class="media-resize-handle media-resize-sw" data-handle="sw" title="Drag corner to resize width"></span>` : '';
+
+  return `\n<figure class="media-block media-block-image" data-media-type="image" ${numWidth ? `data-width="${numWidth}"` : ''} data-align="${safeAlign}" style="${widthStyle}width:100%;${marginStyle}text-align:${safeAlign};position:relative;" contenteditable="false">${toolbarHtml}
+  <div class="media-image-wrapper" style="position:relative;display:inline-block;width:100%;max-width:100%;">
+    <img src="${cleanUrl}" alt="${cleanAlt}" loading="lazy" style="width:100%;height:auto;border-radius:10px;display:block;box-shadow:0 4px 12px rgba(0,0,0,0.06);" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\\'padding:1.25rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:0.875rem;\\'>⚠️ Image failed to load: ${cleanUrl}</div>';" />${resizeHandlesHtml}
+  </div>${cleanCaption}
 </figure>\n`;
+}
+
+export function createImageEmbed(url, alt = 'Article illustration', caption = '', options = {}) {
+  const width = options.width || null;
+  const align = options.align || 'center';
+  const isInteractive = !!options.interactive;
+  return buildImageMediaBlockHtml({ url, alt, caption, width, align, isInteractive });
+}
+
+/**
+ * Strips editor-only interactive controls (toolbars, resize handles, temporary overlays)
+ * so that clean semantic HTML with saved dimensions and alignment is stored in the database.
+ */
+export function cleanContentForStorage(html) {
+  if (!html || typeof html !== 'string') return '';
+  let clean = html;
+
+  // 1. Remove editor toolbars (<header class="media-block-toolbar">...</header>)
+  clean = clean.replace(/<header\b[^>]*\bclass="media-block-toolbar"[^>]*>[\s\S]*?<\/header>/gi, '');
+  clean = clean.replace(/<div\b[^>]*\bclass="media-block-toolbar"[^>]*>[\s\S]*?<\/div>/gi, '');
+
+  // 2. Remove resize handles
+  clean = clean.replace(/<(?:span|div)\b[^>]*\bclass="[^"]*media-resize-handle[^"]*"[^>]*><\/(?:span|div)>/gi, '');
+
+  // 3. Remove upload overlays and error states
+  clean = clean.replace(/<div\b[^>]*\bclass="[^"]*media-upload-overlay[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+  clean = clean.replace(/<div\b[^>]*\bclass="[^"]*media-upload-error[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+
+  // 4. Remove temporary interactive state classes
+  clean = clean.replace(/\b(is-selected|is-dragging|drop-indicator-top|drop-indicator-bottom|is-uploading)\b/g, '');
+
+  // 5. Clean up redundant spaces in class attributes
+  clean = clean.replace(/class="([^"]*)"/g, (m, cls) => `class="${cls.trim().replace(/\s+/g, ' ')}"`);
+
+  return clean.trim();
+}
+
+/**
+ * Prepares raw or database HTML for the Visual Editor:
+ * Transforms all images, YouTube embeds, and legacy figures into interactive media blocks
+ * with drag handles, move up/down, delete ✕ buttons, and corner resize handles.
+ */
+export function prepareContentForEditor(html) {
+  if (!html || typeof html !== 'string') return '';
+  let content = html;
+
+  // 1. YouTube Shorts wrapper transformation
+  content = content.replace(/<div\b[^>]*class="[^"]*(?:youtube-shorts-wrapper|video-shorts)[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>/gi, (match) => {
+    const ytId = extractYouTubeId(match);
+    if (!ytId) return match;
+    return buildYouTubeMediaBlockHtml({ videoId: ytId, isShorts: true, isInteractive: true });
+  });
+
+  // 2. YouTube standard wrapper transformation
+  content = content.replace(/<div\b[^>]*class="[^"]*video-container[^"]*"[^>]*>[\s\S]*?<\/div>/gi, (match) => {
+    const ytId = extractYouTubeId(match);
+    if (!ytId) return match;
+    const isShorts = isYouTubeShortsUrl(match);
+    return buildYouTubeMediaBlockHtml({ videoId: ytId, isShorts, isInteractive: true });
+  });
+
+  // 3. Media block / article image block transformation
+  content = content.replace(/<figure\b[^>]*>([\s\S]*?)<\/figure>/gi, (match, inner) => {
+    const imgMatch = inner.match(/<img\b([^>]*)>/i);
+    if (!imgMatch) return match;
+    const attrs = imgMatch[1];
+    const srcMatch = attrs.match(/\bsrc=["']([^"']*)["']/i);
+    const altMatch = attrs.match(/\balt=["']([^"']*)["']/i);
+    const src = srcMatch ? srcMatch[1] : '';
+    const alt = altMatch ? altMatch[1] : '';
+
+    const capMatch = inner.match(/<figcaption\b[^>]*>([\s\S]*?)<\/figcaption>/i);
+    const caption = capMatch ? capMatch[1] : '';
+
+    const widthMatch = match.match(/data-width=["']?(\d+)["']?/i) || match.match(/max-width:\s*(\d+)px/i);
+    const width = widthMatch ? parseInt(widthMatch[1], 10) : null;
+
+    const alignMatch = match.match(/data-align=["']?(left|center|right)["']?/i) || match.match(/text-align:\s*(left|center|right)/i);
+    const align = alignMatch ? alignMatch[1] : 'center';
+
+    return buildImageMediaBlockHtml({ url: src, alt, caption, width, align, isInteractive: true });
+  });
+
+  return content;
 }
 
 /**
  * Safe HTML sanitizer to prevent malicious script injection while preserving rich editorial formatting.
- * Strictly enforces that iframes are ONLY from authorized YouTube domains (youtube-nocookie.com / youtube.com).
+ * Strictly enforces that iframes are ONLY from authorized YouTube domains (youtube-nocookie.com / youtube.com),
+ * strips any leaked editor controls, and ensures safe image styles.
  */
 export function sanitizeHtml(html) {
   if (!html || typeof html !== 'string') return '';
@@ -140,10 +272,16 @@ export function sanitizeHtml(html) {
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     // Remove style tags and contents that might hijack theme
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    // Strip editor-only control headers and resize spans from public rendering
+    .replace(/<header\b[^>]*\bclass="media-block-toolbar"[^>]*>[\s\S]*?<\/header>/gi, '')
+    .replace(/<div\b[^>]*\bclass="media-block-toolbar"[^>]*>[\s\S]*?<\/div>/gi, '')
+    .replace(/<(?:span|div)\b[^>]*\bclass="[^"]*media-resize-handle[^"]*"[^>]*><\/(?:span|div)>/gi, '')
+    .replace(/<div\b[^>]*\bclass="[^"]*media-upload-overlay[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
+    .replace(/<div\b[^>]*\bclass="[^"]*media-upload-error[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
     // Strip dangerous on* attributes (onclick, onerror, onload, onmouseover, etc.)
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    // Neutralize javascript: links
-    .replace(/href\s*=\s*["']\s*javascript:[^"']*["']/gi, 'href="#"')
+    // Neutralize javascript: links and image sources
+    .replace(/(href|src)\s*=\s*["']\s*javascript:[^"']*["']/gi, '$1="#"')
     // Neutralize data: links except for safe image previews
     .replace(/href\s*=\s*["']\s*data:[^"']*["']/gi, 'href="#"');
 
@@ -153,7 +291,7 @@ export function sanitizeHtml(html) {
     const src = srcMatch ? srcMatch[1] : '';
     const ytId = extractYouTubeId(src);
     if (ytId) {
-      return `<iframe src="https://www.youtube-nocookie.com/embed/${ytId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe>`;
+      return `<iframe src="https://www.youtube-nocookie.com/embed/${ytId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe>`;
     }
     return `<!-- Blocked unauthorized iframe: only YouTube embeds are permitted -->`;
   });
@@ -596,7 +734,13 @@ export function renderContentToHtml(content) {
       return createImageEmbed(url, alt || 'Image');
     });
 
-    // 4. Convert inline formatting (bold, italic, strikethrough, inline code, links)
+    // 4. Convert unordered lists in mixed content
+    html = html.replace(/(?:^|\n)([-*+]\s+[^\n]+(?:\n[-*+]\s+[^\n]+)*)/g, (m, block) => {
+      const items = block.trim().split('\n').map(l => `  <li>${formatInline(l.replace(/^[-*+]\s+/, '').trim())}</li>`).join('\n');
+      return `\n<ul>\n${items}\n</ul>\n`;
+    });
+
+    // 5. Convert inline formatting (bold, italic, strikethrough, inline code, links)
     html = formatInline(html);
   }
 

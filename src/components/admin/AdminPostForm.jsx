@@ -37,9 +37,14 @@ import ErrorBoundary from '../common/ErrorBoundary';
 import {
   processPastedContent,
   extractYouTubeId,
+  isYouTubeShortsUrl,
   createYouTubeEmbed,
   isValidImageUrl,
   createImageEmbed,
+  buildImageMediaBlockHtml,
+  buildYouTubeMediaBlockHtml,
+  cleanContentForStorage,
+  prepareContentForEditor,
   renderContentToHtml
 } from '../../utils/contentFormatter';
 
@@ -61,6 +66,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
   const visualEditorRef = useRef(null);
   const textareaRef = useRef(null);
   const isInternalChangeRef = useRef(false);
+  const draggingBlockRef = useRef(null);
 
   const [form, setForm] = useState({
     title: '',
@@ -88,7 +94,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
   useEffect(() => {
     if (editorMode === 'visual' && visualEditorRef.current) {
       if (!isInternalChangeRef.current) {
-        visualEditorRef.current.innerHTML = form.content || '';
+        visualEditorRef.current.innerHTML = prepareContentForEditor(form.content || '');
       }
     }
     isInternalChangeRef.current = false;
@@ -130,7 +136,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       // Populate visual editor if ref is ready
       setTimeout(() => {
         if (visualEditorRef.current) {
-          visualEditorRef.current.innerHTML = postContent;
+          visualEditorRef.current.innerHTML = prepareContentForEditor(postContent);
         }
       }, 50);
     } catch (err) {
@@ -254,7 +260,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     }
   }
 
-  // Upload an image file (from clipboard or toolbar) to Supabase Storage with live inline badge
+  // Upload an image file (from clipboard, drag-drop, or toolbar) to Supabase Storage with INSTANT local preview
   async function uploadImageFile(file) {
     if (!file) return;
 
@@ -269,53 +275,91 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       return;
     }
 
-    const uploadId = 'img_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-    const badgeHtml = `<div id="upload-${uploadId}" class="editor-uploading-badge" contenteditable="false"><span class="animate-spin">⏳</span> Uploading ${file.name || 'image'} to Supabase Storage...</div><p><br></p>`;
+    const uploadId = 'media_up_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    let previewUrl = '';
+    try {
+      previewUrl = URL.createObjectURL(file);
+    } catch (e) {
+      previewUrl = '';
+    }
 
-    insertContentIntoEditor(badgeHtml);
+    // Instant interactive preview media block with uploading overlay
+    const previewBlockHtml = `
+<figure id="${uploadId}" class="media-block media-block-image is-uploading is-selected" data-media-type="image" data-upload-id="${uploadId}" style="max-width:100%;width:100%;margin:2rem auto;text-align:center;position:relative;" contenteditable="false">
+  <header class="media-block-toolbar" contenteditable="false">
+    <div class="media-toolbar-group">
+      <span class="media-drag-handle" title="Drag to reorder" draggable="true">⠿ Drag</span>
+      <button type="button" class="media-btn media-move-up" title="Move Up">▲</button>
+      <button type="button" class="media-btn media-move-down" title="Move Down">▼</button>
+    </div>
+    <div class="media-toolbar-group">
+      <button type="button" class="media-btn media-align-left" data-align-btn="left" title="Align Left">Left</button>
+      <button type="button" class="media-btn media-align-center active" data-align-btn="center" title="Align Center">Center</button>
+      <button type="button" class="media-btn media-align-right" data-align-btn="right" title="Align Right">Right</button>
+    </div>
+    <button type="button" class="media-btn media-delete-btn" title="Remove image block">✕</button>
+  </header>
+  <div class="media-image-wrapper" style="position:relative;display:inline-block;width:100%;max-width:100%;">
+    <img src="${previewUrl}" alt="${file.name || 'Article illustration'}" style="width:100%;height:auto;border-radius:10px;display:block;box-shadow:0 4px 12px rgba(0,0,0,0.06);opacity:0.85;" />
+    <span class="media-resize-handle media-resize-se" data-handle="se" title="Drag corner to resize width"></span>
+    <span class="media-resize-handle media-resize-sw" data-handle="sw" title="Drag corner to resize width"></span>
+    <div class="media-upload-overlay" contenteditable="false">
+      <span class="horizon-spinner sm accent"></span>
+      <span>Uploading to cloud storage...</span>
+    </div>
+  </div>
+  <figcaption class="media-caption" style="text-align:center;font-size:0.85rem;color:#64748b;margin-top:0.5rem;font-style:italic;">
+    ${file.name || 'Article illustration'}
+  </figcaption>
+</figure><p><br></p>
+`;
+
+    insertContentIntoEditor(previewBlockHtml);
     setUploadingClipboard(true);
     setUploadingCount(c => c + 1);
 
     try {
       const res = await api.uploadImage(file);
       if (res && res.url) {
-        const finalImageHtml = createImageEmbed(res.url, file.name || 'Article illustration');
-
         if (editorMode === 'visual' && visualEditorRef.current) {
-          const badgeEl = visualEditorRef.current.querySelector(`#upload-${uploadId}`);
-          if (badgeEl) {
-            const temp = document.createElement('div');
-            temp.innerHTML = finalImageHtml;
-            const replacement = temp.firstElementChild || temp;
-            badgeEl.replaceWith(replacement);
+          const blockEl = visualEditorRef.current.querySelector(`#${uploadId}`);
+          if (blockEl) {
+            const img = blockEl.querySelector('img');
+            if (img) {
+              img.src = res.url;
+              img.style.opacity = '1';
+            }
+            const overlay = blockEl.querySelector('.media-upload-overlay');
+            if (overlay) overlay.remove();
+            blockEl.classList.remove('is-uploading');
             handleVisualEditorInput();
-          } else {
-            insertContentIntoEditor(finalImageHtml);
           }
         } else {
-          // Code mode placeholder replacement
+          // In code mode, replace preview with permanent URL
           setForm(prev => {
             const current = prev.content || '';
-            const badgePattern = new RegExp(`<div id="upload-${uploadId}"[\\s\\S]*?<\\/div>`, 'i');
-            if (badgePattern.test(current)) {
-              return { ...prev, content: current.replace(badgePattern, finalImageHtml) };
-            }
-            return { ...prev, content: current + '\n' + finalImageHtml };
+            const replaced = previewUrl ? current.replace(previewUrl, res.url) : current;
+            return { ...prev, content: cleanContentForStorage(replaced) };
           });
         }
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
         showToast(`Image "${file.name || 'Pasted image'}" uploaded successfully!`, 'success');
       } else {
         throw new Error('Storage returned no image URL');
       }
     } catch (err) {
       console.error('[Image Upload Failure]', err);
-      // Clean up badge if failed
       if (editorMode === 'visual' && visualEditorRef.current) {
-        const badgeEl = visualEditorRef.current.querySelector(`#upload-${uploadId}`);
-        if (badgeEl) badgeEl.remove();
-        handleVisualEditorInput();
+        const blockEl = visualEditorRef.current.querySelector(`#${uploadId}`);
+        if (blockEl) {
+          const overlay = blockEl.querySelector('.media-upload-overlay');
+          if (overlay) {
+            overlay.className = 'media-upload-error';
+            overlay.innerHTML = `<span>⚠️ Upload failed: ${err.message}</span> <button type="button" class="btn btn-secondary btn-sm" onclick="this.closest('.media-block').remove()">Remove</button>`;
+          }
+        }
       }
-      showToast(`Failed to upload image: ${err.message}. Your surrounding text is preserved.`, 'error');
+      showToast(`Failed to upload image: ${err.message}. Your text is preserved.`, 'error');
     } finally {
       setUploadingCount(c => {
         const next = Math.max(0, c - 1);
@@ -325,7 +369,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     }
   }
 
-  // Embed YouTube Video into editor
+  // Embed YouTube Video into editor as independent media block
   function handleInsertYouTube(targetUrl) {
     const url = targetUrl || prompt('Paste YouTube Video URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...):');
     if (!url || typeof url !== 'string' || !url.trim()) return;
@@ -339,12 +383,13 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       return;
     }
 
-    const embedHtml = createYouTubeEmbed(trimmed) + '<p><br></p>';
+    const isShorts = isYouTubeShortsUrl(trimmed);
+    const embedHtml = buildYouTubeMediaBlockHtml({ videoId: ytId, isShorts, isInteractive: true }) + '<p><br></p>';
     insertContentIntoEditor(embedHtml);
-    showToast('YouTube video embedded successfully at cursor position!', 'success');
+    showToast('YouTube video media block embedded at cursor!', 'success');
   }
 
-  // Insert Image via direct URL
+  // Insert Image via direct URL as independent media block
   function handleInsertImageUrl() {
     const url = prompt('Enter direct image URL (https://...):');
     if (!url || typeof url !== 'string' || !url.trim()) return;
@@ -356,9 +401,224 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       return;
     }
 
-    const imageHtml = createImageEmbed(trimmed, 'Article illustration') + '<p><br></p>';
+    const imageHtml = buildImageMediaBlockHtml({ url: trimmed, alt: 'Article illustration', isInteractive: true }) + '<p><br></p>';
     insertContentIntoEditor(imageHtml);
-    showToast('Image inserted into article body!', 'success');
+    showToast('Image media block inserted!', 'success');
+  }
+
+  // Visual Editor interactive handlers: click, keyboard, mouse resize, drag and drop
+  function handleVisualEditorClick(e) {
+    const target = e.target;
+    if (!visualEditorRef.current) return;
+
+    // 1. Delete button ✕
+    const deleteBtn = target.closest('.media-delete-btn');
+    if (deleteBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const block = deleteBtn.closest('.media-block');
+      if (block) {
+        block.remove();
+        handleVisualEditorInput();
+        showToast('Media block removed.', 'info');
+      }
+      return;
+    }
+
+    // 2. Move Up button ▲
+    const moveUpBtn = target.closest('.media-move-up');
+    if (moveUpBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const block = moveUpBtn.closest('.media-block');
+      if (block && block.previousElementSibling) {
+        visualEditorRef.current.insertBefore(block, block.previousElementSibling);
+        handleVisualEditorInput();
+      }
+      return;
+    }
+
+    // 3. Move Down button ▼
+    const moveDownBtn = target.closest('.media-move-down');
+    if (moveDownBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const block = moveDownBtn.closest('.media-block');
+      if (block && block.nextElementSibling) {
+        visualEditorRef.current.insertBefore(block, block.nextElementSibling.nextElementSibling);
+        handleVisualEditorInput();
+      }
+      return;
+    }
+
+    // 4. Alignment buttons (Left, Center, Right)
+    const alignBtn = target.closest('[data-align-btn]');
+    if (alignBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const block = alignBtn.closest('.media-block-image');
+      if (block) {
+        const align = alignBtn.dataset.alignBtn || 'center';
+        block.dataset.align = align;
+        block.style.textAlign = align;
+        if (align === 'left') {
+          block.style.margin = '2rem auto 2rem 0';
+        } else if (align === 'right') {
+          block.style.margin = '2rem 0 2rem auto';
+        } else {
+          block.style.margin = '2rem auto';
+        }
+        const allAlignBtns = block.querySelectorAll('[data-align-btn]');
+        allAlignBtns.forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.alignBtn === align);
+        });
+        handleVisualEditorInput();
+      }
+      return;
+    }
+
+    // 5. Select block on click
+    const mediaBlock = target.closest('.media-block');
+    const allBlocks = visualEditorRef.current.querySelectorAll('.media-block');
+    if (mediaBlock) {
+      allBlocks.forEach(b => {
+        if (b !== mediaBlock) b.classList.remove('is-selected');
+      });
+      mediaBlock.classList.add('is-selected');
+    } else {
+      allBlocks.forEach(b => b.classList.remove('is-selected'));
+    }
+  }
+
+  function handleVisualEditorKeyDown(e) {
+    if (!visualEditorRef.current) return;
+
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      const selectedBlock = visualEditorRef.current.querySelector('.media-block.is-selected');
+      if (selectedBlock) {
+        e.preventDefault();
+        selectedBlock.remove();
+        handleVisualEditorInput();
+        showToast('Media block removed.', 'info');
+      }
+    }
+  }
+
+  function handleVisualEditorMouseDown(e) {
+    const handle = e.target.closest('.media-resize-handle');
+    if (!handle || !visualEditorRef.current) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const block = handle.closest('.media-block-image');
+    if (!block) return;
+
+    const startX = e.clientX;
+    const initialRect = block.getBoundingClientRect();
+    const startWidth = initialRect.width;
+    const isLeft = handle.dataset.handle === 'sw';
+
+    function onMouseMove(moveEvent) {
+      const deltaX = moveEvent.clientX - startX;
+      let newWidth = isLeft ? (startWidth - deltaX) : (startWidth + deltaX);
+      const editorWidth = visualEditorRef.current?.clientWidth || 800;
+      newWidth = Math.max(140, Math.min(editorWidth, Math.round(newWidth)));
+
+      block.style.maxWidth = `${newWidth}px`;
+      block.dataset.width = String(newWidth);
+    }
+
+    function onMouseUp() {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      handleVisualEditorInput();
+    }
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
+
+  function handleDragStart(e) {
+    const handle = e.target.closest('.media-drag-handle');
+    if (!handle) return;
+    const block = handle.closest('.media-block');
+    if (!block) return;
+
+    draggingBlockRef.current = block;
+    block.classList.add('is-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', block.id || 'media-block');
+  }
+
+  function handleDragOver(e) {
+    if (!draggingBlockRef.current || !visualEditorRef.current) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const targetChild = e.target.closest('.admin-visual-editor > *');
+    if (!targetChild || targetChild === draggingBlockRef.current) return;
+
+    visualEditorRef.current.querySelectorAll('.drop-indicator-top, .drop-indicator-bottom').forEach(el => {
+      if (el !== targetChild) {
+        el.classList.remove('drop-indicator-top', 'drop-indicator-bottom');
+      }
+    });
+
+    const rect = targetChild.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    if (e.clientY < midY) {
+      targetChild.classList.add('drop-indicator-top');
+      targetChild.classList.remove('drop-indicator-bottom');
+    } else {
+      targetChild.classList.add('drop-indicator-bottom');
+      targetChild.classList.remove('drop-indicator-top');
+    }
+  }
+
+  function handleDragLeave(e) {
+    if (e.target.classList) {
+      e.target.classList.remove('drop-indicator-top', 'drop-indicator-bottom');
+    }
+  }
+
+  function handleDrop(e) {
+    if (!draggingBlockRef.current || !visualEditorRef.current) return;
+    e.preventDefault();
+
+    const targetChild = e.target.closest('.admin-visual-editor > *');
+    const draggedEl = draggingBlockRef.current;
+
+    visualEditorRef.current.querySelectorAll('.drop-indicator-top, .drop-indicator-bottom').forEach(el => {
+      el.classList.remove('drop-indicator-top', 'drop-indicator-bottom');
+    });
+
+    if (targetChild && targetChild !== draggedEl) {
+      const rect = targetChild.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (e.clientY < midY) {
+        visualEditorRef.current.insertBefore(draggedEl, targetChild);
+      } else {
+        visualEditorRef.current.insertBefore(draggedEl, targetChild.nextSibling);
+      }
+      handleVisualEditorInput();
+      showToast('Media block repositioned.', 'success');
+    }
+
+    draggedEl.classList.remove('is-dragging');
+    draggingBlockRef.current = null;
+  }
+
+  function handleDragEnd() {
+    if (draggingBlockRef.current) {
+      draggingBlockRef.current.classList.remove('is-dragging');
+      draggingBlockRef.current = null;
+    }
+    if (visualEditorRef.current) {
+      visualEditorRef.current.querySelectorAll('.drop-indicator-top, .drop-indicator-bottom').forEach(el => {
+        el.classList.remove('drop-indicator-top', 'drop-indicator-bottom');
+      });
+    }
   }
 
   // Unified Paste Event Handler (works on both Visual Editor and Code textarea)
@@ -518,8 +778,8 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     if (targetMode === editorMode) return;
 
     if (editorMode === 'visual' && visualEditorRef.current) {
-      // Save visual HTML to form state
-      setForm(prev => ({ ...prev, content: visualEditorRef.current.innerHTML }));
+      // Save cleaned HTML to form state
+      setForm(prev => ({ ...prev, content: cleanContentForStorage(visualEditorRef.current.innerHTML) }));
     }
 
     setEditorMode(targetMode);
@@ -532,12 +792,19 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     }
 
     // Read latest content from active visual editor if currently in visual mode
-    const finalContent = editorMode === 'visual' && visualEditorRef.current
+    const rawContent = editorMode === 'visual' && visualEditorRef.current
       ? visualEditorRef.current.innerHTML
       : form.content;
 
-    if (uploadingClipboard || uploadingCount > 0 || (finalContent && finalContent.includes('editor-uploading-badge'))) {
+    const finalContent = cleanContentForStorage(rawContent);
+
+    if (uploadingClipboard || uploadingCount > 0 || (rawContent && rawContent.includes('is-uploading'))) {
       showToast('Please wait for active image uploads to complete before saving.', 'warning');
+      return;
+    }
+
+    if (finalContent.includes('blob:')) {
+      showToast('Please wait for cloud image uploads to complete before saving.', 'warning');
       return;
     }
 
@@ -910,6 +1177,14 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
                 contentEditable="true"
                 suppressContentEditableWarning={true}
                 onInput={handleVisualEditorInput}
+                onClick={handleVisualEditorClick}
+                onKeyDown={handleVisualEditorKeyDown}
+                onMouseDown={handleVisualEditorMouseDown}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onDragEnd={handleDragEnd}
                 onPaste={handlePaste}
                 data-placeholder="Start typing your article here... You can paste images from clipboard, paste YouTube URLs to instantly embed playable video players, or click the toolbar buttons above."
               />
