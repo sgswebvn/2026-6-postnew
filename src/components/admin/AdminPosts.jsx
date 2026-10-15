@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../../api/client';
 import LoadingSpinner from '../common/LoadingSpinner';
 import {
@@ -21,7 +21,12 @@ import {
   XCircle,
   ShieldAlert,
   Archive,
-  RefreshCw
+  RefreshCw,
+  Image as ImageIcon,
+  Eye,
+  Calendar,
+  X,
+  RotateCcw
 } from 'lucide-react';
 
 export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showToast }) {
@@ -52,6 +57,9 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
   const [deleteAllConfirmation, setDeleteAllConfirmation] = useState('');
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
+  // Image Preview Lightbox Modal
+  const [previewImage, setPreviewImage] = useState(null);
+
   useEffect(() => {
     loadCategories();
   }, []);
@@ -71,6 +79,22 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
     } catch (err) {
       console.error('Failed to load categories:', err);
     }
+  }
+
+  // Memoized category lookup map for fast human-readable category badges
+  const categoryMap = useMemo(() => {
+    const map = {};
+    categories.forEach((c) => {
+      if (c.id) map[c.id] = c.name;
+      if (c.slug) map[c.slug] = c.name;
+      if (c._id) map[String(c._id)] = c.name;
+    });
+    return map;
+  }, [categories]);
+
+  function getCategoryLabel(catId) {
+    if (!catId) return 'Uncategorized';
+    return categoryMap[catId] || catId;
   }
 
   async function loadPosts() {
@@ -223,9 +247,24 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff' }}>Articles & Posts</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Manage editorial content directly stored in MongoDB Atlas ({total} total articles).
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+              Articles & Posts
+            </h1>
+            <span style={{
+              background: '#eff6ff',
+              color: '#2563eb',
+              border: '1px solid #bfdbfe',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              padding: '0.2rem 0.6rem',
+              borderRadius: '9999px'
+            }}>
+              {total} articles
+            </span>
+          </div>
+          <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0 }}>
+            Manage editorial content directly stored in MongoDB Atlas.
           </p>
         </div>
 
@@ -233,39 +272,64 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
           <button
             onClick={() => { setDeleteAllConfirmation(''); setIsDeleteAllModalOpen(true); }}
             className="btn btn-secondary btn-sm"
-            style={{ color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+            style={{ color: '#dc2626', borderColor: '#fca5a5', backgroundColor: '#fff5f5' }}
             title="Purge all articles with automatic backup"
           >
             <ShieldAlert size={15} /> Delete All Posts...
           </button>
-          <button onClick={onNewPost} className="btn btn-primary">
+          <button onClick={onNewPost} className="btn btn-primary" style={{ padding: '0.65rem 1.25rem' }}>
             <PlusCircle size={16} /> New Article
           </button>
         </div>
       </div>
 
       {/* Filters Bar */}
-      <div className="card" style={{ marginBottom: '1.25rem', padding: '1rem 1.25rem' }}>
+      <div className="card" style={{ marginBottom: '1.25rem', padding: '1rem 1.25rem', borderRadius: '12px' }}>
         <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Search */}
-          <div style={{ position: 'relative', flex: '1 1 240px', minWidth: '200px' }}>
-            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+          <div style={{ position: 'relative', flex: '1 1 260px', minWidth: '220px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
             <input
               type="text"
               placeholder="Search by title or slug..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="form-input"
-              style={{ paddingLeft: '36px' }}
+              style={{ paddingLeft: '38px', paddingRight: search ? '32px' : '12px', borderColor: '#cbd5e1' }}
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setPage(1);
+                  loadPosts();
+                }}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: 0
+                }}
+                title="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
 
           {/* Category Filter */}
-          <div style={{ width: '180px' }}>
+          <div style={{ width: '190px' }}>
             <select
               value={categoryFilter}
               onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
               className="form-select"
+              style={{ borderColor: '#cbd5e1' }}
             >
               <option value="">All Categories</option>
               {categories.map((c) => (
@@ -277,11 +341,12 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
           </div>
 
           {/* Status Filter */}
-          <div style={{ width: '150px' }}>
+          <div style={{ width: '160px' }}>
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
               className="form-select"
+              style={{ borderColor: '#cbd5e1' }}
             >
               <option value="">All Statuses</option>
               <option value="published">Published</option>
@@ -289,8 +354,8 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
             </select>
           </div>
 
-          <button type="submit" className="btn btn-secondary">
-            Filter
+          <button type="submit" className="btn btn-secondary" style={{ borderColor: '#cbd5e1' }}>
+            <Filter size={15} /> Filter
           </button>
 
           {(search || statusFilter || categoryFilter) && (
@@ -304,9 +369,9 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
                 loadPosts();
               }}
               className="btn btn-secondary btn-sm"
-              style={{ color: 'var(--text-muted)' }}
+              style={{ color: '#64748b', borderColor: '#e2e8f0' }}
             >
-              Reset
+              <RotateCcw size={14} /> Reset
             </button>
           )}
         </form>
@@ -315,24 +380,24 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
       {/* Select All Across Pages Banner */}
       {allCurrentPageSelected && total > posts.length && (
         <div style={{
-          background: 'rgba(59, 130, 246, 0.1)',
-          border: '1px solid rgba(59, 130, 246, 0.3)',
+          background: '#eff6ff',
+          border: '1px solid #bfdbfe',
           borderRadius: 'var(--radius-md)',
           padding: '0.65rem 1rem',
           marginBottom: '1rem',
-          fontSize: '0.85rem',
+          fontSize: '0.875rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           gap: '0.5rem',
-          color: '#fff'
+          color: '#1e3a8a'
         }}>
           {selectAllMatching ? (
             <>
-              <span>All <strong>{total}</strong> articles matching the current query are selected.</span>
+              <span>All <strong>{total}</strong> articles matching current query are selected.</span>
               <button
                 onClick={handleClearSelection}
-                style={{ background: 'none', border: 'none', color: '#60a5fa', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+                style={{ background: 'none', border: 'none', color: '#2563eb', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600, padding: 0 }}
               >
                 Clear selection
               </button>
@@ -342,7 +407,7 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
               <span>All <strong>{posts.length}</strong> articles on this page are selected.</span>
               <button
                 onClick={handleSelectAllMatchingResults}
-                style={{ background: 'none', border: 'none', color: '#60a5fa', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+                style={{ background: 'none', border: 'none', color: '#2563eb', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600, padding: 0 }}
               >
                 Select all {total} articles matching filter
               </button>
@@ -354,8 +419,8 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
       {/* Floating Bulk Action Bar */}
       {(selectedIds.length > 0 || selectAllMatching) && (
         <div style={{
-          background: 'var(--bg-elevated)',
-          border: '1px solid var(--border-strong)',
+          background: '#ffffff',
+          border: '1px solid #bfdbfe',
           borderRadius: 'var(--radius-lg)',
           padding: '0.75rem 1.25rem',
           marginBottom: '1rem',
@@ -364,12 +429,12 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '0.75rem',
-          boxShadow: 'var(--shadow-md)',
+          boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.1), 0 2px 4px -2px rgba(37, 99, 235, 0.05)',
           animation: 'slideUp 0.2s ease'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <CheckSquare size={18} color="#60a5fa" />
-            <span style={{ fontWeight: 700, color: '#fff', fontSize: '0.9rem' }}>
+            <CheckSquare size={18} color="#2563eb" />
+            <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>
               {selectedCountDisplay} article{selectedCountDisplay === 1 ? '' : 's'} selected
             </span>
           </div>
@@ -378,14 +443,14 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
             <button
               onClick={() => setBulkActionTarget('publish')}
               className="btn btn-secondary btn-sm"
-              style={{ color: '#10b981' }}
+              style={{ color: '#059669', borderColor: '#a7f3d0', backgroundColor: '#ecfdf5' }}
             >
               <CheckCircle size={14} /> Publish Selected
             </button>
             <button
               onClick={() => setBulkActionTarget('draft')}
               className="btn btn-secondary btn-sm"
-              style={{ color: '#f59e0b' }}
+              style={{ color: '#d97706', borderColor: '#fde68a', backgroundColor: '#fffbeb' }}
             >
               <Clock size={14} /> Draft Selected
             </button>
@@ -398,7 +463,7 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
             <button
               onClick={handleClearSelection}
               className="btn btn-secondary btn-sm"
-              style={{ color: 'var(--text-dim)' }}
+              style={{ color: '#64748b' }}
             >
               Deselect All
             </button>
@@ -406,15 +471,15 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
         </div>
       )}
 
-      {/* Posts Table */}
-      <div className="card">
+      {/* Posts Table Card */}
+      <div className="card" style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)' }}>
         {loading ? (
-          <LoadingSpinner minHeight="240px" label="Loading" />
+          <LoadingSpinner minHeight="260px" label="Loading" />
         ) : posts.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text-muted)' }}>
-            <FileText size={48} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#fff', marginBottom: '0.5rem' }}>No articles found</h3>
-            <p style={{ fontSize: '0.9rem', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
+          <div style={{ textAlign: 'center', padding: '4rem 2rem', color: '#64748b' }}>
+            <FileText size={48} style={{ margin: '0 auto 1rem', opacity: 0.3, color: '#94a3b8' }} />
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>No articles found</h3>
+            <p style={{ fontSize: '0.9rem', maxWidth: '400px', margin: '0 auto 1.5rem', color: '#64748b' }}>
               {search || statusFilter || categoryFilter
                 ? 'Try adjusting your search criteria or resetting filters.'
                 : 'Get started by creating your first article.'}
@@ -428,87 +493,232 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
             <table className="data-table">
               <thead>
                 <tr>
-                  <th style={{ width: '40px' }}>
+                  <th style={{ width: '44px', paddingLeft: '1.25rem' }}>
                     <input
                       type="checkbox"
                       checked={allCurrentPageSelected}
                       ref={el => { if (el) el.indeterminate = someCurrentPageSelected; }}
                       onChange={toggleSelectAllCurrentPage}
-                      style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#2563eb' }}
                       title="Select all on this page"
                     />
                   </th>
+                  <th style={{ width: '90px' }}>Cover Image</th>
                   <th>Article Title</th>
-                  <th>Category</th>
-                  <th>Status</th>
-                  <th>Views</th>
-                  <th>Published Date</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
+                  <th style={{ width: '150px' }}>Category</th>
+                  <th style={{ width: '120px' }}>Status</th>
+                  <th style={{ width: '95px' }}>Views</th>
+                  <th style={{ width: '125px' }}>Published Date</th>
+                  <th style={{ textAlign: 'right', paddingRight: '1.25rem', width: '120px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {posts.map((post) => {
                   const pId = post.id || post._id;
                   const isChecked = selectAllMatching || selectedIds.includes(pId);
+                  const catName = getCategoryLabel(post.categoryId);
+
                   return (
-                    <tr key={pId} style={{ backgroundColor: isChecked ? 'rgba(59, 130, 246, 0.05)' : undefined }}>
-                      <td>
+                    <tr
+                      key={pId}
+                      style={{
+                        backgroundColor: isChecked ? '#f0f7ff' : undefined,
+                        borderBottom: '1px solid #f1f5f9'
+                      }}
+                    >
+                      <td style={{ paddingLeft: '1.25rem' }}>
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => toggleSelectPost(pId)}
-                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#2563eb' }}
                         />
                       </td>
-                      <td>
-                        <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.95rem' }}>
-                          {post.title}
-                        </div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '0.2rem', fontFamily: 'var(--font-mono)' }}>
-                          /{post.slug}
+
+                      {/* Cover Image Thumbnail Column */}
+                      <td style={{ width: '90px' }}>
+                        <div
+                          onClick={() => {
+                            if (post.coverImage) {
+                              setPreviewImage({ url: post.coverImage, title: post.title });
+                            }
+                          }}
+                          className="admin-post-thumb"
+                          style={{
+                            width: '72px',
+                            height: '48px',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            backgroundColor: '#f1f5f9',
+                            border: '1px solid #e2e8f0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: post.coverImage ? 'pointer' : 'default',
+                            position: 'relative'
+                          }}
+                          title={post.coverImage ? 'Click to preview full cover image' : 'No image'}
+                        >
+                          {post.coverImage ? (
+                            <img
+                              src={post.coverImage}
+                              alt={post.title}
+                              loading="lazy"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                if (e.currentTarget.nextSibling) {
+                                  e.currentTarget.nextSibling.style.display = 'flex';
+                                }
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            style={{
+                              display: post.coverImage ? 'none' : 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '2px',
+                              width: '100%',
+                              height: '100%',
+                              color: '#94a3b8'
+                            }}
+                          >
+                            <ImageIcon size={18} strokeWidth={1.5} />
+                            <span style={{ fontSize: '0.62rem', fontWeight: 600 }}>No img</span>
+                          </div>
                         </div>
                       </td>
+
+                      {/* Title & Slug */}
                       <td>
-                        <span className="badge badge-draft" style={{ textTransform: 'capitalize' }}>
-                          {post.categoryId || 'Uncategorized'}
+                        <div
+                          onClick={() => onEditPost(pId)}
+                          className="admin-post-title"
+                          style={{
+                            fontWeight: 700,
+                            color: '#0f172a',
+                            fontSize: '0.94rem',
+                            lineHeight: 1.4,
+                            cursor: 'pointer',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}
+                          title={post.title}
+                        >
+                          {post.title || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>(Untitled Article)</span>}
+                        </div>
+                        <div style={{
+                          fontSize: '0.78rem',
+                          color: '#64748b',
+                          marginTop: '0.25rem',
+                          fontFamily: 'var(--font-mono)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem'
+                        }}>
+                          <span style={{ opacity: 0.6 }}>/</span>
+                          <span style={{ maxWidth: '320px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {post.slug}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Category Badge */}
+                      <td>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '0.25rem 0.65rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            backgroundColor: '#eff6ff',
+                            color: '#1d4ed8',
+                            border: '1px solid #bfdbfe',
+                            maxWidth: '150px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                          title={catName}
+                        >
+                          {catName}
                         </span>
                       </td>
+
+                      {/* Status Toggle */}
                       <td>
                         <button
                           onClick={() => handleToggleStatus(post)}
-                          className={`badge ${post.status === 'published' ? 'badge-published' : 'badge-draft'}`}
-                          style={{ cursor: 'pointer', border: 'none' }}
-                          title="Click to toggle status"
+                          style={{
+                            cursor: 'pointer',
+                            border: post.status === 'published' ? '1px solid #a7f3d0' : '1px solid #fde68a',
+                            backgroundColor: post.status === 'published' ? '#ecfdf5' : '#fffbeb',
+                            color: post.status === 'published' ? '#047857' : '#b45309',
+                            padding: '0.25rem 0.65rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            transition: 'all 0.15s ease'
+                          }}
+                          title="Click to toggle status (Published / Draft)"
                         >
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: post.status === 'published' ? '#10b981' : '#f59e0b' }} />
-                          {post.status}
+                          <span
+                            style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              backgroundColor: post.status === 'published' ? '#10b981' : '#f59e0b'
+                            }}
+                          />
+                          {post.status === 'published' ? 'Published' : 'Draft'}
                         </button>
                       </td>
-                      <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                        {(post.views || 0).toLocaleString()}
+
+                      {/* Views */}
+                      <td style={{ color: '#475569', fontSize: '0.85rem', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Eye size={14} style={{ color: '#94a3b8' }} />
+                          {(post.views || 0).toLocaleString()}
+                        </span>
                       </td>
-                      <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                        {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : 'Draft'}
+
+                      {/* Published Date */}
+                      <td style={{ color: '#475569', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Calendar size={14} style={{ color: '#94a3b8' }} />
+                          {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('vi-VN') : 'Draft'}
+                        </span>
                       </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+
+                      {/* Actions */}
+                      <td style={{ textAlign: 'right', paddingRight: '1.25rem', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center' }}>
                           <button
                             onClick={() => onPreviewPost(post.slug)}
-                            className="btn-icon btn-secondary"
+                            className="admin-action-btn admin-action-view"
                             title="Preview on Public Site"
                           >
                             <ExternalLink size={14} />
                           </button>
                           <button
                             onClick={() => onEditPost(pId)}
-                            className="btn-icon btn-secondary"
+                            className="admin-action-btn admin-action-edit"
                             title="Edit Article"
                           >
                             <Edit size={14} />
                           </button>
                           <button
                             onClick={() => setDeleteTarget(post)}
-                            className="btn-icon btn-danger"
+                            className="admin-action-btn admin-action-delete"
                             title="Delete Article"
                           >
                             <Trash2 size={14} />
@@ -529,12 +739,13 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '1.25rem 1.5rem',
-            borderTop: '1px solid var(--border-subtle)',
+            padding: '1.15rem 1.5rem',
+            borderTop: '1px solid #f1f5f9',
             flexWrap: 'wrap',
-            gap: '1rem'
+            gap: '1rem',
+            backgroundColor: '#ffffff'
           }}>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
               Showing {posts.length} of {total} articles • Page {page} of {totalPages}
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -542,16 +753,18 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
                 className="btn btn-secondary btn-sm"
+                style={{ borderColor: '#cbd5e1' }}
               >
                 <ChevronLeft size={16} /> Previous
               </button>
-              <span style={{ fontSize: '0.85rem', color: '#fff', padding: '0 0.5rem', fontWeight: 600 }}>
-                {page}
+              <span style={{ fontSize: '0.85rem', color: '#0f172a', padding: '0 0.5rem', fontWeight: 700 }}>
+                {page} / {totalPages}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
                 className="btn btn-secondary btn-sm"
+                style={{ borderColor: '#cbd5e1' }}
               >
                 Next <ChevronRight size={16} />
               </button>
@@ -560,23 +773,77 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
         )}
       </div>
 
+      {/* Lightbox / Image Preview Modal */}
+      {previewImage && (
+        <div
+          className="modal-overlay"
+          onClick={() => setPreviewImage(null)}
+          style={{ zIndex: 60 }}
+        >
+          <div
+            className="modal-dialog"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '720px', padding: 0, overflow: 'hidden', borderRadius: '16px', background: '#ffffff', border: '1px solid #cbd5e1' }}
+          >
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '1rem 1.25rem',
+              borderBottom: '1px solid #e2e8f0',
+              backgroundColor: '#f8fafc'
+            }}>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '1rem' }}>
+                Cover Image: {previewImage.title}
+              </div>
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="admin-action-btn"
+                title="Close preview"
+                style={{ width: '28px', height: '28px' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ padding: '1.25rem', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
+              <img
+                src={previewImage.url}
+                alt={previewImage.title}
+                style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: '8px' }}
+              />
+            </div>
+            <div style={{ padding: '0.85rem 1.25rem', backgroundColor: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <span style={{ fontSize: '0.78rem', color: '#64748b', wordBreak: 'break-all', maxWidth: '500px' }}>
+                {previewImage.url}
+              </span>
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="btn btn-secondary btn-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal: Single Delete Confirmation */}
       {deleteTarget && (
         <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
           <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <AlertTriangle size={18} /> Confirm Article Deletion
               </h3>
             </div>
             <div className="modal-body">
-              <p style={{ color: 'var(--text-main)', marginBottom: '0.75rem' }}>
+              <p style={{ color: '#334155', marginBottom: '0.75rem' }}>
                 Are you sure you want to permanently delete this article from MongoDB Atlas?
               </p>
-              <div style={{ padding: '0.75rem 1rem', background: 'var(--bg-main)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)', fontWeight: 600, color: '#fff' }}>
+              <div style={{ padding: '0.75rem 1rem', background: '#f8fafc', borderRadius: 'var(--radius-md)', border: '1px solid #e2e8f0', fontWeight: 600, color: '#0f172a' }}>
                 {deleteTarget.title}
               </div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.75rem' }}>
+              <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.75rem' }}>
                 This will also automatically decrement the corresponding category article count.
               </p>
             </div>
@@ -606,18 +873,18 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
         <div className="modal-overlay" onClick={() => setBulkActionTarget(null)}>
           <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: bulkActionTarget === 'delete' ? '#f87171' : '#60a5fa', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: bulkActionTarget === 'delete' ? '#dc2626' : '#2563eb', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {bulkActionTarget === 'delete' ? <AlertTriangle size={18} /> : <CheckSquare size={18} />}
                 Confirm Bulk {bulkActionTarget === 'publish' ? 'Publication' : bulkActionTarget === 'draft' ? 'Draft Move' : 'Deletion'}
               </h3>
             </div>
             <div className="modal-body">
-              <p style={{ color: 'var(--text-main)', marginBottom: '0.75rem' }}>
+              <p style={{ color: '#334155', marginBottom: '0.75rem' }}>
                 You are about to <strong>{bulkActionTarget.toUpperCase()}</strong>{' '}
-                <span style={{ color: '#60a5fa', fontWeight: 700 }}>{selectedCountDisplay}</span> article{selectedCountDisplay === 1 ? '' : 's'}.
+                <span style={{ color: '#2563eb', fontWeight: 700 }}>{selectedCountDisplay}</span> article{selectedCountDisplay === 1 ? '' : 's'}.
               </p>
               {bulkActionTarget === 'delete' && (
-                <div style={{ background: 'var(--danger-bg)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: '0.85rem' }}>
+                <div style={{ background: '#fef2f2', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.85rem' }}>
                   ⚠️ Deleting these articles will permanently remove them from the database.
                 </div>
               )}
@@ -647,17 +914,17 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
       {isDeleteAllModalOpen && (
         <div className="modal-overlay" onClick={() => setIsDeleteAllModalOpen(false)}>
           <div className="modal-dialog" style={{ maxWidth: '540px', border: '2px solid rgba(239, 68, 68, 0.6)' }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header" style={{ borderBottomColor: 'rgba(239, 68, 68, 0.3)' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className="modal-header" style={{ borderBottomColor: '#fecaca', backgroundColor: '#fff5f5' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#dc2626', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <ShieldAlert size={20} /> DANGER ZONE: Purge All Articles
               </h3>
             </div>
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', fontSize: '0.875rem', lineHeight: 1.5 }}>
+              <div style={{ background: '#fef2f2', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid #fecaca', color: '#b91c1c', fontSize: '0.875rem', lineHeight: 1.5 }}>
                 <strong>CRITICAL OPERATION:</strong> You are about to delete <strong>ALL {total} articles</strong> currently stored in the MongoDB Atlas database.
               </div>
 
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              <div style={{ fontSize: '0.85rem', color: '#64748b', lineHeight: 1.5 }}>
                 <ul style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   <li>An automatic safety snapshot of all articles will be saved to disk before deletion.</li>
                   <li>Categories, Staff accounts, Website settings, and Analytics will <strong>NOT</strong> be deleted.</li>
@@ -666,13 +933,13 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
               </div>
 
               <div>
-                <label className="form-label" style={{ color: '#fff', fontWeight: 600 }}>
-                  To confirm, type <span style={{ color: '#f87171', fontFamily: 'var(--font-mono)' }}>DELETE ALL POSTS</span> below:
+                <label className="form-label" style={{ color: '#0f172a', fontWeight: 600 }}>
+                  To confirm, type <span style={{ color: '#dc2626', fontFamily: 'var(--font-mono)' }}>DELETE ALL POSTS</span> below:
                 </label>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ fontFamily: 'var(--font-mono)', borderColor: deleteAllConfirmation === 'DELETE ALL POSTS' ? '#10b981' : 'var(--border-strong)' }}
+                  style={{ fontFamily: 'var(--font-mono)', borderColor: deleteAllConfirmation === 'DELETE ALL POSTS' ? '#10b981' : '#cbd5e1' }}
                   placeholder="DELETE ALL POSTS"
                   value={deleteAllConfirmation}
                   onChange={(e) => setDeleteAllConfirmation(e.target.value)}
@@ -680,7 +947,7 @@ export default function AdminPosts({ onNewPost, onEditPost, onPreviewPost, showT
                 />
               </div>
             </div>
-            <div className="modal-footer" style={{ borderTopColor: 'rgba(239, 68, 68, 0.3)' }}>
+            <div className="modal-footer" style={{ borderTopColor: '#f1f5f9' }}>
               <button
                 onClick={() => setIsDeleteAllModalOpen(false)}
                 className="btn btn-secondary"

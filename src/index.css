@@ -780,7 +780,9 @@ body {
 .admin-theme .data-table,
 .admin-theme .admin-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
 }
 
 .admin-theme .data-table th,
@@ -790,17 +792,80 @@ body {
   border-bottom: 1px solid #e2e8f0;
   font-size: 0.75rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.85rem 1rem;
+  white-space: nowrap;
 }
 
 .admin-theme .data-table td,
 .admin-theme .admin-table td {
+  padding: 0.85rem 1rem;
   border-bottom: 1px solid #f1f5f9;
   color: #1e293b;
+  vertical-align: middle;
+}
+
+.admin-theme .data-table tbody tr,
+.admin-theme .admin-table tbody tr {
+  transition: background-color 0.15s ease;
 }
 
 .admin-theme .data-table tbody tr:hover,
 .admin-theme .admin-table tbody tr:hover {
   background-color: #f8fafc;
+}
+
+/* Post List Specific Enhancements */
+.admin-post-title {
+  color: #0f172a;
+  text-decoration: none;
+}
+.admin-post-title:hover {
+  color: #2563eb !important;
+}
+
+.admin-post-thumb {
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.admin-post-thumb:hover {
+  transform: scale(1.04);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  border-color: #2563eb !important;
+}
+
+.admin-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+.admin-action-btn:hover {
+  transform: translateY(-1px);
+}
+.admin-action-view:hover {
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+.admin-action-edit:hover {
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+.admin-action-delete:hover {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
 }
 
 .admin-theme .form-label {

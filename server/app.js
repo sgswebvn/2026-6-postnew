@@ -6,6 +6,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 import { connectDB } from './db.js';
@@ -205,6 +206,16 @@ app.get('/api/ads.txt', adsTxtHandler);
 // Static assets & SPA fallback for traditional node servers (e.g. local dev / container)
 const distPath = path.resolve(__dirname, '../dist');
 app.use(express.static(distPath));
+
+// SPA catch-all route for frontend client navigation (like /admin, /admin/posts, /category/...)
+app.use((req, res, next) => {
+  if (req.method !== 'GET' || req.path.startsWith('/api')) return next();
+  const indexFile = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexFile)) {
+    return res.sendFile(indexFile);
+  }
+  next();
+});
 
 // Centralized Error Handler (No stack trace leakage to client)
 app.use((err, req, res, next) => {

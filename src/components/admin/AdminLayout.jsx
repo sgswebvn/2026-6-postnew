@@ -71,7 +71,7 @@ export default function AdminLayout({
             <div className="brand-icon">
               <ShieldCheck size={20} color="#fff" />
             </div>
-            <span>BlogWeb CMS</span>
+            <span>TheHorizon CMS</span>
           </div>
           <button
             className="btn-icon btn-secondary"
