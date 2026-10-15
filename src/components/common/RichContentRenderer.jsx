@@ -1,68 +1,57 @@
 import React from 'react';
+import { renderContentToHtml } from '../../utils/contentFormatter';
 
 /**
- * Parses and safely renders article content with support for:
- * - HTML headings (h2, h3)
- * - Paragraphs, lists, bold, italics, blockquotes
- * - Responsive images with captions/alt
- * - Responsive YouTube embeds (16:9 aspect ratio)
- * - In-article AdSense insertion if enabled
+ * Safe HTML sanitizer to prevent malicious script injection while preserving rich editorial formatting
  */
-// Safe HTML sanitizer to prevent malicious script injection while preserving rich editorial formatting
-function sanitizeContent(html) {
+export function sanitizeContent(html) {
   if (!html || typeof html !== 'string') return '';
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/href\s*=\s*["']\s*javascript:[^"']*["']/gi, 'href="#"');
 }
 
+/**
+ * Parses and safely renders article content with unified support for:
+ * - Markdown headings (#, ##, ###) and HTML headings (h2, h3, h4)
+ * - Markdown formatting (**bold**, *italic*, ~~strikethrough~~, `code`, links, lists, blockquotes)
+ * - Clean semantic HTML from ChatGPT and other rich sources
+ * - Responsive images with captions/alt
+ * - Responsive YouTube embeds (16:9 aspect ratio)
+ * - In-article AdSense slot insertion if enabled
+ */
 export default function RichContentRenderer({ content, adsenseConfig, enableAds }) {
   if (!content) {
-    return <p style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>No article content available.</p>;
+    return <p style={{ color: '#64748b', fontStyle: 'italic' }}>No article content available.</p>;
   }
 
-  // Check if content looks like HTML
-  const isHtml = /<[a-z][\s\S]*>/i.test(content);
+  // Convert Markdown or clean existing HTML
+  let htmlToRender = sanitizeContent(renderContentToHtml(content));
 
-  if (!isHtml) {
-    // If plain text with linebreaks, render paragraphs
-    const paragraphs = content.split(/\n\s*\n/).filter(Boolean);
-    return (
-      <div className="article-rich-body">
-        {paragraphs.map((p, idx) => (
-          <React.Fragment key={idx}>
-            <p style={{ marginBottom: '1.5rem', lineHeight: 1.8 }}>{p}</p>
-            {/* Insert in-article ad after second paragraph if enabled */}
-            {idx === 1 && enableAds && adsenseConfig?.enabled && adsenseConfig?.inArticleAd?.enabled && (
-              <div
-                className="in-article-ad-slot"
-                style={{
-                  margin: '2rem 0',
-                  padding: '1.25rem',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px dashed var(--border-strong)',
-                  borderRadius: 'var(--radius-md)',
-                  textAlign: 'center',
-                  color: 'var(--text-dim)',
-                  fontSize: '0.8rem'
-                }}
-              >
-                <span>Advertisement • AdSense Slot: {adsenseConfig.inArticleAd.slotId || 'In-Article'}</span>
-              </div>
-            )}
-          </React.Fragment>
-        ))}
+  // In-article AdSense slot insertion after second paragraph if enabled
+  if (enableAds && adsenseConfig?.enabled && adsenseConfig?.inArticleAd?.enabled) {
+    const adHtml = `
+      <div class="in-article-ad-slot" style="margin:2.25rem 0;padding:1.25rem;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;text-align:center;color:#64748b;font-size:0.85rem;">
+        <span style="display:block;font-weight:700;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.05em;font-size:0.75rem;color:#94a3b8;">Advertisement</span>
+        <span>Google AdSense Slot: ${adsenseConfig.inArticleAd.slotId || 'In-Article'}</span>
       </div>
-    );
+    `;
+    let pCount = 0;
+    htmlToRender = htmlToRender.replace(/<\/p>/gi, (match) => {
+      pCount++;
+      if (pCount === 2) {
+        return match + '\n' + adHtml;
+      }
+      return match;
+    });
   }
 
-  // Content contains HTML (including <img> and YouTube iframes)
-  const cleanHtml = sanitizeContent(content);
   return (
     <div
       className="article-rich-body"
-      dangerouslySetInnerHTML={{ __html: cleanHtml }}
+      dangerouslySetInnerHTML={{ __html: htmlToRender }}
     />
   );
 }

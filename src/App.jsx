@@ -24,6 +24,7 @@ import CookiePolicyPage from './components/public/CookiePolicyPage';
 import NotFoundPage from './components/public/NotFoundPage';
 import ScriptInjector from './components/public/ScriptInjector';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 export default function App() {
@@ -296,12 +297,14 @@ export default function App() {
           )}
 
           {activeTab === 'post-form' && (
-            <AdminPostForm
-              postId={targetPostId}
-              onBack={() => navigate('/admin/posts')}
-              onSuccess={() => navigate('/admin/posts')}
-              showToast={showToast}
-            />
+            <ErrorBoundary title="Article Editor Encountered an Issue" message="Your draft content has been safely preserved in browser memory. Click below to recover the editor view.">
+              <AdminPostForm
+                postId={targetPostId}
+                onBack={() => navigate('/admin/posts')}
+                onSuccess={() => navigate('/admin/posts')}
+                showToast={showToast}
+              />
+            </ErrorBoundary>
           )}
 
           {activeTab === 'categories' && (
@@ -396,7 +399,9 @@ export default function App() {
         onNavigate={navigate}
       />
       <main style={{ minHeight: 'calc(100vh - 280px)', backgroundColor: '#ffffff' }}>
-        {publicContent}
+        <ErrorBoundary title="Content Display Notice" message="Unable to display this content block properly. Please refresh or navigate back.">
+          {publicContent}
+        </ErrorBoundary>
       </main>
       <PublicFooter
         settings={settings}

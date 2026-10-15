@@ -30,12 +30,15 @@ import {
   Tag as TagIcon
 } from 'lucide-react';
 import RichContentRenderer from '../common/RichContentRenderer';
+import ErrorBoundary from '../common/ErrorBoundary';
+import { processPastedContent } from '../../utils/contentFormatter';
 
 export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingClipboard, setUploadingClipboard] = useState(false);
+  const [uploadingCount, setUploadingCount] = useState(0);
   const [categories, setCategories] = useState([]);
   const [manualSlug, setManualSlug] = useState(false);
 
@@ -161,9 +164,9 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       return;
     }
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const currentVal = textarea.value;
+    const start = textarea.selectionStart ?? (textarea.value || '').length;
+    const end = textarea.selectionEnd ?? (textarea.value || '').length;
+    const currentVal = textarea.value ?? form.content ?? '';
 
     const before = currentVal.substring(0, start);
     const after = currentVal.substring(end, currentVal.length);
@@ -172,9 +175,56 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     setForm(f => ({ ...f, content: newVal }));
 
     setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + textToInsert.length, start + textToInsert.length);
-    }, 0);
+      if (editorRef.current) {
+        editorRef.current.focus();
+        const nextPos = start + textToInsert.length;
+        editorRef.current.setSelectionRange(nextPos, nextPos);
+      }
+    }, 10);
+  }
+
+  // Helper to replace an upload placeholder token in content state
+  function replaceContentPlaceholder(uploadId, replacementText) {
+    setForm(prev => {
+      const current = prev.content || '';
+      const tokenRegex = new RegExp(`<!--\\s*UPLOADING:${uploadId}\\s*-->[\\s\\S]*?<!--\\s*\\/UPLOADING:${uploadId}\\s*-->`, 'g');
+      if (tokenRegex.test(current)) {
+        return { ...prev, content: current.replace(tokenRegex, replacementText) };
+      }
+      // If token wasn't found (e.g. user selected it and typed over it), append if non-empty
+      if (replacementText) {
+        return { ...prev, content: current + '\n' + replacementText };
+      }
+      return prev;
+    });
+  }
+
+  // Upload pasted or inserted image file to Supabase Storage with placeholder
+  async function uploadPastedImageFile(file, uploadId) {
+    setUploadingClipboard(true);
+    setUploadingCount(c => c + 1);
+
+    try {
+      const res = await api.uploadImage(file);
+      if (res && res.url) {
+        const finalImgTag = `\n<p><img src="${res.url}" alt="${file.name || 'Article illustration'}" style="max-width:100%;height:auto;border-radius:10px;margin:1.75rem auto;display:block;" /></p>\n`;
+        replaceContentPlaceholder(uploadId, finalImgTag);
+        showToast(`Image "${file.name || 'Pasted image'}" uploaded successfully!`, 'success');
+      } else {
+        throw new Error('Cloud storage returned no image URL');
+      }
+    } catch (err) {
+      console.error('[Image Upload Failure]', err);
+      // Remove placeholder, keep all user draft text safe
+      replaceContentPlaceholder(uploadId, '');
+      showToast(`Failed to upload image: ${err.message}. Your text has been preserved.`, 'error');
+    } finally {
+      setUploadingCount(c => {
+        const next = Math.max(0, c - 1);
+        if (next === 0) setUploadingClipboard(false);
+        return next;
+      });
+    }
   }
 
   // Parse YouTube video ID
@@ -205,89 +255,102 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     return `\n<div class="video-container" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin:2rem 0;"><iframe src="https://www.youtube-nocookie.com/embed/${videoId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe></div>\n`;
   }
 
-  // Paste Event Handler (Images & YouTube auto-embed)
+  // Paste Event Handler (Images, YouTube embeds, ChatGPT rich HTML, and Markdown)
   async function handleEditorPaste(e) {
     const clipboardData = e.clipboardData;
     if (!clipboardData) return;
 
-    // A. Check if user pasted an image file from clipboard
-    const items = clipboardData.items;
-    let imageItem = null;
-
-    if (items) {
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type && items[i].type.startsWith('image/')) {
-          imageItem = items[i];
-          break;
+    // 1. Gather any image files from clipboardData.files or items
+    const imageFiles = [];
+    if (clipboardData.files && clipboardData.files.length > 0) {
+      for (let i = 0; i < clipboardData.files.length; i++) {
+        const f = clipboardData.files[i];
+        if (f.type && f.type.startsWith('image/')) {
+          imageFiles.push(f);
+        }
+      }
+    }
+    if (imageFiles.length === 0 && clipboardData.items && clipboardData.items.length > 0) {
+      for (let i = 0; i < clipboardData.items.length; i++) {
+        const item = clipboardData.items[i];
+        if (item.type && item.type.startsWith('image/')) {
+          const f = item.getAsFile();
+          if (f) imageFiles.push(f);
         }
       }
     }
 
-    if (imageItem) {
+    // A. If user pasted image file(s)
+    if (imageFiles.length > 0) {
       e.preventDefault();
-      const file = imageItem.getAsFile();
-      if (!file) return;
+      const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
-      if (file.size > 5 * 1024 * 1024) {
-        showToast('Pasted image size exceeds 5MB limit.', 'error');
-        return;
-      }
-
-      setUploadingClipboard(true);
-      showToast('Uploading clipboard image to Supabase Storage...', 'info');
-
-      try {
-        const res = await api.uploadImage(file);
-        if (res && res.url) {
-          const imgTag = `\n<p><img src="${res.url}" alt="Article illustration" style="max-width:100%;height:auto;border-radius:10px;margin:1.75rem auto;display:block;" /></p>\n`;
-          insertAtCursor(imgTag);
-          showToast('Image inserted at cursor position!', 'success');
+      for (const file of imageFiles) {
+        if (file.size > 5 * 1024 * 1024) {
+          showToast(`Image "${file.name || 'Pasted image'}" exceeds 5MB size limit.`, 'error');
+          continue;
         }
-      } catch (err) {
-        showToast('Failed to upload pasted image: ' + err.message, 'error');
-      } finally {
-        setUploadingClipboard(false);
+        if (file.type && !allowedMimes.includes(file.type)) {
+          showToast(`Unsupported format "${file.type}". Allowed: JPG, PNG, WEBP, GIF.`, 'error');
+          continue;
+        }
+
+        const uploadId = 'img_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        const placeholder = `\n<!-- UPLOADING:${uploadId} -->\n<p style="padding:0.75rem 1rem;background:#f8fafc;border:1px dashed #93c5fd;border-radius:8px;color:#2563eb;font-size:0.875rem;margin:1.5rem 0;">🖼️ Uploading ${file.name || 'image'} to Supabase Storage...</p>\n<!-- /UPLOADING:${uploadId} -->\n`;
+        insertAtCursor(placeholder);
+
+        uploadPastedImageFile(file, uploadId);
       }
       return;
     }
 
     // B. Check if user pasted a YouTube link
-    const text = clipboardData.getData('text/plain');
-    if (text) {
-      const ytId = extractYouTubeId(text);
+    const textData = clipboardData.getData('text/plain') || '';
+    const trimmedText = textData.trim();
+    if (trimmedText && (trimmedText.startsWith('http://') || trimmedText.startsWith('https://')) && !trimmedText.includes('\n')) {
+      const ytId = extractYouTubeId(trimmedText);
       if (ytId) {
         e.preventDefault();
         const embedHtml = createYouTubeEmbedHtml(ytId);
         insertAtCursor(embedHtml);
         showToast('YouTube video embedded at cursor position!', 'success');
+        return;
       }
+    }
+
+    // C. Process formatted text / ChatGPT rich HTML / Markdown
+    const formatted = processPastedContent(clipboardData);
+    if (formatted) {
+      e.preventDefault();
+      insertAtCursor(formatted);
+      showToast('Pasted content formatted and inserted!', 'info');
     }
   }
 
-  // Upload image to content at cursor
+  // Upload image to content at cursor via toolbar button
   async function handleInContentImageUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
       showToast('Image file size must be less than 5MB.', 'error');
+      if (inContentImageInputRef.current) inContentImageInputRef.current.value = '';
       return;
     }
 
-    setUploadingClipboard(true);
-    try {
-      const res = await api.uploadImage(file);
-      if (res && res.url) {
-        const imgTag = `\n<p><img src="${res.url}" alt="${file.name || 'Image'}" style="max-width:100%;height:auto;border-radius:10px;margin:1.75rem auto;display:block;" /></p>\n`;
-        insertAtCursor(imgTag);
-        showToast('Image inserted at cursor position!', 'success');
-      }
-    } catch (err) {
-      showToast('Failed to upload image: ' + err.message, 'error');
-    } finally {
-      setUploadingClipboard(false);
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (file.type && !allowedMimes.includes(file.type)) {
+      showToast(`Unsupported format "${file.type}". Allowed: JPG, PNG, WEBP, GIF.`, 'error');
       if (inContentImageInputRef.current) inContentImageInputRef.current.value = '';
+      return;
     }
+
+    const uploadId = 'btn_img_' + Date.now();
+    const placeholder = `\n<!-- UPLOADING:${uploadId} -->\n<p style="padding:0.75rem 1rem;background:#f8fafc;border:1px dashed #93c5fd;border-radius:8px;color:#2563eb;font-size:0.875rem;margin:1.5rem 0;">🖼️ Uploading ${file.name || 'image'} to Supabase Storage...</p>\n<!-- /UPLOADING:${uploadId} -->\n`;
+    insertAtCursor(placeholder);
+
+    uploadPastedImageFile(file, uploadId);
+    if (inContentImageInputRef.current) inContentImageInputRef.current.value = '';
   }
 
   // Toolbar actions
@@ -365,6 +428,11 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
   async function handleSubmit(targetStatus) {
     if (!form.title.trim()) {
       showToast('Please provide a post title.', 'error');
+      return;
+    }
+
+    if (uploadingClipboard || uploadingCount > 0 || (form.content && form.content.includes('<!-- UPLOADING:'))) {
+      showToast('Please wait for active image uploads to complete before saving.', 'warning');
       return;
     }
 
@@ -871,9 +939,9 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
         </div>
       </div>
 
-      {/* FULL-FIDELITY PREVIEW MODAL (Requirement 5) */}
+      {/* FULL-FIDELITY PREVIEW MODAL (White UI Matching Public Site) */}
       {showPreviewModal && (
-        <div className="modal-overlay" onClick={() => setShowPreviewModal(false)} style={{ zIndex: 100, padding: '1rem' }}>
+        <div className="modal-overlay" onClick={() => setShowPreviewModal(false)} style={{ zIndex: 100, padding: '1rem', backgroundColor: 'rgba(15, 23, 42, 0.45)' }}>
           <div
             className="modal-dialog"
             style={{
@@ -882,10 +950,10 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
               maxHeight: '92vh',
               overflowY: 'auto',
               borderRadius: '16px',
-              background: '#0a0f1d',
-              color: '#f8fafc',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+              background: '#ffffff',
+              color: '#0f172a',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -895,18 +963,17 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '1rem 1.5rem',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-              background: 'rgba(255, 255, 255, 0.02)',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#f8fafc',
               position: 'sticky',
               top: 0,
-              zIndex: 10,
-              backdropFilter: 'blur(8px)'
+              zIndex: 10
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span className="badge badge-published" style={{ background: '#2563eb', color: '#ffffff' }}>
+                <span className="badge badge-published" style={{ background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}>
                   Live Reader Preview
                 </span>
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
                   Slug: /{form.slug || 'preview'}
                 </span>
               </div>
@@ -916,7 +983,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
                   type="button"
                   className="btn btn-secondary btn-sm"
                   onClick={() => setShowPreviewModal(false)}
-                  style={{ background: 'rgba(255, 255, 255, 0.1)', color: '#ffffff', borderColor: 'rgba(255, 255, 255, 0.2)' }}
+                  style={{ background: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1' }}
                 >
                   <ArrowLeft size={14} />
                   <span>Back to Editor</span>
@@ -925,9 +992,9 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
             </div>
 
             {/* Modal Body: Identical to public PostDetailPage.jsx layout */}
-            <article style={{ padding: '2rem 2.5rem 3.5rem' }}>
+            <article style={{ padding: '2rem 2.5rem 3.5rem', backgroundColor: '#ffffff' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-                <span className="badge badge-published" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid #10b981' }}>
+                <span className="badge badge-published" style={{ background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}>
                   {categories.find(c => c.id === form.categoryId)?.name || 'General'}
                 </span>
                 <span className={`badge ${form.status === 'published' ? 'badge-published' : 'badge-draft'}`}>
@@ -938,7 +1005,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
               <h1 style={{
                 fontSize: 'clamp(1.75rem, 3.5vw, 2.35rem)',
                 fontWeight: 800,
-                color: '#ffffff',
+                color: '#0f172a',
                 lineHeight: 1.3,
                 marginBottom: '1.25rem',
                 letterSpacing: '-0.02em'
@@ -946,24 +1013,24 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
                 {form.title || 'Untitled Article'}
               </h1>
 
-              {/* Metadata Bar (No author - matches public site) */}
+              {/* Metadata Bar */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '1.25rem',
-                color: '#94a3b8',
+                color: '#64748b',
                 fontSize: '0.85rem',
                 paddingBottom: '1.25rem',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                borderBottom: '1px solid #e2e8f0',
                 marginBottom: '2rem'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <Calendar size={15} />
-                  <span>{new Date().toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  <span>{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <Eye size={15} />
-                  <span>Preview Mode (0 views)</span>
+                  <span>Preview Mode</span>
                 </div>
               </div>
 
@@ -974,7 +1041,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
                   overflow: 'hidden',
                   marginBottom: '2.5rem',
                   maxHeight: '440px',
-                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                  border: '1px solid #e2e8f0'
                 }}>
                   <img
                     src={form.coverImage}
@@ -988,13 +1055,13 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
               {form.excerpt && (
                 <div style={{
                   fontSize: '1.15rem',
-                  color: '#e2e8f0',
+                  color: '#334155',
                   lineHeight: 1.6,
                   fontStyle: 'italic',
                   marginBottom: '2.5rem',
                   paddingLeft: '1.5rem',
-                  borderLeft: '4px solid #3b82f6',
-                  background: 'rgba(59, 130, 246, 0.05)',
+                  borderLeft: '4px solid #2563eb',
+                  background: '#f8fafc',
                   padding: '1.25rem 1.5rem',
                   borderRadius: '0 8px 8px 0'
                 }}>
@@ -1003,16 +1070,18 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
               )}
 
               {/* Main Content Body */}
-              <div style={{ color: '#cbd5e1', marginBottom: '2.5rem' }}>
-                <RichContentRenderer content={form.content} />
+              <div style={{ color: '#0f172a', marginBottom: '2.5rem' }}>
+                <ErrorBoundary title="Preview Render Notice" message="Unable to render preview for current draft. Your content is safe.">
+                  <RichContentRenderer content={form.content} />
+                </ErrorBoundary>
               </div>
 
               {/* Tags */}
               {form.tags && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '1.5rem', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
                   <TagIcon size={15} color="#94a3b8" />
                   {form.tags.split(',').map((tag, idx) => (
-                    <span key={idx} className="badge" style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#94a3b8' }}>
+                    <span key={idx} className="badge" style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>
                       #{tag.trim()}
                     </span>
                   ))}
@@ -1026,14 +1095,14 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
               justifyContent: 'flex-end',
               gap: '0.75rem',
               padding: '1rem 1.5rem',
-              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-              background: 'rgba(255, 255, 255, 0.02)'
+              borderTop: '1px solid #e2e8f0',
+              background: '#f8fafc'
             }}>
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => setShowPreviewModal(false)}
-                style={{ background: 'rgba(255, 255, 255, 0.1)', color: '#ffffff', borderColor: 'rgba(255, 255, 255, 0.2)' }}
+                style={{ background: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1' }}
               >
                 Close Preview & Continue Editing
               </button>

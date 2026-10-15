@@ -529,8 +529,13 @@ router.post('/posts/delete-all', requireAdmin, async (req, res) => {
 
 router.get('/posts/:id', async (req, res) => {
   try {
+    const isMongoId = mongoose.isValidObjectId(req.params.id);
     const post = await Post.findOne({
-      $or: [{ id: req.params.id }, { slug: req.params.id }]
+      $or: [
+        { id: req.params.id },
+        { slug: req.params.id },
+        ...(isMongoId ? [{ _id: req.params.id }] : [])
+      ]
     });
 
     if (!post) {
@@ -612,8 +617,13 @@ router.post('/posts', async (req, res) => {
 
 router.put('/posts/:id', async (req, res) => {
   try {
+    const isMongoId = mongoose.isValidObjectId(req.params.id);
     const post = await Post.findOne({
-      $or: [{ id: req.params.id }, { slug: req.params.id }]
+      $or: [
+        { id: req.params.id },
+        { slug: req.params.id },
+        ...(isMongoId ? [{ _id: req.params.id }] : [])
+      ]
     });
 
     if (!post) {
@@ -684,8 +694,13 @@ router.put('/posts/:id', async (req, res) => {
 
 router.delete('/posts/:id', async (req, res) => {
   try {
+    const isMongoId = mongoose.isValidObjectId(req.params.id);
     const post = await Post.findOneAndDelete({
-      $or: [{ id: req.params.id }, { slug: req.params.id }]
+      $or: [
+        { id: req.params.id },
+        { slug: req.params.id },
+        ...(isMongoId ? [{ _id: req.params.id }] : [])
+      ]
     });
 
     if (!post) {
@@ -706,8 +721,13 @@ router.delete('/posts/:id', async (req, res) => {
 
 router.patch('/posts/:id/status', async (req, res) => {
   try {
+    const isMongoId = mongoose.isValidObjectId(req.params.id);
     const post = await Post.findOne({
-      $or: [{ id: req.params.id }, { slug: req.params.id }]
+      $or: [
+        { id: req.params.id },
+        { slug: req.params.id },
+        ...(isMongoId ? [{ _id: req.params.id }] : [])
+      ]
     });
 
     if (!post) {
@@ -1192,14 +1212,21 @@ router.post('/upload', async (req, res) => {
       return res.status(400).json({ error: 'Invalid file format. Allowed: JPG, PNG, WEBP, GIF.' });
     }
 
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const commaIdx = imageBase64.indexOf(',');
+    const base64Data = commaIdx !== -1 ? imageBase64.substring(commaIdx + 1) : imageBase64;
     const buffer = Buffer.from(base64Data, 'base64');
 
     if (buffer.length > 5 * 1024 * 1024) {
       return res.status(400).json({ error: 'Image size exceeds maximum limit of 5MB.' });
     }
 
-    const ext = type.split('/')[1] || 'webp';
+    const extMap = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'image/gif': 'gif'
+    };
+    const ext = extMap[type] || 'webp';
     const cleanName = `img_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
     const filePath = `uploads/${cleanName}`;
 

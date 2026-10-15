@@ -197,9 +197,6 @@ export default function HomePage({ onSelectPost, onNavigate, settings }) {
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
             {selectedCat ? `${categories.find(c => c.id === selectedCat || c.slug === selectedCat)?.name || 'Category'} Articles` : 'Latest Articles'}
           </h2>
-          <div style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            {total} published report{total === 1 ? '' : 's'} available
-          </div>
         </div>
       </div>
 
@@ -342,11 +339,6 @@ export default function HomePage({ onSelectPost, onNavigate, settings }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                     <Calendar size={13} />
                     <span>{new Date(post.publishedAt || post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Eye size={13} />
-                    <span>{(post.views || 0).toLocaleString()} views</span>
                   </div>
                 </div>
               </div>

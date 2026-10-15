@@ -127,6 +127,9 @@ export const api = {
   // Image Upload via Supabase Storage
   uploadImage: async (file) => {
     return new Promise((resolve, reject) => {
+      if (!file) {
+        return reject(new Error('No file provided for upload.'));
+      }
       const reader = new FileReader();
       reader.onload = async () => {
         try {
@@ -134,8 +137,8 @@ export const api = {
             method: 'POST',
             body: {
               imageBase64: reader.result,
-              fileName: file.name,
-              mimeType: file.type || 'image/webp'
+              fileName: file.name || `image_${Date.now()}.png`,
+              mimeType: file.type || 'image/png'
             }
           });
           resolve(res);
@@ -143,7 +146,7 @@ export const api = {
           reject(err);
         }
       };
-      reader.onerror = () => reject(new Error('Failed to read file buffer'));
+      reader.onerror = () => reject(new Error('Failed to read file buffer.'));
       reader.readAsDataURL(file);
     });
   },
