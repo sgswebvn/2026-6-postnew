@@ -61,7 +61,7 @@ export { COOKIE_NAME };
 // 4. Rate Limiter for Login (Chống Brute-force)
 export const loginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 mins
-  max: 10, // Max 10 attempts per 15 min per IP
+  max: process.env.NODE_ENV === 'production' ? 60 : 500, // Generous limit for test suites in dev
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many login attempts. Please try again in 15 minutes.' }

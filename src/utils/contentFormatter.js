@@ -2,15 +2,140 @@
  * Content Formatter & Markdown Engine for TheHorizon
  * Provides:
  * - Robust Markdown to HTML conversion
+ * - YouTube Video URL parser & 16:9 / Shorts responsive embed generator
+ * - Image URL validator & responsive figure/img embed generator
  * - Clipboard HTML cleaner (ChatGPT, Notion, Google Docs)
- * - Safe HTML sanitizer (XSS protection)
- * - Image & media embedding helpers
+ * - Safe HTML sanitizer (XSS protection & strict iframe domain restriction)
+ * - Automatic conversion of standalone media URLs (backward compatibility)
  */
 
-// Safe HTML sanitizer
+/**
+ * Extracts a valid 11-character YouTube video ID from any standard YouTube URL
+ * Supported formats:
+ * - https://www.youtube.com/watch?v=VIDEO_ID (with optional query parameters)
+ * - https://youtu.be/VIDEO_ID
+ * - https://www.youtube.com/shorts/VIDEO_ID
+ * - https://www.youtube.com/embed/VIDEO_ID
+ * - https://m.youtube.com/...
+ */
+export function extractYouTubeId(url) {
+  if (!url || typeof url !== 'string') return null;
+  const str = url.trim();
+
+  // If already an 11-char ID
+  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) {
+    return str;
+  }
+
+  // Check if string contains YouTube host
+  if (!/(?:youtube(?:-nocookie)?\.com|youtu\.be)/i.test(str)) {
+    return null;
+  }
+
+  try {
+    // 1. Shortened youtu.be/VIDEO_ID
+    const shortMatch = str.match(/(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+    if (shortMatch) return shortMatch[1];
+
+    // 2. YouTube Shorts: youtube.com/shorts/VIDEO_ID
+    const shortsMatch = str.match(/(?:youtube(?:-nocookie)?\.com\/shorts\/)([a-zA-Z0-9_-]{11})/i);
+    if (shortsMatch) return shortsMatch[1];
+
+    // 3. YouTube Embed: youtube.com/embed/VIDEO_ID
+    const embedMatch = str.match(/(?:youtube(?:-nocookie)?\.com\/embed\/)([a-zA-Z0-9_-]{11})/i);
+    if (embedMatch) return embedMatch[1];
+
+    // 4. Standard watch: youtube.com/watch?v=VIDEO_ID (supports any query param order)
+    const watchMatch = str.match(/(?:youtube(?:-nocookie)?\.com\/watch\?[^#\s]*\bv=)([a-zA-Z0-9_-]{11})/i);
+    if (watchMatch) return watchMatch[1];
+
+    // 5. Alternate watch paths: youtube.com/v/VIDEO_ID or youtube.com/live/VIDEO_ID
+    const altMatch = str.match(/(?:youtube(?:-nocookie)?\.com\/(?:v|live)\/)([a-zA-Z0-9_-]{11})/i);
+    if (altMatch) return altMatch[1];
+  } catch (e) {
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Checks if a YouTube URL is specifically a YouTube Shorts video
+ */
+export function isYouTubeShortsUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  return /youtube(?:-nocookie)?\.com\/shorts\//i.test(url);
+}
+
+/**
+ * Creates responsive HTML embed code for a YouTube video
+ * - Standard videos: 16:9 aspect ratio
+ * - YouTube Shorts: vertical 9:16 layout, max-width 380px centered
+ * Uses secure https://www.youtube-nocookie.com domain
+ */
+export function createYouTubeEmbed(urlOrId, options = {}) {
+  const videoId = extractYouTubeId(urlOrId);
+  if (!videoId) return null;
+
+  const isShorts = options.isShorts || isYouTubeShortsUrl(urlOrId);
+
+  if (isShorts) {
+    return `\n<div class="youtube-shorts-wrapper" contenteditable="false" style="max-width:380px;margin:2rem auto;text-align:center;">
+  <div class="video-container video-shorts" style="position:relative;padding-bottom:177.77%;height:0;overflow:hidden;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.12);background:#000;">
+    <iframe src="https://www.youtube-nocookie.com/embed/${videoId}" title="YouTube Shorts player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe>
+  </div>
+</div>\n`;
+  }
+
+  return `\n<div class="video-container" contenteditable="false" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin:2rem 0;box-shadow:0 6px 18px rgba(0,0,0,0.08);background:#000;">
+  <iframe src="https://www.youtube-nocookie.com/embed/${videoId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe>
+</div>\n`;
+}
+
+/**
+ * Validates whether a string is a valid direct image URL
+ */
+export function isValidImageUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+
+  // Protocol check
+  if (!/^https?:\/\//i.test(trimmed) && !trimmed.startsWith('/')) {
+    return false;
+  }
+
+  // Extensions check (with optional query string)
+  const hasImageExt = /\.(jpe?g|png|webp|gif|svg|avif)(\?.*)?$/i.test(trimmed);
+  // Known verified cloud storage hosts (Supabase, Unsplash, Cloudinary, Imgur, etc.)
+  const isImageHosting = /(?:supabase\.co\/storage|images\.unsplash\.com|res\.cloudinary\.com|i\.imgur\.com|media\.giphy\.com)/i.test(trimmed);
+
+  return hasImageExt || isImageHosting;
+}
+
+/**
+ * Creates responsive HTML embed code for an image
+ * Includes loading="lazy", non-distorting responsive CSS, and graceful error fallback
+ */
+export function createImageEmbed(url, alt = 'Article illustration', caption = '') {
+  if (!url || typeof url !== 'string') return '';
+  const cleanUrl = url.trim();
+  const cleanAlt = (alt || 'Article illustration').replace(/"/g, '&quot;');
+  const cleanCaption = caption
+    ? `<figcaption style="text-align:center;font-size:0.85rem;color:#64748b;margin-top:0.5rem;font-style:italic;">${caption.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</figcaption>`
+    : '';
+
+  return `\n<figure class="article-image-block" contenteditable="false" style="margin:2rem auto;text-align:center;max-width:100%;">
+  <img src="${cleanUrl}" alt="${cleanAlt}" loading="lazy" style="max-width:100%;height:auto;border-radius:10px;margin:0 auto;display:block;box-shadow:0 4px 12px rgba(0,0,0,0.06);" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\\'padding:1.25rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:0.875rem;\\'>⚠️ Image failed to load: ${cleanUrl}</div>';" />${cleanCaption}
+</figure>\n`;
+}
+
+/**
+ * Safe HTML sanitizer to prevent malicious script injection while preserving rich editorial formatting.
+ * Strictly enforces that iframes are ONLY from authorized YouTube domains (youtube-nocookie.com / youtube.com).
+ */
 export function sanitizeHtml(html) {
   if (!html || typeof html !== 'string') return '';
-  return html
+  let sanitized = html
     // Remove script tags and contents
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     // Remove style tags and contents that might hijack theme
@@ -21,6 +146,19 @@ export function sanitizeHtml(html) {
     .replace(/href\s*=\s*["']\s*javascript:[^"']*["']/gi, 'href="#"')
     // Neutralize data: links except for safe image previews
     .replace(/href\s*=\s*["']\s*data:[^"']*["']/gi, 'href="#"');
+
+  // Strict iframe domain filter: Match each iframe tag, extract src, keep ONLY if valid YouTube ID!
+  sanitized = sanitized.replace(/<iframe\b([^>]*)>([\s\S]*?)<\/iframe>/gi, (match, attrs) => {
+    const srcMatch = attrs.match(/\bsrc=["']([^"']*)["']/i);
+    const src = srcMatch ? srcMatch[1] : '';
+    const ytId = extractYouTubeId(src);
+    if (ytId) {
+      return `<iframe src="https://www.youtube-nocookie.com/embed/${ytId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe>`;
+    }
+    return `<!-- Blocked unauthorized iframe: only YouTube embeds are permitted -->`;
+  });
+
+  return sanitized;
 }
 
 export const sanitizeContent = sanitizeHtml;
@@ -30,12 +168,11 @@ export const sanitizeContent = sanitizeHtml;
  */
 export function hasMarkdownSyntax(text) {
   if (!text || typeof text !== 'string') return false;
-  // Look for headings (# ), bold (** or __), italic (* or _), lists (- , * , 1. ), blockquotes (> ), links ([text](url)), code (` or ```)
   const mdPatterns = [
     /^#{1,6}\s+\S+/m,            // Heading: # H1, ## H2, etc.
     /\*\*[^*]+?\*\*/,             // Bold: **text**
     /__[^_]+?__/,                 // Bold: __text__
-    /(?:^|[^\w*])\*[^* \t\n][^*]*?\*(?:[^\w*]|$)/, // Italic: *text* (not surrounded by word chars or empty)
+    /(?:^|[^\w*])\*[^* \t\n][^*]*?\*(?:[^\w*]|$)/, // Italic: *text*
     /(?:^|[^\w_])_[^_ \t\n][^_]*?_(?:[^\w_]|$)/,   // Italic: _text_
     /~~[^~]+?~~/,                 // Strikethrough: ~~text~~
     /`[^`\n]+`/,                  // Inline code: `code`
@@ -50,12 +187,56 @@ export function hasMarkdownSyntax(text) {
 }
 
 /**
+ * Converts standalone YouTube URLs and standalone Image URLs into rich responsive embeds
+ * Provides backward compatibility for older articles that stored URLs as plain text
+ */
+export function convertStandaloneMediaUrls(content) {
+  if (!content || typeof content !== 'string') return '';
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+
+  const processedLines = lines.map(line => {
+    const trimmed = line.trim();
+
+    // 1. Check if line is wrapped in <p>...</p> or <p><a href="...">...</a></p>
+    const pLinkMatch = trimmed.match(/^<p>\s*(?:<a\s+[^>]*href=["']([^"']*)["'][^>]*>)?\s*(https?:\/\/[^\s<"']+)\s*(?:<\/a>)?\s*<\/p>$/i);
+    if (pLinkMatch) {
+      const targetUrl = pLinkMatch[1] || pLinkMatch[2];
+      const ytId = extractYouTubeId(targetUrl);
+      if (ytId) {
+        return createYouTubeEmbed(targetUrl);
+      }
+      if (isValidImageUrl(targetUrl)) {
+        return createImageEmbed(targetUrl, 'Article illustration');
+      }
+    }
+
+    // 2. Check if line is a standalone URL (without <p>)
+    if (/^https?:\/\/[^\s<"']+$/i.test(trimmed)) {
+      const ytId = extractYouTubeId(trimmed);
+      if (ytId) {
+        return createYouTubeEmbed(trimmed);
+      }
+      if (isValidImageUrl(trimmed)) {
+        return createImageEmbed(trimmed, 'Article illustration');
+      }
+    }
+
+    return line;
+  });
+
+  return processedLines.join('\n');
+}
+
+/**
  * Converts Markdown string into clean, semantic HTML
  */
 export function markdownToHtml(md) {
   if (!md || typeof md !== 'string') return '';
 
-  let lines = md.replace(/\r\n/g, '\n').split('\n');
+  // First convert standalone YouTube and Image URLs
+  let processedMd = convertStandaloneMediaUrls(md);
+
+  let lines = processedMd.replace(/\r\n/g, '\n').split('\n');
   let htmlBlocks = [];
   let inCodeBlock = false;
   let codeBlockLang = '';
@@ -78,7 +259,7 @@ export function markdownToHtml(md) {
     if (currentParagraph.length > 0) {
       const paraText = currentParagraph.join(' ').trim();
       if (paraText) {
-        // If paragraph already consists solely of an HTML block element (like <div class="video-container"> or <img> or <blockquote>), don't wrap in <p>
+        // If paragraph already consists solely of an HTML block element, don't wrap in <p>
         if (/^<(div|blockquote|table|figure|p|ul|ol|h[1-6]|iframe)[\s>]/i.test(paraText) && /<\/(div|blockquote|table|figure|p|ul|ol|h[1-6]|iframe)>$/i.test(paraText)) {
           htmlBlocks.push(paraText);
         } else {
@@ -96,7 +277,6 @@ export function markdownToHtml(md) {
     // 1. Fenced Code Block start/end
     if (trimmed.startsWith('```')) {
       if (inCodeBlock) {
-        // Closing code block
         const escapedCode = codeBlockLines.join('\n')
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
@@ -106,7 +286,6 @@ export function markdownToHtml(md) {
         codeBlockLines = [];
         codeBlockLang = '';
       } else {
-        // Opening code block
         flushParagraph();
         flushList();
         inCodeBlock = true;
@@ -128,13 +307,12 @@ export function markdownToHtml(md) {
       continue;
     }
 
-    // 3. Headings: # -> h2 (for article hierarchy), ## -> h2, ### -> h3, #### -> h4
+    // 3. Headings: # -> h2, ## -> h2, ### -> h3, #### -> h4
     const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
     if (headingMatch) {
       flushParagraph();
       flushList();
       const level = headingMatch[1].length;
-      // Map # to h2 (since h1 is page title), ## to h2, ### to h3, etc.
       const tag = level <= 2 ? 'h2' : (level === 3 ? 'h3' : 'h4');
       htmlBlocks.push(`<${tag}>${formatInline(headingMatch[2].trim())}</${tag}>`);
       continue;
@@ -186,7 +364,7 @@ export function markdownToHtml(md) {
     if (imgOnlyMatch) {
       flushParagraph();
       flushList();
-      htmlBlocks.push(`<p><img src="${imgOnlyMatch[2]}" alt="${imgOnlyMatch[1] || 'Image'}" style="max-width:100%;height:auto;border-radius:10px;margin:1.75rem auto;display:block;" /></p>`);
+      htmlBlocks.push(createImageEmbed(imgOnlyMatch[2], imgOnlyMatch[1] || 'Image'));
       continue;
     }
 
@@ -202,7 +380,6 @@ export function markdownToHtml(md) {
     currentParagraph.push(trimmed);
   }
 
-  // Flush remaining buffers
   if (inCodeBlock) {
     const escapedCode = codeBlockLines.join('\n')
       .replace(/&/g, '&amp;')
@@ -230,7 +407,6 @@ export function formatInline(text) {
 
   let out = text;
 
-  // Protect already existing HTML tags by temporarily masking them or handling them safely
   // 1. Inline code: `code`
   out = out.replace(/`([^`\n]+)`/g, (m, code) => {
     const safe = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -247,7 +423,7 @@ export function formatInline(text) {
     return `<a href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>`;
   });
 
-  // 4. Bold: **text** or __text__ (non-greedy, at least 1 character)
+  // 4. Bold: **text** or __text__
   out = out.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/__([^_\n]+?)__/g, '<strong>$1</strong>');
 
@@ -255,7 +431,6 @@ export function formatInline(text) {
   out = out.replace(/~~([^~\n]+?)~~/g, '<strong><del>$1</del></strong>');
 
   // 6. Italic: *text* or _text_
-  // Note: Only match when preceded and followed by non-word or space, to avoid messing up math (e.g. 2 * 3) or snake_case_variables
   out = out.replace(/(^|[^\w*])\*([^*\n\s][^*\n]*?)\*(?=[^\w*]|$)/g, '$1<em>$2</em>');
   out = out.replace(/(^|[^\w_])_([^_\n\s][^_\n]*?)_(?=[^\w_]|$)/g, '$1<em>$2</em>');
 
@@ -266,7 +441,7 @@ export function formatInline(text) {
  * Cleans and converts rich HTML from Clipboard (e.g. ChatGPT, Word, Google Docs)
  * - Extracts fragment from ChatGPT clipboard
  * - Strips dark theme styles and hostile CSS
- * - Cleans and normalizes semantic tags
+ * - Cleans and normalizes semantic tags, images and links
  */
 export function cleanClipboardHtml(html) {
   if (!html || typeof html !== 'string') return '';
@@ -278,7 +453,6 @@ export function cleanClipboardHtml(html) {
   if (fragmentMatch && fragmentMatch[1]) {
     clean = fragmentMatch[1];
   } else {
-    // Strip <html>, <head>, <body> tags
     clean = clean
       .replace(/<!DOCTYPE[^>]*>/gi, '')
       .replace(/<html[^>]*>|<\/html>/gi, '')
@@ -289,27 +463,29 @@ export function cleanClipboardHtml(html) {
   // 2. Remove script & style tags
   clean = sanitizeHtml(clean);
 
-  // 3. Remove inline styles that impose background colors, fixed dark text, or awkward fonts
-  // Keep useful styling like max-width on images
+  // 3. Normalize image tags so they are responsive
+  clean = clean.replace(/<img\b([^>]*)>/gi, (match, attrs) => {
+    return `<img ${attrs} style="max-width:100%;height:auto;border-radius:10px;margin:1.75rem auto;display:block;" loading="lazy">`;
+  });
+
+  // 4. Remove inline styles that impose background colors, fixed dark text, or awkward fonts
   clean = clean.replace(/style="([^"]*)"/gi, (match, styleVal) => {
-    // If it's an image style, keep it or normalize
     if (/max-width|border-radius|display:\s*block/i.test(styleVal)) {
       return 'style="max-width:100%;height:auto;border-radius:10px;margin:1.75rem auto;display:block;"';
     }
-    // Remove inline colors, backgrounds, font-families that ruin site theme
     const stripped = styleVal
       .replace(/(background-color|background|color|font-family|font-size|line-height):\s*[^;]+;?/gi, '')
       .trim();
     return stripped ? `style="${stripped}"` : '';
   });
 
-  // 4. Remove class attributes from ChatGPT (e.g. class="markdown prose ...")
+  // 5. Remove class attributes from ChatGPT (e.g. class="markdown prose ...")
   clean = clean.replace(/\sclass="[^"]*"/gi, '');
 
-  // 5. Normalize generic spans/divs: replace empty divs/spans with their inner content
+  // 6. Normalize generic spans/divs: replace empty spans with their inner content
   clean = clean.replace(/<span>(.*?)<\/span>/gi, '$1');
 
-  // 6. Ensure links open safely in a new tab
+  // 7. Ensure links open safely in a new tab
   clean = clean.replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/gi, (m, href, text) => {
     if (!href || href === '#' || href.startsWith('javascript:')) {
       return text;
@@ -323,6 +499,8 @@ export function cleanClipboardHtml(html) {
 /**
  * Universal Content Processor for Editor Paste Event:
  * Given raw clipboardData event:
+ * - If user pasted YouTube link: converts to responsive embed
+ * - If user pasted direct image URL: converts to responsive figure
  * - If user pasted rich HTML (e.g. ChatGPT, web browser, Google Docs): cleans and normalizes it
  * - If user pasted plain Markdown: converts to semantic HTML
  * - If user pasted plain text: preserves linebreaks into paragraphs
@@ -332,32 +510,47 @@ export function processPastedContent(clipboardData) {
   if (!clipboardData) return '';
 
   const htmlData = clipboardData.getData('text/html');
-  const textData = clipboardData.getData('text/plain') || '';
+  const textData = (clipboardData.getData('text/plain') || '').trim();
 
-  // Case 1: Rich HTML is available
+  // Case 1: Check if plain text is a standalone YouTube URL
+  if (textData && (textData.startsWith('http://') || textData.startsWith('https://')) && !textData.includes('\n')) {
+    const ytEmbed = createYouTubeEmbed(textData);
+    if (ytEmbed) {
+      return ytEmbed;
+    }
+    // Check if plain text is a standalone Image URL
+    if (isValidImageUrl(textData)) {
+      return createImageEmbed(textData, 'Article illustration');
+    }
+  }
+
+  // Case 2: Rich HTML is available (ChatGPT, Google Docs, browser copy)
   if (htmlData && htmlData.trim()) {
     const cleaned = cleanClipboardHtml(htmlData);
-    // If the cleaned HTML actually contains tags, use it!
-    if (/<(p|h[1-6]|ul|ol|li|blockquote|strong|em|pre|code|table|img|a)[\s>]/i.test(cleaned)) {
+    if (/<(p|h[1-6]|ul|ol|li|blockquote|strong|em|pre|code|table|img|a|figure|iframe)[\s>]/i.test(cleaned)) {
       return cleaned;
     }
   }
 
-  // Case 2: Plain text with Markdown syntax
+  // Case 3: Plain text with Markdown syntax
   if (textData && hasMarkdownSyntax(textData)) {
     return markdownToHtml(textData);
   }
 
-  // Case 3: Plain text with line breaks
+  // Case 4: Plain text with multiple line breaks
   if (textData) {
-    // If it contains multiple paragraphs separated by empty lines
     const paragraphs = textData.split(/\n\s*\n/).filter(p => p.trim());
     if (paragraphs.length > 1) {
-      return paragraphs.map(p => `<p>${formatInline(p.trim().replace(/\n/g, '<br />'))}</p>`).join('\n\n');
+      return paragraphs.map(p => {
+        const yt = createYouTubeEmbed(p.trim());
+        if (yt) return yt;
+        if (isValidImageUrl(p.trim())) return createImageEmbed(p.trim());
+        return `<p>${formatInline(p.trim().replace(/\n/g, '<br />'))}</p>`;
+      }).join('\n\n');
     }
     // Single line or single paragraph with soft line breaks
     if (textData.includes('\n')) {
-      return `<p>${formatInline(textData.trim().replace(/\n/g, '<br />'))}</p>`;
+      return `<p>${formatInline(textData.replace(/\n/g, '<br />'))}</p>`;
     }
     return formatInline(textData);
   }
@@ -368,7 +561,7 @@ export function processPastedContent(clipboardData) {
 /**
  * Render any content (HTML, Markdown, or Mixed) to fully formatted safe HTML.
  * Used identically by:
- * - AdminPostForm (Editor inline preview & modal preview)
+ * - AdminPostForm (Editor visual canvas, inline preview & modal preview)
  * - PostDetailPage (Public article page)
  */
 export function renderContentToHtml(content) {
@@ -376,12 +569,15 @@ export function renderContentToHtml(content) {
 
   let html = content.trim();
 
-  // If content has NO HTML tags at all, convert from pure Markdown
+  // Step 1: Detect and transform standalone YouTube or Image URLs (backward compatibility)
+  html = convertStandaloneMediaUrls(html);
+
+  // Step 2: If content has NO HTML tags at all, convert from pure Markdown
   if (!/<[a-z][\s\S]*>/i.test(html)) {
     return sanitizeHtml(markdownToHtml(html));
   }
 
-  // If content has HTML tags, check if there are raw Markdown markers inside it
+  // Step 3: If content has HTML tags, check if there are raw Markdown markers inside it
   if (hasMarkdownSyntax(html)) {
     // 1. Convert Markdown headings on separate lines: # H1, ## H2, ### H3
     html = html.replace(/^(#{1,6})\s+(.+)$/gm, (m, hashes, text) => {
@@ -397,12 +593,13 @@ export function renderContentToHtml(content) {
 
     // 3. Convert markdown images alone on lines: ![alt](url)
     html = html.replace(/^!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)$/gm, (m, alt, url) => {
-      return `<p><img src="${url}" alt="${alt || 'Image'}" style="max-width:100%;height:auto;border-radius:10px;margin:1.75rem auto;display:block;" /></p>`;
+      return createImageEmbed(url, alt || 'Image');
     });
 
     // 4. Convert inline formatting (bold, italic, strikethrough, inline code, links)
     html = formatInline(html);
   }
 
+  // Step 4: Strict sanitization (scripts, styles, event handlers, non-YouTube iframes)
   return sanitizeHtml(html);
 }

@@ -1,16 +1,18 @@
 import React from 'react';
-import { renderContentToHtml } from '../../utils/contentFormatter';
+import { renderContentToHtml, sanitizeHtml } from '../../utils/contentFormatter';
 
 /**
  * Safe HTML sanitizer to prevent malicious script injection while preserving rich editorial formatting
  */
 export function sanitizeContent(html) {
   if (!html || typeof html !== 'string') return '';
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/href\s*=\s*["']\s*javascript:[^"']*["']/gi, 'href="#"');
+  return sanitizeHtml(
+    html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(/href\s*=\s*["']\s*javascript:[^"']*["']/gi, 'href="#"')
+  );
 }
 
 /**
@@ -18,8 +20,10 @@ export function sanitizeContent(html) {
  * - Markdown headings (#, ##, ###) and HTML headings (h2, h3, h4)
  * - Markdown formatting (**bold**, *italic*, ~~strikethrough~~, `code`, links, lists, blockquotes)
  * - Clean semantic HTML from ChatGPT and other rich sources
- * - Responsive images with captions/alt
- * - Responsive YouTube embeds (16:9 aspect ratio)
+ * - Responsive images with captions/alt (loaded stably, non-distorting)
+ * - Responsive YouTube embeds (16:9 aspect ratio standard, vertical for Shorts)
+ * - Standalone media URLs auto-converted for backward compatibility
+ * - Strict iframe security (only verified YouTube embeds allowed)
  * - In-article AdSense slot insertion if enabled
  */
 export default function RichContentRenderer({ content, adsenseConfig, enableAds }) {
@@ -27,7 +31,7 @@ export default function RichContentRenderer({ content, adsenseConfig, enableAds 
     return <p style={{ color: '#64748b', fontStyle: 'italic' }}>No article content available.</p>;
   }
 
-  // Convert Markdown or clean existing HTML
+  // Convert Markdown, YouTube embeds, images, and sanitize
   let htmlToRender = sanitizeContent(renderContentToHtml(content));
 
   // In-article AdSense slot insertion after second paragraph if enabled

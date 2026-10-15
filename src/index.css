@@ -1074,22 +1074,54 @@ body {
   border-left: 4px solid var(--primary);
   padding: 1rem 1.5rem;
   margin: 1.75rem 0;
-  background: rgba(59, 130, 246, 0.05);
+  background: #f8fafc;
   border-radius: 0 8px 8px 0;
   font-style: italic;
-  color: #e2e8f0;
+  color: #334155;
 }
 
+/* Media in visual editor & public view */
+.admin-visual-editor img,
+.article-rich-body img,
+.article-rich-body figure img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  display: block;
+  margin: 1.75rem auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.admin-visual-editor figure,
+.article-rich-body figure {
+  margin: 2rem 0;
+  max-width: 100%;
+}
+
+.admin-visual-editor figcaption,
+.article-rich-body figcaption {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 0.5rem;
+  text-align: center;
+  font-style: italic;
+}
+
+/* YouTube Standard 16:9 & Shorts 9:16 Responsive Embeds */
+.admin-visual-editor .video-container,
 .article-rich-body .video-container {
   position: relative;
+  width: 100%;
   padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
   height: 0;
   overflow: hidden;
   border-radius: 12px;
   margin: 2rem 0;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  background: #000000;
 }
 
+.admin-visual-editor .video-container iframe,
 .article-rich-body .video-container iframe {
   position: absolute;
   top: 0;
@@ -1097,6 +1129,65 @@ body {
   width: 100%;
   height: 100%;
   border: none;
+}
+
+/* YouTube Shorts vertical wrapper */
+.admin-visual-editor .youtube-shorts-wrapper,
+.article-rich-body .youtube-shorts-wrapper {
+  max-width: 380px;
+  margin: 2rem auto;
+  text-align: center;
+}
+
+.admin-visual-editor .youtube-shorts-wrapper .video-container,
+.article-rich-body .youtube-shorts-wrapper .video-container,
+.admin-visual-editor .video-container.video-shorts,
+.article-rich-body .video-container.video-shorts {
+  padding-bottom: 177.77% !important; /* 9:16 Aspect Ratio */
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+/* Admin Visual WYSIWYG Editor */
+.admin-visual-editor {
+  min-height: 460px;
+  max-height: 850px;
+  overflow-y: auto;
+  padding: 1.5rem;
+  background-color: #ffffff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  border-radius: 0 0 8px 8px;
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  line-height: 1.8;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-visual-editor:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.admin-visual-editor:empty:before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  pointer-events: none;
+  display: block;
+}
+
+.editor-uploading-badge {
+  padding: 0.75rem 1rem;
+  background-color: #f0f9ff;
+  border: 1px dashed #38bdf8;
+  border-radius: 8px;
+  color: #0284c7;
+  font-size: 0.875rem;
+  margin: 1.25rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .article-rich-body a {

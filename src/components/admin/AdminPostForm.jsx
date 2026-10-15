@@ -27,11 +27,21 @@ import {
   X,
   Maximize2,
   Calendar,
-  Tag as TagIcon
+  Tag as TagIcon,
+  FileCode,
+  Check,
+  Film
 } from 'lucide-react';
 import RichContentRenderer from '../common/RichContentRenderer';
 import ErrorBoundary from '../common/ErrorBoundary';
-import { processPastedContent } from '../../utils/contentFormatter';
+import {
+  processPastedContent,
+  extractYouTubeId,
+  createYouTubeEmbed,
+  isValidImageUrl,
+  createImageEmbed,
+  renderContentToHtml
+} from '../../utils/contentFormatter';
 
 export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) {
   const [loading, setLoading] = useState(false);
@@ -42,13 +52,15 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
   const [categories, setCategories] = useState([]);
   const [manualSlug, setManualSlug] = useState(false);
 
-  // Preview state
+  // Editor mode: 'visual' (WYSIWYG live inline embeds) | 'code' (raw HTML) | 'preview' (reader view)
+  const [editorMode, setEditorMode] = useState('visual');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [editorTab, setEditorTab] = useState('write'); // 'write' | 'preview'
 
   const fileInputRef = useRef(null);
-  const editorRef = useRef(null);
   const inContentImageInputRef = useRef(null);
+  const visualEditorRef = useRef(null);
+  const textareaRef = useRef(null);
+  const isInternalChangeRef = useRef(false);
 
   const [form, setForm] = useState({
     title: '',
@@ -72,10 +84,20 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     }
   }, [postId]);
 
+  // Synchronize ContentEditable DOM when switching modes or loading post
+  useEffect(() => {
+    if (editorMode === 'visual' && visualEditorRef.current) {
+      if (!isInternalChangeRef.current) {
+        visualEditorRef.current.innerHTML = form.content || '';
+      }
+    }
+    isInternalChangeRef.current = false;
+  }, [editorMode]);
+
   async function loadCategories() {
     try {
       const data = await api.getCategories();
-      setCategories(data);
+      setCategories(Array.isArray(data) ? data : []);
       if (!postId && data.length > 0 && !form.categoryId) {
         setForm(f => ({ ...f, categoryId: data[0].id }));
       }
@@ -88,11 +110,12 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     setLoading(true);
     try {
       const data = await api.getPost(id);
+      const postContent = data.content || '';
       setForm({
         title: data.title || '',
         slug: data.slug || '',
         excerpt: data.excerpt || '',
-        content: data.content || '',
+        content: postContent,
         coverImage: data.coverImage || '',
         categoryId: data.categoryId || '',
         status: data.status || 'published',
@@ -103,6 +126,13 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
         enableAds: data.enableAds !== false
       });
       setManualSlug(true);
+
+      // Populate visual editor if ref is ready
+      setTimeout(() => {
+        if (visualEditorRef.current) {
+          visualEditorRef.current.innerHTML = postContent;
+        }
+      }, 50);
     } catch (err) {
       showToast(err.message || 'Failed to load post data.', 'error');
     } finally {
@@ -131,7 +161,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     }));
   }
 
-  // Cover image upload
+  // Cover image upload (Right Column)
   async function handleCoverFileUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -156,68 +186,136 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     }
   }
 
-  // Helper to insert text/HTML at textarea cursor position
-  function insertAtCursor(textToInsert) {
-    const textarea = editorRef.current;
-    if (!textarea) {
-      setForm(f => ({ ...f, content: (f.content || '') + textToInsert }));
+  // ContentEditable input sync
+  function handleVisualEditorInput() {
+    if (!visualEditorRef.current) return;
+    const html = visualEditorRef.current.innerHTML;
+    isInternalChangeRef.current = true;
+    setForm(prev => ({ ...prev, content: html }));
+  }
+
+  // Insert HTML into editor at caret position (works seamlessly in both Visual and Code mode)
+  function insertContentIntoEditor(htmlToInsert) {
+    if (editorMode === 'visual' && visualEditorRef.current) {
+      visualEditorRef.current.focus();
+      const sel = window.getSelection();
+
+      if (sel && sel.rangeCount > 0 && visualEditorRef.current.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlToInsert;
+        const frag = document.createDocumentFragment();
+        let node, lastNode;
+        while ((node = tempDiv.firstChild)) {
+          lastNode = frag.appendChild(node);
+        }
+        range.insertNode(frag);
+
+        if (lastNode) {
+          const newRange = range.cloneRange();
+          newRange.setStartAfter(lastNode);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+        }
+      } else {
+        // Fallback: append to bottom
+        visualEditorRef.current.innerHTML += htmlToInsert;
+      }
+
+      handleVisualEditorInput();
+    } else {
+      // In Code (textarea) mode
+      const textarea = textareaRef.current;
+      if (!textarea) {
+        setForm(f => ({ ...f, content: (f.content || '') + htmlToInsert }));
+        return;
+      }
+
+      const start = textarea.selectionStart ?? (textarea.value || '').length;
+      const end = textarea.selectionEnd ?? (textarea.value || '').length;
+      const currentVal = textarea.value ?? form.content ?? '';
+
+      const before = currentVal.substring(0, start);
+      const after = currentVal.substring(end, currentVal.length);
+      const newVal = before + htmlToInsert + after;
+
+      setForm(f => ({ ...f, content: newVal }));
+
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          const nextPos = start + htmlToInsert.length;
+          textareaRef.current.setSelectionRange(nextPos, nextPos);
+        }
+      }, 10);
+    }
+  }
+
+  // Upload an image file (from clipboard or toolbar) to Supabase Storage with live inline badge
+  async function uploadImageFile(file) {
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast(`Image "${file.name || 'Pasted image'}" exceeds 5MB size limit.`, 'error');
       return;
     }
 
-    const start = textarea.selectionStart ?? (textarea.value || '').length;
-    const end = textarea.selectionEnd ?? (textarea.value || '').length;
-    const currentVal = textarea.value ?? form.content ?? '';
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (file.type && !allowedMimes.includes(file.type)) {
+      showToast(`Unsupported format "${file.type}". Allowed: JPG, PNG, WEBP, GIF.`, 'error');
+      return;
+    }
 
-    const before = currentVal.substring(0, start);
-    const after = currentVal.substring(end, currentVal.length);
+    const uploadId = 'img_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const badgeHtml = `<div id="upload-${uploadId}" class="editor-uploading-badge" contenteditable="false"><span class="animate-spin">⏳</span> Uploading ${file.name || 'image'} to Supabase Storage...</div><p><br></p>`;
 
-    const newVal = before + textToInsert + after;
-    setForm(f => ({ ...f, content: newVal }));
-
-    setTimeout(() => {
-      if (editorRef.current) {
-        editorRef.current.focus();
-        const nextPos = start + textToInsert.length;
-        editorRef.current.setSelectionRange(nextPos, nextPos);
-      }
-    }, 10);
-  }
-
-  // Helper to replace an upload placeholder token in content state
-  function replaceContentPlaceholder(uploadId, replacementText) {
-    setForm(prev => {
-      const current = prev.content || '';
-      const tokenRegex = new RegExp(`<!--\\s*UPLOADING:${uploadId}\\s*-->[\\s\\S]*?<!--\\s*\\/UPLOADING:${uploadId}\\s*-->`, 'g');
-      if (tokenRegex.test(current)) {
-        return { ...prev, content: current.replace(tokenRegex, replacementText) };
-      }
-      // If token wasn't found (e.g. user selected it and typed over it), append if non-empty
-      if (replacementText) {
-        return { ...prev, content: current + '\n' + replacementText };
-      }
-      return prev;
-    });
-  }
-
-  // Upload pasted or inserted image file to Supabase Storage with placeholder
-  async function uploadPastedImageFile(file, uploadId) {
+    insertContentIntoEditor(badgeHtml);
     setUploadingClipboard(true);
     setUploadingCount(c => c + 1);
 
     try {
       const res = await api.uploadImage(file);
       if (res && res.url) {
-        const finalImgTag = `\n<p><img src="${res.url}" alt="${file.name || 'Article illustration'}" style="max-width:100%;height:auto;border-radius:10px;margin:1.75rem auto;display:block;" /></p>\n`;
-        replaceContentPlaceholder(uploadId, finalImgTag);
+        const finalImageHtml = createImageEmbed(res.url, file.name || 'Article illustration');
+
+        if (editorMode === 'visual' && visualEditorRef.current) {
+          const badgeEl = visualEditorRef.current.querySelector(`#upload-${uploadId}`);
+          if (badgeEl) {
+            const temp = document.createElement('div');
+            temp.innerHTML = finalImageHtml;
+            const replacement = temp.firstElementChild || temp;
+            badgeEl.replaceWith(replacement);
+            handleVisualEditorInput();
+          } else {
+            insertContentIntoEditor(finalImageHtml);
+          }
+        } else {
+          // Code mode placeholder replacement
+          setForm(prev => {
+            const current = prev.content || '';
+            const badgePattern = new RegExp(`<div id="upload-${uploadId}"[\\s\\S]*?<\\/div>`, 'i');
+            if (badgePattern.test(current)) {
+              return { ...prev, content: current.replace(badgePattern, finalImageHtml) };
+            }
+            return { ...prev, content: current + '\n' + finalImageHtml };
+          });
+        }
         showToast(`Image "${file.name || 'Pasted image'}" uploaded successfully!`, 'success');
       } else {
-        throw new Error('Cloud storage returned no image URL');
+        throw new Error('Storage returned no image URL');
       }
     } catch (err) {
       console.error('[Image Upload Failure]', err);
-      // Remove placeholder, keep all user draft text safe
-      replaceContentPlaceholder(uploadId, '');
-      showToast(`Failed to upload image: ${err.message}. Your text has been preserved.`, 'error');
+      // Clean up badge if failed
+      if (editorMode === 'visual' && visualEditorRef.current) {
+        const badgeEl = visualEditorRef.current.querySelector(`#upload-${uploadId}`);
+        if (badgeEl) badgeEl.remove();
+        handleVisualEditorInput();
+      }
+      showToast(`Failed to upload image: ${err.message}. Your surrounding text is preserved.`, 'error');
     } finally {
       setUploadingCount(c => {
         const next = Math.max(0, c - 1);
@@ -227,47 +325,53 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     }
   }
 
-  // Parse YouTube video ID
-  function extractYouTubeId(url) {
-    if (!url || typeof url !== 'string') return null;
+  // Embed YouTube Video into editor
+  function handleInsertYouTube(targetUrl) {
+    const url = targetUrl || prompt('Paste YouTube Video URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...):');
+    if (!url || typeof url !== 'string' || !url.trim()) return;
+
     const trimmed = url.trim();
+    const ytId = extractYouTubeId(trimmed);
 
-    // Standard watch: https://www.youtube.com/watch?v=VIDEO_ID
-    const watchMatch = trimmed.match(/(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/i);
-    if (watchMatch) return watchMatch[1];
+    if (!ytId) {
+      showToast('Could not extract valid YouTube video ID from URL. Inserted as link instead.', 'warning');
+      insertContentIntoEditor(`<p><a href="${trimmed}" target="_blank" rel="noopener noreferrer">${trimmed}</a></p><p><br></p>`);
+      return;
+    }
 
-    // Shortened: https://youtu.be/VIDEO_ID
-    const shortMatch = trimmed.match(/(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
-    if (shortMatch) return shortMatch[1];
-
-    // Shorts: https://www.youtube.com/shorts/VIDEO_ID
-    const shortsMatch = trimmed.match(/(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/i);
-    if (shortsMatch) return shortsMatch[1];
-
-    // Embed: https://www.youtube.com/embed/VIDEO_ID
-    const embedMatch = trimmed.match(/(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/i);
-    if (embedMatch) return embedMatch[1];
-
-    return null;
+    const embedHtml = createYouTubeEmbed(trimmed) + '<p><br></p>';
+    insertContentIntoEditor(embedHtml);
+    showToast('YouTube video embedded successfully at cursor position!', 'success');
   }
 
-  function createYouTubeEmbedHtml(videoId) {
-    return `\n<div class="video-container" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin:2rem 0;"><iframe src="https://www.youtube-nocookie.com/embed/${videoId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe></div>\n`;
+  // Insert Image via direct URL
+  function handleInsertImageUrl() {
+    const url = prompt('Enter direct image URL (https://...):');
+    if (!url || typeof url !== 'string' || !url.trim()) return;
+
+    const trimmed = url.trim();
+    if (!isValidImageUrl(trimmed)) {
+      showToast('URL does not appear to be a valid image format. Inserted as link instead.', 'warning');
+      insertContentIntoEditor(`<p><a href="${trimmed}" target="_blank" rel="noopener noreferrer">${trimmed}</a></p><p><br></p>`);
+      return;
+    }
+
+    const imageHtml = createImageEmbed(trimmed, 'Article illustration') + '<p><br></p>';
+    insertContentIntoEditor(imageHtml);
+    showToast('Image inserted into article body!', 'success');
   }
 
-  // Paste Event Handler (Images, YouTube embeds, ChatGPT rich HTML, and Markdown)
-  async function handleEditorPaste(e) {
+  // Unified Paste Event Handler (works on both Visual Editor and Code textarea)
+  async function handlePaste(e) {
     const clipboardData = e.clipboardData;
     if (!clipboardData) return;
 
-    // 1. Gather any image files from clipboardData.files or items
+    // 1. Check if user pasted an image file directly from clipboard
     const imageFiles = [];
     if (clipboardData.files && clipboardData.files.length > 0) {
       for (let i = 0; i < clipboardData.files.length; i++) {
         const f = clipboardData.files[i];
-        if (f.type && f.type.startsWith('image/')) {
-          imageFiles.push(f);
-        }
+        if (f.type && f.type.startsWith('image/')) imageFiles.push(f);
       }
     }
     if (imageFiles.length === 0 && clipboardData.items && clipboardData.items.length > 0) {
@@ -280,149 +384,145 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       }
     }
 
-    // A. If user pasted image file(s)
     if (imageFiles.length > 0) {
       e.preventDefault();
-      const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-
       for (const file of imageFiles) {
-        if (file.size > 5 * 1024 * 1024) {
-          showToast(`Image "${file.name || 'Pasted image'}" exceeds 5MB size limit.`, 'error');
-          continue;
-        }
-        if (file.type && !allowedMimes.includes(file.type)) {
-          showToast(`Unsupported format "${file.type}". Allowed: JPG, PNG, WEBP, GIF.`, 'error');
-          continue;
-        }
-
-        const uploadId = 'img_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-        const placeholder = `\n<!-- UPLOADING:${uploadId} -->\n<p style="padding:0.75rem 1rem;background:#f8fafc;border:1px dashed #93c5fd;border-radius:8px;color:#2563eb;font-size:0.875rem;margin:1.5rem 0;">🖼️ Uploading ${file.name || 'image'} to Supabase Storage...</p>\n<!-- /UPLOADING:${uploadId} -->\n`;
-        insertAtCursor(placeholder);
-
-        uploadPastedImageFile(file, uploadId);
+        uploadImageFile(file);
       }
       return;
     }
 
-    // B. Check if user pasted a YouTube link
-    const textData = clipboardData.getData('text/plain') || '';
-    const trimmedText = textData.trim();
-    if (trimmedText && (trimmedText.startsWith('http://') || trimmedText.startsWith('https://')) && !trimmedText.includes('\n')) {
-      const ytId = extractYouTubeId(trimmedText);
+    // 2. Check if user pasted a standalone YouTube URL
+    const textData = (clipboardData.getData('text/plain') || '').trim();
+    if (textData && (textData.startsWith('http://') || textData.startsWith('https://')) && !textData.includes('\n')) {
+      const ytId = extractYouTubeId(textData);
       if (ytId) {
         e.preventDefault();
-        const embedHtml = createYouTubeEmbedHtml(ytId);
-        insertAtCursor(embedHtml);
-        showToast('YouTube video embedded at cursor position!', 'success');
+        handleInsertYouTube(textData);
+        return;
+      }
+
+      // Check if user pasted a standalone image URL
+      if (isValidImageUrl(textData)) {
+        e.preventDefault();
+        const imgHtml = createImageEmbed(textData, 'Article illustration') + '<p><br></p>';
+        insertContentIntoEditor(imgHtml);
+        showToast('Pasted image URL converted to inline image!', 'success');
         return;
       }
     }
 
-    // C. Process formatted text / ChatGPT rich HTML / Markdown
+    // 3. Process formatted text / ChatGPT rich HTML / Markdown
     const formatted = processPastedContent(clipboardData);
     if (formatted) {
       e.preventDefault();
-      insertAtCursor(formatted);
+      insertContentIntoEditor(formatted);
       showToast('Pasted content formatted and inserted!', 'info');
     }
   }
 
-  // Upload image to content at cursor via toolbar button
-  async function handleInContentImageUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('Image file size must be less than 5MB.', 'error');
-      if (inContentImageInputRef.current) inContentImageInputRef.current.value = '';
-      return;
+  // Toolbar formatting actions
+  function handleToolbarFormat(action) {
+    if (editorMode === 'visual') {
+      visualEditorRef.current?.focus();
+      switch (action) {
+        case 'bold':
+          document.execCommand('bold', false, null);
+          break;
+        case 'italic':
+          document.execCommand('italic', false, null);
+          break;
+        case 'underline':
+          document.execCommand('underline', false, null);
+          break;
+        case 'h2':
+          document.execCommand('formatBlock', false, '<h2>');
+          break;
+        case 'h3':
+          document.execCommand('formatBlock', false, '<h3>');
+          break;
+        case 'p':
+          document.execCommand('formatBlock', false, '<p>');
+          break;
+        case 'ul':
+          document.execCommand('insertUnorderedList', false, null);
+          break;
+        case 'ol':
+          document.execCommand('insertOrderedList', false, null);
+          break;
+        case 'quote':
+          document.execCommand('formatBlock', false, '<blockquote>');
+          break;
+        case 'code':
+          insertContentIntoEditor('<code>Code snippet</code>');
+          break;
+        case 'link': {
+          const url = prompt('Enter link URL (https://...):', 'https://');
+          if (url && url !== 'https://') {
+            document.execCommand('createLink', false, url);
+          }
+          break;
+        }
+        default:
+          break;
+      }
+      handleVisualEditorInput();
+    } else {
+      // In code mode
+      switch (action) {
+        case 'h2':
+          insertContentIntoEditor('\n<h2>Section Heading</h2>\n');
+          break;
+        case 'h3':
+          insertContentIntoEditor('\n<h3>Subheading</h3>\n');
+          break;
+        case 'p':
+          insertContentIntoEditor('\n<p>Paragraph text...</p>\n');
+          break;
+        case 'bold':
+          insertContentIntoEditor('<strong>bold text</strong>');
+          break;
+        case 'italic':
+          insertContentIntoEditor('<em>italic text</em>');
+          break;
+        case 'underline':
+          insertContentIntoEditor('<u>underlined text</u>');
+          break;
+        case 'code':
+          insertContentIntoEditor('<code>code snippet</code>');
+          break;
+        case 'ul':
+          insertContentIntoEditor('\n<ul>\n  <li>First item</li>\n  <li>Second item</li>\n</ul>\n');
+          break;
+        case 'ol':
+          insertContentIntoEditor('\n<ol>\n  <li>Step one</li>\n  <li>Step two</li>\n</ol>\n');
+          break;
+        case 'quote':
+          insertContentIntoEditor('\n<blockquote>Important quote statement...</blockquote>\n');
+          break;
+        case 'link': {
+          const url = prompt('Enter destination link URL (https://...):', 'https://');
+          if (url && url !== 'https://') {
+            insertContentIntoEditor(`<a href="${url}" target="_blank" rel="noopener noreferrer">Link text</a>`);
+          }
+          break;
+        }
+        default:
+          break;
+      }
     }
-
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (file.type && !allowedMimes.includes(file.type)) {
-      showToast(`Unsupported format "${file.type}". Allowed: JPG, PNG, WEBP, GIF.`, 'error');
-      if (inContentImageInputRef.current) inContentImageInputRef.current.value = '';
-      return;
-    }
-
-    const uploadId = 'btn_img_' + Date.now();
-    const placeholder = `\n<!-- UPLOADING:${uploadId} -->\n<p style="padding:0.75rem 1rem;background:#f8fafc;border:1px dashed #93c5fd;border-radius:8px;color:#2563eb;font-size:0.875rem;margin:1.5rem 0;">🖼️ Uploading ${file.name || 'image'} to Supabase Storage...</p>\n<!-- /UPLOADING:${uploadId} -->\n`;
-    insertAtCursor(placeholder);
-
-    uploadPastedImageFile(file, uploadId);
-    if (inContentImageInputRef.current) inContentImageInputRef.current.value = '';
   }
 
-  // Toolbar actions
-  function handleToolbarAction(type) {
-    const textarea = editorRef.current;
-    if (!textarea) return;
+  // Switch between editor modes cleanly
+  function handleModeSwitch(targetMode) {
+    if (targetMode === editorMode) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selected = textarea.value.substring(start, end) || '';
-
-    switch (type) {
-      case 'h2':
-        insertAtCursor(`\n<h2>${selected || 'Section Heading'}</h2>\n`);
-        break;
-      case 'h3':
-        insertAtCursor(`\n<h3>${selected || 'Subheading'}</h3>\n`);
-        break;
-      case 'p':
-        insertAtCursor(`\n<p>${selected || 'Paragraph text...'}</p>\n`);
-        break;
-      case 'bold':
-        insertAtCursor(`<strong>${selected || 'bold text'}</strong>`);
-        break;
-      case 'italic':
-        insertAtCursor(`<em>${selected || 'italic text'}</em>`);
-        break;
-      case 'underline':
-        insertAtCursor(`<u>${selected || 'underlined text'}</u>`);
-        break;
-      case 'code':
-        insertAtCursor(`<code>${selected || 'code snippet'}</code>`);
-        break;
-      case 'ul':
-        insertAtCursor(`\n<ul>\n  <li>${selected || 'First item'}</li>\n  <li>Second item</li>\n</ul>\n`);
-        break;
-      case 'ol':
-        insertAtCursor(`\n<ol>\n  <li>${selected || 'Step one'}</li>\n  <li>Step two</li>\n</ol>\n`);
-        break;
-      case 'quote':
-        insertAtCursor(`\n<blockquote>${selected || 'Important quote statement...'}</blockquote>\n`);
-        break;
-      case 'link': {
-        const url = prompt('Enter destination link URL (https://...):', 'https://');
-        if (url && url !== 'https://') {
-          insertAtCursor(`<a href="${url}" target="_blank" rel="noopener noreferrer">${selected || 'Link text'}</a>`);
-        }
-        break;
-      }
-      case 'youtube': {
-        const url = prompt('Paste YouTube Video URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...):');
-        if (url) {
-          const ytId = extractYouTubeId(url);
-          if (ytId) {
-            insertAtCursor(createYouTubeEmbedHtml(ytId));
-            showToast('YouTube video embedded successfully!', 'success');
-          } else {
-            showToast('Could not extract valid YouTube video ID from URL.', 'error');
-          }
-        }
-        break;
-      }
-      case 'image-url': {
-        const url = prompt('Enter direct image URL (https://...):');
-        if (url) {
-          insertAtCursor(`\n<p><img src="${url}" alt="Article image" style="max-width:100%;height:auto;border-radius:10px;margin:1.75rem auto;display:block;" /></p>\n`);
-        }
-        break;
-      }
-      default:
-        break;
+    if (editorMode === 'visual' && visualEditorRef.current) {
+      // Save visual HTML to form state
+      setForm(prev => ({ ...prev, content: visualEditorRef.current.innerHTML }));
     }
+
+    setEditorMode(targetMode);
   }
 
   async function handleSubmit(targetStatus) {
@@ -431,7 +531,12 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       return;
     }
 
-    if (uploadingClipboard || uploadingCount > 0 || (form.content && form.content.includes('<!-- UPLOADING:'))) {
+    // Read latest content from active visual editor if currently in visual mode
+    const finalContent = editorMode === 'visual' && visualEditorRef.current
+      ? visualEditorRef.current.innerHTML
+      : form.content;
+
+    if (uploadingClipboard || uploadingCount > 0 || (finalContent && finalContent.includes('editor-uploading-badge'))) {
       showToast('Please wait for active image uploads to complete before saving.', 'warning');
       return;
     }
@@ -442,7 +547,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
         title: form.title,
         slug: form.slug,
         excerpt: form.excerpt,
-        content: form.content,
+        content: finalContent,
         coverImage: form.coverImage,
         categoryId: form.categoryId,
         status: targetStatus || form.status,
@@ -473,14 +578,18 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
   }
 
   return (
-    <div style={{ maxWidth: '1200px' }}>
+    <div style={{ maxWidth: '1240px' }}>
       {/* Hidden file input for in-content image insertion */}
       <input
         type="file"
         ref={inContentImageInputRef}
         accept="image/png, image/jpeg, image/webp, image/gif"
         style={{ display: 'none' }}
-        onChange={handleInContentImageUpload}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) uploadImageFile(file);
+          if (inContentImageInputRef.current) inContentImageInputRef.current.value = '';
+        }}
       />
 
       {/* Top Action Bar */}
@@ -494,7 +603,8 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
         background: '#ffffff',
         padding: '0.85rem 1.25rem',
         borderRadius: '12px',
-        border: '1px solid #e2e8f0'
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
       }}>
         <button onClick={onBack} className="btn btn-secondary">
           <ArrowLeft size={16} />
@@ -502,16 +612,20 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
         </button>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Prominent Preview Button (Requirement 5) */}
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => setShowPreviewModal(true)}
-            title="Preview article as public reader"
+            onClick={() => {
+              if (editorMode === 'visual' && visualEditorRef.current) {
+                setForm(prev => ({ ...prev, content: visualEditorRef.current.innerHTML }));
+              }
+              setShowPreviewModal(true);
+            }}
+            title="Preview article exactly as public readers see it"
             style={{ fontWeight: 600, color: '#2563eb', borderColor: '#bfdbfe', backgroundColor: '#eff6ff' }}
           >
             <Eye size={16} />
-            <span>Preview Article</span>
+            <span>Reader Preview</span>
           </button>
 
           <button
@@ -529,6 +643,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
             className="btn btn-primary"
             disabled={submitting}
             onClick={() => handleSubmit('published')}
+            style={{ padding: '0.6rem 1.25rem' }}
           >
             {submitting ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle size={16} />}
             <span>Publish Article</span>
@@ -537,7 +652,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       </div>
 
       {/* Main Form Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(300px, 1fr)', gap: '1.5rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(320px, 1fr)', gap: '1.5rem', alignItems: 'start' }}>
         {/* Left Column: Editor & SEO */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Title & Slug Card */}
@@ -603,59 +718,93 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
             </div>
           </div>
 
-          {/* Rich Content Editor Card (Requirement 6) */}
+          {/* Rich Content Editor Card with WYSIWYG Visual Canvas */}
           <div className="content-card" style={{ padding: '1.5rem', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div>
                 <label className="form-label" style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem' }}>
                   Article Body Content
                 </label>
                 <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                  Paste images directly from clipboard, paste YouTube links to auto-embed, or use the toolbar.
+                  Directly paste images or YouTube URLs to embed them visually right at your cursor.
                 </div>
               </div>
 
-              {/* Write / Quick Preview Switcher */}
+              {/* View Mode Switcher: Visual WYSIWYG | Source HTML | Reader Preview */}
               <div style={{ display: 'flex', gap: '0.25rem', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
                 <button
                   type="button"
-                  onClick={() => setEditorTab('write')}
+                  onClick={() => handleModeSwitch('visual')}
                   style={{
-                    padding: '0.3rem 0.75rem',
+                    padding: '0.35rem 0.75rem',
                     borderRadius: '6px',
                     fontSize: '0.8rem',
                     fontWeight: 600,
                     border: 'none',
                     cursor: 'pointer',
-                    background: editorTab === 'write' ? '#ffffff' : 'transparent',
-                    color: editorTab === 'write' ? '#0f172a' : '#64748b',
-                    boxShadow: editorTab === 'write' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+                    background: editorMode === 'visual' ? '#ffffff' : 'transparent',
+                    color: editorMode === 'visual' ? '#2563eb' : '#64748b',
+                    boxShadow: editorMode === 'visual' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
                   }}
+                  title="Visual WYSIWYG Editor: View real images & YouTube video players while writing"
                 >
-                  Editor
+                  <Sparkles size={14} />
+                  <span>Visual Editor</span>
                 </button>
+
                 <button
                   type="button"
-                  onClick={() => setEditorTab('preview')}
+                  onClick={() => handleModeSwitch('code')}
                   style={{
-                    padding: '0.3rem 0.75rem',
+                    padding: '0.35rem 0.75rem',
                     borderRadius: '6px',
                     fontSize: '0.8rem',
                     fontWeight: 600,
                     border: 'none',
                     cursor: 'pointer',
-                    background: editorTab === 'preview' ? '#ffffff' : 'transparent',
-                    color: editorTab === 'preview' ? '#0f172a' : '#64748b',
-                    boxShadow: editorTab === 'preview' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+                    background: editorMode === 'code' ? '#ffffff' : 'transparent',
+                    color: editorMode === 'code' ? '#2563eb' : '#64748b',
+                    boxShadow: editorMode === 'code' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
                   }}
+                  title="Source HTML Code Editor"
                 >
-                  Inline Preview
+                  <Code size={14} />
+                  <span>HTML Code</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleModeSwitch('preview')}
+                  style={{
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: editorMode === 'preview' ? '#ffffff' : 'transparent',
+                    color: editorMode === 'preview' ? '#2563eb' : '#64748b',
+                    boxShadow: editorMode === 'preview' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}
+                  title="Live Reader View Preview"
+                >
+                  <Eye size={14} />
+                  <span>Inline Preview</span>
                 </button>
               </div>
             </div>
 
-            {/* Rich Editor Toolbar */}
-            {editorTab === 'write' && (
+            {/* Rich Editor Toolbar (Active in Visual and Code mode) */}
+            {editorMode !== 'preview' && (
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -663,71 +812,83 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
                 flexWrap: 'wrap',
                 padding: '0.5rem 0.75rem',
                 background: '#f8fafc',
-                border: '1px solid #e2e8f0',
+                border: '1px solid #cbd5e1',
                 borderBottom: 'none',
                 borderRadius: '8px 8px 0 0'
               }}>
-                <button type="button" className="btn-icon btn-secondary" title="Heading 2" onClick={() => handleToolbarAction('h2')}>
+                <button type="button" className="btn-icon btn-secondary" title="Heading 2" onClick={() => handleToolbarFormat('h2')}>
                   <Heading2 size={16} />
                 </button>
-                <button type="button" className="btn-icon btn-secondary" title="Heading 3" onClick={() => handleToolbarAction('h3')}>
+                <button type="button" className="btn-icon btn-secondary" title="Heading 3" onClick={() => handleToolbarFormat('h3')}>
                   <Heading3 size={16} />
                 </button>
-                <button type="button" className="btn-icon btn-secondary" title="Paragraph" onClick={() => handleToolbarAction('p')}>
+                <button type="button" className="btn-icon btn-secondary" title="Paragraph" onClick={() => handleToolbarFormat('p')}>
                   P
                 </button>
 
                 <div style={{ width: '1px', height: '20px', background: '#e2e8f0', margin: '0 0.25rem' }} />
 
-                <button type="button" className="btn-icon btn-secondary" title="Bold" onClick={() => handleToolbarAction('bold')}>
+                <button type="button" className="btn-icon btn-secondary" title="Bold" onClick={() => handleToolbarFormat('bold')}>
                   <Bold size={16} />
                 </button>
-                <button type="button" className="btn-icon btn-secondary" title="Italic" onClick={() => handleToolbarAction('italic')}>
+                <button type="button" className="btn-icon btn-secondary" title="Italic" onClick={() => handleToolbarFormat('italic')}>
                   <Italic size={16} />
                 </button>
-                <button type="button" className="btn-icon btn-secondary" title="Underline" onClick={() => handleToolbarAction('underline')}>
+                <button type="button" className="btn-icon btn-secondary" title="Underline" onClick={() => handleToolbarFormat('underline')}>
                   <Underline size={16} />
                 </button>
-                <button type="button" className="btn-icon btn-secondary" title="Code" onClick={() => handleToolbarAction('code')}>
+                <button type="button" className="btn-icon btn-secondary" title="Code snippet" onClick={() => handleToolbarFormat('code')}>
                   <Code size={16} />
                 </button>
 
                 <div style={{ width: '1px', height: '20px', background: '#e2e8f0', margin: '0 0.25rem' }} />
 
-                <button type="button" className="btn-icon btn-secondary" title="Bullet List" onClick={() => handleToolbarAction('ul')}>
+                <button type="button" className="btn-icon btn-secondary" title="Bullet List" onClick={() => handleToolbarFormat('ul')}>
                   <List size={16} />
                 </button>
-                <button type="button" className="btn-icon btn-secondary" title="Numbered List" onClick={() => handleToolbarAction('ol')}>
+                <button type="button" className="btn-icon btn-secondary" title="Numbered List" onClick={() => handleToolbarFormat('ol')}>
                   <ListOrdered size={16} />
                 </button>
-                <button type="button" className="btn-icon btn-secondary" title="Blockquote" onClick={() => handleToolbarAction('quote')}>
+                <button type="button" className="btn-icon btn-secondary" title="Blockquote" onClick={() => handleToolbarFormat('quote')}>
                   <Quote size={16} />
                 </button>
-                <button type="button" className="btn-icon btn-secondary" title="Insert Link" onClick={() => handleToolbarAction('link')}>
+                <button type="button" className="btn-icon btn-secondary" title="Insert Link" onClick={() => handleToolbarFormat('link')}>
                   <LinkIcon size={16} />
                 </button>
 
                 <div style={{ width: '1px', height: '20px', background: '#e2e8f0', margin: '0 0.25rem' }} />
 
-                {/* Upload Image to cursor position */}
+                {/* Insert Image: Upload File */}
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  title="Upload image at cursor"
+                  title="Upload image at cursor position (Supabase Storage)"
                   onClick={() => inContentImageInputRef.current?.click()}
-                  style={{ gap: '0.35rem', fontSize: '0.8rem' }}
+                  style={{ gap: '0.35rem', fontSize: '0.8rem', color: '#2563eb', borderColor: '#bfdbfe', backgroundColor: '#eff6ff' }}
                 >
-                  <ImageIcon size={14} color="#2563eb" />
+                  <ImageIcon size={14} />
                   <span>Insert Image</span>
                 </button>
 
-                {/* Paste YouTube video */}
+                {/* Insert Image via URL */}
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  title="Embed YouTube video"
-                  onClick={() => handleToolbarAction('youtube')}
-                  style={{ gap: '0.35rem', fontSize: '0.8rem', color: '#dc2626' }}
+                  title="Insert image from external web URL"
+                  onClick={handleInsertImageUrl}
+                  style={{ gap: '0.35rem', fontSize: '0.8rem' }}
+                >
+                  <LinkIcon size={13} />
+                  <span>Image URL</span>
+                </button>
+
+                {/* Embed YouTube Video */}
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  title="Embed YouTube video (watch, youtu.be, or shorts)"
+                  onClick={() => handleInsertYouTube()}
+                  style={{ gap: '0.35rem', fontSize: '0.8rem', color: '#dc2626', borderColor: '#fca5a5', backgroundColor: '#fff5f5' }}
                 >
                   <Video size={14} />
                   <span>YouTube</span>
@@ -741,30 +902,49 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
               </div>
             )}
 
-            {editorTab === 'write' ? (
+            {/* Visual WYSIWYG Editor: Renders real images & YouTube embeds directly */}
+            {editorMode === 'visual' && (
+              <div
+                ref={visualEditorRef}
+                className="admin-visual-editor article-rich-body"
+                contentEditable="true"
+                suppressContentEditableWarning={true}
+                onInput={handleVisualEditorInput}
+                onPaste={handlePaste}
+                data-placeholder="Start typing your article here... You can paste images from clipboard, paste YouTube URLs to instantly embed playable video players, or click the toolbar buttons above."
+              />
+            )}
+
+            {/* Raw HTML Code Editor */}
+            {editorMode === 'code' && (
               <textarea
-                ref={editorRef}
+                ref={textareaRef}
                 className="form-textarea"
                 style={{
-                  minHeight: '440px',
-                  fontFamily: 'var(--font-sans)',
-                  lineHeight: 1.75,
+                  minHeight: '460px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.875rem',
+                  lineHeight: 1.65,
                   borderRadius: '0 0 8px 8px',
                   borderTop: 'none',
-                  fontSize: '0.95rem'
+                  backgroundColor: '#ffffff',
+                  color: '#0f172a'
                 }}
-                placeholder="Write your article body here... Tip: You can directly paste images from your clipboard at any cursor position (top, between paragraphs, or bottom), or paste a YouTube URL to automatically embed the video player."
+                placeholder="Edit raw HTML markup..."
                 value={form.content}
                 onChange={(e) => setForm(f => ({ ...f, content: e.target.value }))}
-                onPaste={handleEditorPaste}
+                onPaste={handlePaste}
               />
-            ) : (
+            )}
+
+            {/* Reader Inline Preview */}
+            {editorMode === 'preview' && (
               <div style={{
-                minHeight: '440px',
-                padding: '1.5rem',
-                border: '1px solid #e2e8f0',
+                minHeight: '460px',
+                padding: '2rem',
+                border: '1px solid #cbd5e1',
                 borderRadius: '8px',
-                backgroundColor: '#f8fafc'
+                backgroundColor: '#ffffff'
               }}>
                 <RichContentRenderer content={form.content} />
               </div>
@@ -1051,62 +1231,29 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
                 </div>
               )}
 
-              {/* Excerpt Lead */}
+              {/* Excerpt */}
               {form.excerpt && (
                 <div style={{
                   fontSize: '1.15rem',
                   color: '#334155',
-                  lineHeight: 1.6,
+                  lineHeight: 1.65,
                   fontStyle: 'italic',
-                  marginBottom: '2.5rem',
+                  marginBottom: '2.25rem',
                   paddingLeft: '1.5rem',
                   borderLeft: '4px solid #2563eb',
-                  background: '#f8fafc',
+                  backgroundColor: '#f8fafc',
                   padding: '1.25rem 1.5rem',
-                  borderRadius: '0 8px 8px 0'
+                  borderRadius: '0 12px 12px 0'
                 }}>
                   {form.excerpt}
                 </div>
               )}
 
-              {/* Main Content Body */}
-              <div style={{ color: '#0f172a', marginBottom: '2.5rem' }}>
-                <ErrorBoundary title="Preview Render Notice" message="Unable to render preview for current draft. Your content is safe.">
-                  <RichContentRenderer content={form.content} />
-                </ErrorBoundary>
+              {/* Article Content with Rich Media Embeds */}
+              <div style={{ marginBottom: '3rem' }}>
+                <RichContentRenderer content={form.content} />
               </div>
-
-              {/* Tags */}
-              {form.tags && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
-                  <TagIcon size={15} color="#94a3b8" />
-                  {form.tags.split(',').map((tag, idx) => (
-                    <span key={idx} className="badge" style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>
-                      #{tag.trim()}
-                    </span>
-                  ))}
-                </div>
-              )}
             </article>
-
-            {/* Modal Footer */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '0.75rem',
-              padding: '1rem 1.5rem',
-              borderTop: '1px solid #e2e8f0',
-              background: '#f8fafc'
-            }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowPreviewModal(false)}
-                style={{ background: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1' }}
-              >
-                Close Preview & Continue Editing
-              </button>
-            </div>
           </div>
         </div>
       )}
