@@ -20,7 +20,9 @@ import {
   BarChart3,
   Layers,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  AlertCircle,
+  Cloud
 } from 'lucide-react';
 
 const TIME_RANGES = [
@@ -43,6 +45,7 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [driveHealth, setDriveHealth] = useState(null);
 
   // Filters
   const [range, setRange] = useState('30d');
@@ -53,6 +56,7 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
 
   useEffect(() => {
     loadCategories();
+    api.getUploadHealth().then(setDriveHealth).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -169,6 +173,54 @@ export default function AdminDashboard({ onNavigate, onEditPost, onPreviewPost }
           </button>
         </div>
       </div>
+
+      {/* Google Drive Connection Alert Banner (When Disconnected or Needs Reauth) */}
+      {driveHealth && !driveHealth.connected && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.9rem 1.25rem',
+          background: '#fffbeb',
+          border: '1px solid #fef3c7',
+          borderRadius: 'var(--radius-lg)',
+          marginBottom: '1.5rem',
+          color: '#92400e',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          boxShadow: 'var(--shadow-sm)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              background: '#fef3c7',
+              color: '#d97706',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <Cloud size={20} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Google Drive chưa được liên kết hoặc token cần cấp quyền lại</div>
+              <div style={{ fontSize: '0.8rem', color: '#b45309' }}>
+                {driveHealth.message || 'Tải ảnh bài viết và ảnh đại diện HRM có thể bị từ chối nếu chưa hoàn tất cấp quyền OAuth.'}
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => onNavigate('settings')}
+            className="btn btn-primary btn-sm"
+            style={{ backgroundColor: '#d97706', borderColor: '#d97706', whiteSpace: 'nowrap' }}
+          >
+            Kết nối lại Google Drive &rarr;
+          </button>
+        </div>
+      )}
 
       {/* Filter Bar with 12 Time Presets + Category + Status */}
       <div style={{

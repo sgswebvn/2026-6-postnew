@@ -196,6 +196,30 @@ class GoogleDriveService {
   }
 
   /**
+   * Clears stored refresh token from database and cache
+   */
+  async clearToken() {
+    this.cachedRefreshToken = null;
+    try {
+      await Setting.findOneAndUpdate(
+        { key: 'global_settings' },
+        {
+          $unset: {
+            'googleDriveTokens.refreshTokenEncrypted': 1
+          },
+          $set: {
+            'googleDriveTokens.updatedAt': new Date()
+          }
+        }
+      );
+      return true;
+    } catch (err) {
+      console.warn('[GoogleDriveService] Failed to clear token from DB:', err.message);
+      return false;
+    }
+  }
+
+  /**
    * Creates an OAuth2 Client instance
    */
   createOAuth2Client(customRedirectUri = null) {

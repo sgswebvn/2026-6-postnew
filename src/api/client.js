@@ -194,6 +194,9 @@ export const api = {
 
   // Google Drive Diagnostics & Health Check
   getUploadHealth: () => apiRequest('/uploads/health'),
+  getGoogleAuthUrl: () => apiRequest('/uploads/auth/google/url'),
+  testGoogleDriveConnection: () => apiRequest('/uploads/test-connection', { method: 'POST' }),
+  disconnectGoogleDrive: () => apiRequest('/uploads/token', { method: 'DELETE' }),
 
   // Public Reader Endpoints
   getPublicPosts: (params = {}) => {

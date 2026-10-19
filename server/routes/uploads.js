@@ -24,6 +24,41 @@ router.get('/health', async (req, res) => {
   }
 });
 
+// Real-time admin test connection endpoint
+router.post('/test-connection', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const health = await googleDriveService.checkHealth();
+    return res.json({
+      service: 'Google Drive Storage',
+      success: health.connected,
+      ...health
+    });
+  } catch (err) {
+    return res.status(500).json({
+      service: 'Google Drive Storage',
+      success: false,
+      connected: false,
+      message: err.message
+    });
+  }
+});
+
+// Admin disconnect token endpoint (to re-link or reset credentials)
+router.delete('/token', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await googleDriveService.clearToken();
+    return res.json({
+      success: true,
+      message: 'Đã hủy kết nối token Google Drive thành công.'
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
 // ==========================================
 // 2. OAUTH 2.0 AUTHORIZATION WORKFLOW
 // ==========================================

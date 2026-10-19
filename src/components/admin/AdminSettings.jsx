@@ -15,14 +15,24 @@ import {
   AlertCircle,
   HelpCircle,
   Layout,
-  Tag
+  Tag,
+  HardDrive,
+  RefreshCw,
+  ExternalLink,
+  Unlink,
+  Cloud
 } from 'lucide-react';
 
 export default function AdminSettings({ showToast }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('general'); // 'general' | 'analytics' | 'adsense' | 'seo'
+  const [activeTab, setActiveTab] = useState('general'); // 'general' | 'seo' | 'analytics' | 'adsense' | 'storage'
   const [lastSaved, setLastSaved] = useState(null);
+
+  // Google Drive Cloud Storage state
+  const [driveStatus, setDriveStatus] = useState(null);
+  const [testingDrive, setTestingDrive] = useState(false);
+  const [linkingDrive, setLinkingDrive] = useState(false);
 
   const [form, setForm] = useState({
     siteName: '',
@@ -57,7 +67,63 @@ export default function AdminSettings({ showToast }) {
 
   useEffect(() => {
     loadSettings();
+    loadDriveStatus();
   }, []);
+
+  async function loadDriveStatus() {
+    try {
+      const data = await api.getUploadHealth();
+      setDriveStatus(data);
+    } catch (err) {
+      setDriveStatus({ connected: false, message: err.message });
+    }
+  }
+
+  async function handleTestDrive() {
+    setTestingDrive(true);
+    try {
+      const res = await api.testGoogleDriveConnection();
+      setDriveStatus(res);
+      if (res.success) {
+        showToast?.('Kết nối Google Drive thành công! Thư mục sẵn sàng lưu trữ.', 'success');
+      } else {
+        showToast?.(res.message || 'Kiểm tra thất bại: Cần cấp quyền OAuth lại.', 'error');
+      }
+    } catch (err) {
+      showToast?.(err.message || 'Lỗi khi kiểm tra kết nối Google Drive', 'error');
+    } finally {
+      setTestingDrive(false);
+    }
+  }
+
+  async function handleReconnectDrive() {
+    setLinkingDrive(true);
+    try {
+      const res = await api.getGoogleAuthUrl();
+      if (res.url) {
+        window.location.href = res.url;
+      } else {
+        showToast?.('Không thể tạo liên kết OAuth Google.', 'error');
+      }
+    } catch (err) {
+      showToast?.(err.message || 'Lỗi tạo liên kết OAuth Google', 'error');
+    } finally {
+      setLinkingDrive(false);
+    }
+  }
+
+  async function handleDisconnectDrive() {
+    if (!window.confirm('Bạn có chắc muốn hủy liên kết Google Drive hiện tại? Hệ thống sẽ cần cấp quyền lại để tiếp tục tải ảnh.')) {
+      return;
+    }
+    try {
+      await api.disconnectGoogleDrive();
+      showToast?.('Đã hủy liên kết token Google Drive thành công.', 'info');
+      await loadDriveStatus();
+    } catch (err) {
+      showToast?.(err.message || 'Lỗi khi hủy liên kết token', 'error');
+    }
+  }
 
   async function loadSettings() {
     setLoading(true);
@@ -250,6 +316,39 @@ export default function AdminSettings({ showToast }) {
         >
           <DollarSign size={16} />
           <span>Google AdSense</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('storage')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.65rem 1rem',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'storage' ? '2px solid #2563eb' : '2px solid transparent',
+            color: activeTab === 'storage' ? '#2563eb' : '#64748b',
+            fontWeight: activeTab === 'storage' ? 700 : 500,
+            fontSize: '0.9rem',
+            cursor: 'pointer'
+          }}
+        >
+          <HardDrive size={16} />
+          <span>Google Drive Storage</span>
+          {driveStatus && (
+            <span
+              title={driveStatus.connected ? 'Google Drive đã kết nối' : 'Google Drive mất kết nối / Cần cấp quyền'}
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: driveStatus.connected ? '#10b981' : '#ef4444',
+                display: 'inline-block'
+              }}
+            />
+          )}
         </button>
       </div>
 
@@ -672,6 +771,194 @@ export default function AdminSettings({ showToast }) {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: GOOGLE DRIVE CLOUD STORAGE */}
+        {activeTab === 'storage' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '2rem' }}>
+            {/* Status Overview Card */}
+            <div style={{
+              background: driveStatus?.connected ? '#f0fdf4' : '#fff1f2',
+              border: driveStatus?.connected ? '1px solid #bbf7d0' : '1px solid #fecdd3',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              flexWrap: 'wrap'
+            }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                <div style={{
+                  padding: '0.75rem',
+                  borderRadius: '10px',
+                  background: driveStatus?.connected ? '#dcfce7' : '#ffe4e6',
+                  color: driveStatus?.connected ? '#16a34a' : '#e11d48'
+                }}>
+                  <Cloud size={28} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', color: driveStatus?.connected ? '#14532d' : '#881337', fontWeight: 700 }}>
+                      Google Drive Cloud Storage
+                    </h3>
+                    <span style={{
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: '9999px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background: driveStatus?.connected ? '#22c55e' : '#ef4444',
+                      color: '#ffffff',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem'
+                    }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#fff' }} />
+                      {driveStatus?.connected ? 'ĐÃ KẾT NỐI & SẴN SÀNG' : 'MẤT KẾT NỐI / CHƯA CẤP QUYỀN'}
+                    </span>
+                  </div>
+                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: driveStatus?.connected ? '#166534' : '#9f1239' }}>
+                    {driveStatus?.message || (driveStatus?.connected ? 'Hệ thống đang lưu trữ và phục vụ ảnh trực tiếp từ Google Drive an toàn qua backend proxy.' : 'Cần liên kết tài khoản Google để kích hoạt tải ảnh lên Drive.')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons in Card */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handleTestDrive}
+                  disabled={testingDrive}
+                  className="btn btn-secondary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.5rem 0.9rem' }}
+                >
+                  <RefreshCw size={14} className={testingDrive ? 'animate-spin' : ''} />
+                  <span>{testingDrive ? 'Đang kiểm tra...' : 'Kiểm tra kết nối ngay'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleReconnectDrive}
+                  disabled={linkingDrive}
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.5rem 0.9rem', backgroundColor: '#2563eb' }}
+                >
+                  {linkingDrive ? <Loader2 size={14} className="animate-spin" /> : <HardDrive size={14} />}
+                  <span>{driveStatus?.connected ? 'Cấp quyền / Đổi tài khoản' : 'Kết nối lại Google Drive'}</span>
+                </button>
+
+                {driveStatus?.connected && (
+                  <button
+                    type="button"
+                    onClick={handleDisconnectDrive}
+                    className="btn btn-secondary"
+                    title="Hủy kết nối token hiện tại"
+                    style={{ color: '#ef4444', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.5rem 0.8rem' }}
+                  >
+                    <Unlink size={14} />
+                    <span>Hủy token</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Connection Details Grid */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem'
+            }}>
+              <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>
+                Thông số cấu hình Google Drive Storage
+              </h4>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                {/* Folder ID */}
+                <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                    Thư mục Google Drive đích (Folder ID)
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                    <code style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: 600 }}>
+                      {driveStatus?.folderId || '1GxSVId3qLNG3LP-3jbUWH7T84ctdAAR1'}
+                    </code>
+                    <a
+                      href={`https://drive.google.com/drive/folders/${driveStatus?.folderId || '1GxSVId3qLNG3LP-3jbUWH7T84ctdAAR1'}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Mở thư mục trên Google Drive"
+                      style={{ color: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.8rem', textDecoration: 'none' }}
+                    >
+                      <ExternalLink size={14} />
+                      <span>Mở Drive</span>
+                    </a>
+                  </div>
+                  {driveStatus?.folderName && (
+                    <div style={{ fontSize: '0.8rem', color: '#16a34a', marginTop: '0.35rem' }}>
+                      📁 Tên thư mục: <strong>{driveStatus.folderName}</strong>
+                    </div>
+                  )}
+                </div>
+
+                {/* Redirect URI */}
+                <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                    OAuth Redirect URI (Callback)
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: '#0f172a', wordBreak: 'break-all', fontFamily: 'monospace' }}>
+                    https://www.thehori.click/api/auth/google/callback
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.35rem' }}>
+                    Phải được khai báo trong Google Cloud Console &rarr; Authorized redirect URIs.
+                  </div>
+                </div>
+
+                {/* Security & Proxy */}
+                <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                    Cơ chế bảo mật ảnh (Security Proxy)
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: 500 }}>
+                    🛡️ Proxy Backend Streaming (/api/uploads/file/:id)
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.35rem' }}>
+                    Không để lộ token ra trình duyệt. Client cache 24h & ETag 304 tối ưu tốc độ.
+                  </div>
+                </div>
+
+                {/* Token Storage */}
+                <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                    Lưu trữ & Mã hóa Refresh Token
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: driveStatus?.hasRefreshToken ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                    {driveStatus?.hasRefreshToken ? '🔒 Đã mã hóa AES-256 trong Database' : '❌ Chưa có Refresh Token'}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.35rem' }}>
+                    Token được bảo vệ bằng khóa AES-256-GCM, tự động làm mới khi hết hạn.
+                  </div>
+                </div>
+              </div>
+
+              {/* Troubleshooting Instructions */}
+              {!driveStatus?.connected && (
+                <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '8px', padding: '1rem', marginTop: '0.5rem' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', color: '#92400e', fontSize: '0.875rem', fontWeight: 700 }}>
+                    💡 Hướng dẫn khi gặp lỗi mất kết nối Google Drive:
+                  </h5>
+                  <ol style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.825rem', color: '#78350f', lineHeight: 1.6 }}>
+                    <li>Nhấp vào nút <strong>"Kết nối lại Google Drive"</strong> ở phía trên để mở trang đồng ý cấp quyền của Google.</li>
+                    <li>Đăng nhập bằng tài khoản Google sở hữu hoặc được quyền truy cập thư mục <code>1GxSVId3qLNG3LP-3jbUWH7T84ctdAAR1</code>.</li>
+                    <li>Nếu gặp lỗi <code>redirect_uri_mismatch</code>, đảm bảo bạn đã thêm <code>https://www.thehori.click/api/auth/google/callback</code> vào Authorized redirect URIs trong Google Cloud Console.</li>
+                  </ol>
+                </div>
+              )}
             </div>
           </div>
         )}
