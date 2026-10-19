@@ -16,10 +16,10 @@ import {
   RefreshCw
 } from 'lucide-react';
 
-export default function HomePage({ onSelectPost, onNavigate, settings }) {
+export default function HomePage({ onSelectPost, onNavigate, settings, categories: initialCategories }) {
   const [posts, setPosts] = useState([]);
   const [featuredPost, setFeaturedPost] = useState(null);
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState(Array.isArray(initialCategories) && initialCategories.length > 0 ? initialCategories : []);
   const [selectedCat, setSelectedCat] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -32,8 +32,12 @@ export default function HomePage({ onSelectPost, onNavigate, settings }) {
   const isAdsAllowed = adsConfig?.enabled === true && !!adsConfig?.publisherId;
 
   useEffect(() => {
-    loadCategories();
-  }, []);
+    if (Array.isArray(initialCategories) && initialCategories.length > 0) {
+      setCategories(initialCategories);
+    } else {
+      loadCategories();
+    }
+  }, [initialCategories]);
 
   useEffect(() => {
     loadPosts();

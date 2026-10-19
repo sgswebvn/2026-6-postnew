@@ -1,15 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { api, setStoredToken, getStoredToken } from './api/client';
-import AdminLayout from './components/admin/AdminLayout';
-import AdminDashboard from './components/admin/AdminDashboard';
-import AdminPosts from './components/admin/AdminPosts';
-import AdminPostForm from './components/admin/AdminPostForm';
-import AdminCategories from './components/admin/AdminCategories';
-import AdminAnalytics from './components/admin/AdminAnalytics';
-import AdminScripts from './components/admin/AdminScripts';
-import AdminStaff from './components/admin/AdminStaff';
-import AdminSettings from './components/admin/AdminSettings';
-import LoginPage from './pages/LoginPage';
+
+// Code splitting: Lazy-load heavy Admin modules so public readers never download them
+const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
+const AdminPosts = lazy(() => import('./components/admin/AdminPosts'));
+const AdminPostForm = lazy(() => import('./components/admin/AdminPostForm'));
+const AdminCategories = lazy(() => import('./components/admin/AdminCategories'));
+const AdminAnalytics = lazy(() => import('./components/admin/AdminAnalytics'));
+const AdminScripts = lazy(() => import('./components/admin/AdminScripts'));
+const AdminStaff = lazy(() => import('./components/admin/AdminStaff'));
+const AdminSettings = lazy(() => import('./components/admin/AdminSettings'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
 import PublicNavbar from './components/public/PublicNavbar';
 import PublicFooter from './components/public/PublicFooter';
 import HomePage from './components/public/HomePage';
@@ -248,14 +250,20 @@ export default function App() {
 
     if (!currentUser) {
       return (
-        <div className="app-root admin-theme">
-          <ScriptInjector settings={settings} pathname={pathname} />
-          <LoginPage
-            onLoginSuccess={handleLoginSuccess}
-            onViewSite={() => navigate('/')}
-          />
-          {renderToastContainer()}
-        </div>
+        <Suspense fallback={
+          <div className="admin-theme" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#ffffff' }}>
+            <LoadingSpinner size="md" label="Loading Login..." />
+          </div>
+        }>
+          <div className="app-root admin-theme">
+            <ScriptInjector settings={settings} pathname={pathname} />
+            <LoginPage
+              onLoginSuccess={handleLoginSuccess}
+              onViewSite={() => navigate('/')}
+            />
+            {renderToastContainer()}
+          </div>
+        </Suspense>
       );
     }
 
@@ -264,19 +272,24 @@ export default function App() {
     const targetPostId = editMatch ? editMatch[1] : editingPostId;
 
     return (
-      <div className="app-root admin-theme">
-        <ScriptInjector settings={settings} pathname={pathname} />
-        <AdminLayout
-          user={currentUser}
-          currentTab={activeTab}
-          onTabChange={handleAdminTabChange}
-          onLogout={handleLogout}
-          onViewSite={() => navigate('/')}
-          onNewPost={() => {
-            setEditingPostId(null);
-            navigate('/admin/posts/new');
-          }}
-        >
+      <Suspense fallback={
+        <div className="admin-theme" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#ffffff' }}>
+          <LoadingSpinner size="md" label="Loading Admin Console..." />
+        </div>
+      }>
+        <div className="app-root admin-theme">
+          <ScriptInjector settings={settings} pathname={pathname} />
+          <AdminLayout
+            user={currentUser}
+            currentTab={activeTab}
+            onTabChange={handleAdminTabChange}
+            onLogout={handleLogout}
+            onViewSite={() => navigate('/')}
+            onNewPost={() => {
+              setEditingPostId(null);
+              navigate('/admin/posts/new');
+            }}
+          >
           {activeTab === 'dashboard' && (
             <AdminDashboard
               onNavigateTab={handleAdminTabChange}
@@ -344,8 +357,9 @@ export default function App() {
 
         {renderToastContainer()}
       </div>
-    );
-  }
+    </Suspense>
+  );
+}
 
   // 3. PUBLIC READER PAGES (WHITE UI THEME)
   let publicContent = null;
@@ -393,6 +407,7 @@ export default function App() {
     publicContent = (
       <HomePage
         settings={settings}
+        categories={categories}
         onNavigate={navigate}
         onSelectPost={(slug) => navigate(`/post/${slug}`)}
       />

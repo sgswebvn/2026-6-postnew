@@ -28,5 +28,7 @@ const postSchema = new mongoose.Schema({
 postSchema.index({ status: 1, publishedAt: -1 });
 postSchema.index({ status: 1, categoryId: 1, publishedAt: -1 });
 postSchema.index({ status: 1, views: -1 });
+postSchema.index({ createdAt: -1 });
+postSchema.index({ status: 1, createdAt: -1 });
 
 export const Post = mongoose.models.Post || mongoose.model('Post', postSchema);

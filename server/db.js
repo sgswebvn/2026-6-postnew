@@ -36,7 +36,10 @@ export async function connectDB() {
   if (!cached.promise) {
     cached.promise = mongoose.connect(uri, {
       serverSelectionTimeoutMS: 8000,
-      connectTimeoutMS: 8000
+      connectTimeoutMS: 8000,
+      maxPoolSize: 20,
+      minPoolSize: 5,
+      socketTimeoutMS: 45000
     }).then((mongooseInstance) => {
       const dbName = mongooseInstance.connection.db?.databaseName || 'blogweb';
       console.log(`[MongoDB] Connected successfully to database: "${dbName}"`);

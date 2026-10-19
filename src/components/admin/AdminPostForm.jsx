@@ -47,11 +47,13 @@ import {
   prepareContentForEditor,
   renderContentToHtml
 } from '../../utils/contentFormatter';
+import { optimizeImageForUpload } from '../../utils/imageOptimizer';
 
 export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [coverPreview, setCoverPreview] = useState('');
   const [uploadingClipboard, setUploadingClipboard] = useState(false);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [categories, setCategories] = useState([]);
@@ -167,24 +169,37 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     }));
   }
 
-  // Cover image upload (Right Column)
+  // Cover image upload (Right Column) with INSTANT 0ms local preview
   async function handleCoverFileUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('Image file size must be less than 5MB.', 'error');
+    if (file.size > 20 * 1024 * 1024) {
+      showToast('Image file size must be less than 20MB.', 'error');
       return;
     }
 
+    // Instant local preview in 0ms!
+    let localBlobUrl = '';
+    try {
+      localBlobUrl = URL.createObjectURL(file);
+      setCoverPreview(localBlobUrl);
+    } catch (err) {}
+
     setUploadingImage(true);
     try {
-      const res = await api.uploadImage(file);
+      // Optimize image in browser (downsize 4MB-10MB camera photo to ~250KB in 50ms)
+      const optimizedFile = await optimizeImageForUpload(file);
+      const res = await api.uploadImage(optimizedFile);
       if (res && res.url) {
         setForm(prev => ({ ...prev, coverImage: res.url }));
+        setCoverPreview('');
+        if (localBlobUrl) URL.revokeObjectURL(localBlobUrl);
         showToast('Cover image uploaded to Google Drive!', 'success');
       }
     } catch (err) {
+      setCoverPreview('');
+      if (localBlobUrl) URL.revokeObjectURL(localBlobUrl);
       showToast(err.message || 'Failed to upload cover image.', 'error');
     } finally {
       setUploadingImage(false);
@@ -264,8 +279,8 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
   async function uploadImageFile(file) {
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      showToast(`Image "${file.name || 'Pasted image'}" exceeds 5MB size limit.`, 'error');
+    if (file.size > 20 * 1024 * 1024) {
+      showToast(`Image "${file.name || 'Pasted image'}" exceeds 20MB size limit.`, 'error');
       return;
     }
 
@@ -319,7 +334,9 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     setUploadingCount(c => c + 1);
 
     try {
-      const res = await api.uploadImage(file);
+      // Optimize image in browser before sending over network
+      const optimizedFile = await optimizeImageForUpload(file);
+      const res = await api.uploadImage(optimizedFile);
       if (res && res.url) {
         if (editorMode === 'visual' && visualEditorRef.current) {
           const blockEl = visualEditorRef.current.querySelector(`#${uploadId}`);
@@ -1392,32 +1409,73 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
               Featured Cover Image
             </h3>
 
-            {form.coverImage && (
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ borderRadius: '8px', overflow: 'hidden', height: '160px', border: '1px solid #e2e8f0' }}>
+            {/* Display live local preview or saved coverImage */}
+            {(coverPreview || form.coverImage) && (
+              <div style={{ marginBottom: '1rem', position: 'relative' }}>
+                <div style={{ borderRadius: '8px', overflow: 'hidden', height: '160px', border: '1px solid #e2e8f0', position: 'relative', background: '#0f172a' }}>
                   <img
-                    src={form.coverImage}
+                    src={coverPreview || form.coverImage}
                     alt="Cover Preview"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: uploadingImage ? 0.6 : 1, transition: 'opacity 0.2s' }}
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
+                  {uploadingImage && (
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'rgba(15, 23, 42, 0.55)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      color: '#ffffff',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      backdropFilter: 'blur(2px)'
+                    }}>
+                      <Loader2 className="animate-spin" size={22} />
+                      <span>Đang lưu lên Google Drive...</span>
+                    </div>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setForm(f => ({ ...f, coverImage: '' }))}
-                  style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.8rem', marginTop: '0.5rem', cursor: 'pointer', fontWeight: 600 }}
-                >
-                  Remove Cover Image
-                </button>
+                {!uploadingImage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForm(f => ({ ...f, coverImage: '' }));
+                      setCoverPreview('');
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.8rem', marginTop: '0.5rem', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    Remove Cover Image
+                  </button>
+                )}
               </div>
             )}
 
+            {/* Hidden Input for Cover Image */}
             <input
               type="file"
               ref={fileInputRef}
               accept="image/png, image/jpeg, image/webp, image/gif"
               style={{ display: 'none' }}
               onChange={handleCoverFileUpload}
+            />
+
+            {/* Hidden Input for In-Content Toolbar "Insert Image" */}
+            <input
+              type="file"
+              ref={inContentImageInputRef}
+              accept="image/png, image/jpeg, image/webp, image/gif"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  uploadImageFile(file);
+                  e.target.value = '';
+                }
+              }}
             />
 
             <button

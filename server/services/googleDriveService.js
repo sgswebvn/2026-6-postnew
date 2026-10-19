@@ -191,6 +191,9 @@ class GoogleDriveService {
   async saveRefreshToken(refreshToken) {
     if (!refreshToken) return;
     this.cachedRefreshToken = refreshToken;
+    this.cachedDriveClient = null;
+    this.cachedOAuth2Client = null;
+    this.cachedActiveRefreshToken = null;
     try {
       const encrypted = encryptToken(refreshToken);
       await Setting.findOneAndUpdate(
@@ -213,6 +216,9 @@ class GoogleDriveService {
    */
   async clearToken() {
     this.cachedRefreshToken = null;
+    this.cachedDriveClient = null;
+    this.cachedOAuth2Client = null;
+    this.cachedActiveRefreshToken = null;
     try {
       await Setting.findOneAndUpdate(
         { key: 'global_settings' },
@@ -319,10 +325,20 @@ class GoogleDriveService {
       throw err;
     }
 
+    // Reuse persistent authenticated client to avoid 1-second token exchange on every single call
+    if (this.cachedDriveClient && this.cachedActiveRefreshToken === refreshToken) {
+      return this.cachedDriveClient;
+    }
+
     const oauth2Client = this.createOAuth2Client();
     oauth2Client.setCredentials({ refresh_token: refreshToken });
+    const driveClient = google.drive({ version: 'v3', auth: oauth2Client });
 
-    return google.drive({ version: 'v3', auth: oauth2Client });
+    this.cachedActiveRefreshToken = refreshToken;
+    this.cachedOAuth2Client = oauth2Client;
+    this.cachedDriveClient = driveClient;
+
+    return driveClient;
   }
 
   /**
