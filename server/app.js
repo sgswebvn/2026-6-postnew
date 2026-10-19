@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
@@ -13,6 +14,7 @@ import { connectDB } from './db.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import publicRoutes from './routes/public.js';
+import uploadRoutes, { handleGoogleOAuthCallback } from './routes/uploads.js';
 import { Post } from './models/Post.js';
 import { Category } from './models/Category.js';
 import { Setting } from './models/Setting.js';
@@ -21,6 +23,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// High-performance gzip/deflate response compression
+app.use(compression({ threshold: 0 }));
 
 // Security & Parsing Middlewares
 app.use(cors({
@@ -73,6 +78,14 @@ app.get('/health', healthHandler);
 // Mount API Routes (Both /api and direct prefix for Vercel rewrite resiliency)
 app.use('/api/auth', authRoutes);
 app.use('/auth', authRoutes);
+
+// Google OAuth redirect callback (supporting both /api/auth/google/callback and /auth/google/callback)
+app.get('/api/auth/google/callback', handleGoogleOAuthCallback);
+app.get('/auth/google/callback', handleGoogleOAuthCallback);
+
+// Google Drive uploads & file streaming proxy
+app.use('/api/uploads', uploadRoutes);
+app.use('/uploads', uploadRoutes);
 
 app.use('/api/admin', adminRoutes);
 // Note: We don't mount adminRoutes on /admin directly so client-side SPA route /admin is never shadowed
@@ -203,9 +216,18 @@ const adsTxtHandler = async (req, res) => {
 app.get('/ads.txt', adsTxtHandler);
 app.get('/api/ads.txt', adsTxtHandler);
 
-// Static assets & SPA fallback for traditional node servers (e.g. local dev / container)
+// Static assets with 1-year caching for fingerprinted bundles and dynamic validation for index.html
 const distPath = path.resolve(__dirname, '../dist');
-app.use(express.static(distPath));
+app.use(express.static(distPath, {
+  maxAge: '1y',
+  immutable: true,
+  etag: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    }
+  }
+}));
 
 // SPA catch-all route for frontend client navigation (like /admin, /admin/posts, /category/...)
 app.use((req, res, next) => {

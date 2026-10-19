@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../../api/client';
 import LoadingSpinner from '../common/LoadingSpinner';
 import {
@@ -10,7 +10,9 @@ import {
   Loader2,
   AlertTriangle,
   Lock,
-  UserCheck
+  UserCheck,
+  Camera,
+  UploadCloud
 } from 'lucide-react';
 
 export default function AdminStaff({ currentUser, showToast }) {
@@ -22,6 +24,8 @@ export default function AdminStaff({ currentUser, showToast }) {
   const [editingStaff, setEditingStaff] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
 
   const [form, setForm] = useState({
     name: '',
@@ -30,7 +34,8 @@ export default function AdminStaff({ currentUser, showToast }) {
     email: '',
     phone: '',
     role: 'editor',
-    status: 'active'
+    status: 'active',
+    avatar: ''
   });
 
   useEffect(() => {
@@ -58,7 +63,8 @@ export default function AdminStaff({ currentUser, showToast }) {
       email: '',
       phone: '',
       role: 'editor',
-      status: 'active'
+      status: 'active',
+      avatar: ''
     });
     setModalOpen(true);
   }
@@ -72,9 +78,34 @@ export default function AdminStaff({ currentUser, showToast }) {
       email: staff.email || '',
       phone: staff.phone || '',
       role: staff.role || 'editor',
-      status: staff.status || 'active'
+      status: staff.status || 'active',
+      avatar: staff.avatar || ''
     });
     setModalOpen(true);
+  }
+
+  async function handleAvatarFileSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Kích thước ảnh đại diện không được vượt quá 5MB.', 'error');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const res = await api.uploadAvatar(file, editingStaff?.id || editingStaff?._id);
+      if (res && res.avatar) {
+        setForm(f => ({ ...f, avatar: res.avatar }));
+        showToast('Tải ảnh đại diện lên Google Drive thành công!', 'success');
+      }
+    } catch (err) {
+      showToast(err.message || 'Lỗi khi tải ảnh đại diện lên Google Drive.', 'error');
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
   }
 
   async function handleSaveStaff(e) {
@@ -167,8 +198,12 @@ export default function AdminStaff({ currentUser, showToast }) {
                     <tr key={s.id || s._id}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <div className="user-avatar" style={{ width: '32px', height: '32px', fontSize: '0.75rem' }}>
-                            {s.name ? s.name.charAt(0).toUpperCase() : 'U'}
+                          <div className="user-avatar" style={{ width: '32px', height: '32px', fontSize: '0.75rem', overflow: 'hidden' }}>
+                            {s.avatar ? (
+                              <img src={s.avatar} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              s.name ? s.name.charAt(0).toUpperCase() : 'U'
+                            )}
                           </div>
                           <div>
                             <div style={{ fontWeight: 600, color: '#fff' }}>
@@ -241,6 +276,71 @@ export default function AdminStaff({ currentUser, showToast }) {
               </div>
 
               <div className="modal-body">
+                {/* Avatar Preview & Upload via Google Drive */}
+                <div className="form-group" style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+                  <label className="form-label" style={{ display: 'block', textAlign: 'left' }}>Profile Avatar (Google Drive)</label>
+                  <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem', marginTop: '0.25rem' }}>
+                    <div
+                      style={{
+                        width: '72px',
+                        height: '72px',
+                        borderRadius: '50%',
+                        backgroundColor: '#1e293b',
+                        border: '2px solid #3b82f6',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        color: '#fff',
+                        fontSize: '1.5rem',
+                        fontWeight: 'bold',
+                        position: 'relative'
+                      }}
+                    >
+                      {form.avatar ? (
+                        <img src={form.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        form.name ? form.name.charAt(0).toUpperCase() : 'U'
+                      )}
+                      {uploadingAvatar && (
+                        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Loader2 className="animate-spin" size={20} color="#60a5fa" />
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      ref={avatarInputRef}
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      style={{ display: 'none' }}
+                      onChange={handleAvatarFileSelect}
+                    />
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        disabled={uploadingAvatar}
+                        onClick={() => avatarInputRef.current?.click()}
+                        style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem', gap: '0.35rem' }}
+                      >
+                        <Camera size={13} />
+                        <span>{form.avatar ? 'Change Photo (Drive)' : 'Upload Photo (Drive)'}</span>
+                      </button>
+                      {form.avatar && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ fontSize: '0.75rem', padding: '0.3rem 0.5rem', color: '#f87171' }}
+                          onClick={() => setForm(f => ({ ...f, avatar: '' }))}
+                          title="Remove avatar"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="form-group">
                   <label className="form-label">Full Name *</label>
                   <input

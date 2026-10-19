@@ -123,8 +123,8 @@ export function isValidImageUrl(url) {
 
   // Extensions check (with optional query string)
   const hasImageExt = /\.(jpe?g|png|webp|gif|svg|avif)(\?.*)?$/i.test(trimmed);
-  // Known verified cloud storage hosts (Supabase, Unsplash, Cloudinary, Imgur, etc.)
-  const isImageHosting = /(?:supabase\.co\/storage|images\.unsplash\.com|res\.cloudinary\.com|i\.imgur\.com|media\.giphy\.com)/i.test(trimmed);
+  // Known verified cloud storage hosts (Google Drive, Supabase, Unsplash, Cloudinary, Imgur, etc.)
+  const isImageHosting = /(?:drive\.google\.com|googleusercontent\.com|api\/uploads\/file|supabase\.co\/storage|images\.unsplash\.com|res\.cloudinary\.com|i\.imgur\.com|media\.giphy\.com)/i.test(trimmed);
 
   return hasImageExt || isImageHosting;
 }
@@ -153,25 +153,33 @@ export function buildImageMediaBlockHtml({ url, alt = 'Article illustration', ca
   const toolbarHtml = isInteractive ? `
   <header class="media-block-toolbar" contenteditable="false">
     <div class="media-toolbar-group">
-      <span class="media-drag-handle" title="Drag to reorder" draggable="true">⠿ Drag</span>
-      <button type="button" class="media-btn media-move-up" title="Move Up">▲</button>
-      <button type="button" class="media-btn media-move-down" title="Move Down">▼</button>
+      <span class="media-drag-handle" title="Kéo để đổi vị trí" draggable="true">⠿ Kéo</span>
+      <button type="button" class="media-btn media-move-up" title="Di chuyển ảnh lên trên đoạn văn trước">▲ Lên</button>
+      <button type="button" class="media-btn media-move-down" title="Di chuyển ảnh xuống dưới đoạn văn sau">▼ Xuống</button>
+    </div>
+    <div class="media-toolbar-group" title="Phóng to / thu nhỏ ảnh">
+      <button type="button" class="media-btn media-size-btn" data-size="25" title="Kích thước 25%">25%</button>
+      <button type="button" class="media-btn media-size-btn" data-size="50" title="Kích thước 50%">50%</button>
+      <button type="button" class="media-btn media-size-btn" data-size="75" title="Kích thước 75%">75%</button>
+      <button type="button" class="media-btn media-size-btn" data-size="100" title="Kích thước 100%">100%</button>
+      <button type="button" class="media-btn media-zoom-out" title="Thu nhỏ bớt ảnh">➖</button>
+      <button type="button" class="media-btn media-zoom-in" title="Phóng to thêm ảnh">➕</button>
     </div>
     <div class="media-toolbar-group">
-      <button type="button" class="media-btn media-align-left ${safeAlign === 'left' ? 'active' : ''}" data-align-btn="left" title="Align Left">Left</button>
-      <button type="button" class="media-btn media-align-center ${safeAlign === 'center' ? 'active' : ''}" data-align-btn="center" title="Align Center">Center</button>
-      <button type="button" class="media-btn media-align-right ${safeAlign === 'right' ? 'active' : ''}" data-align-btn="right" title="Align Right">Right</button>
+      <button type="button" class="media-btn media-align-left ${safeAlign === 'left' ? 'active' : ''}" data-align-btn="left" title="Căn lề trái">Trái</button>
+      <button type="button" class="media-btn media-align-center ${safeAlign === 'center' ? 'active' : ''}" data-align-btn="center" title="Căn lề giữa">Giữa</button>
+      <button type="button" class="media-btn media-align-right ${safeAlign === 'right' ? 'active' : ''}" data-align-btn="right" title="Căn lề phải">Phải</button>
     </div>
-    <button type="button" class="media-btn media-delete-btn" title="Remove image block">✕</button>
+    <button type="button" class="media-btn media-delete-btn" title="Xóa ảnh này khỏi nội dung">✕</button>
   </header>` : '';
 
   const resizeHandlesHtml = isInteractive ? `
-    <span class="media-resize-handle media-resize-se" data-handle="se" title="Drag corner to resize width"></span>
-    <span class="media-resize-handle media-resize-sw" data-handle="sw" title="Drag corner to resize width"></span>` : '';
+    <span class="media-resize-handle media-resize-se" data-handle="se" title="Kéo góc này để phóng to / thu nhỏ kích thước ảnh"></span>
+    <span class="media-resize-handle media-resize-sw" data-handle="sw" title="Kéo góc này để phóng to / thu nhỏ kích thước ảnh"></span>` : '';
 
   return `\n<figure class="media-block media-block-image" data-media-type="image" ${numWidth ? `data-width="${numWidth}"` : ''} data-align="${safeAlign}" style="${widthStyle}width:100%;${marginStyle}text-align:${safeAlign};position:relative;" contenteditable="false">${toolbarHtml}
   <div class="media-image-wrapper" style="position:relative;display:inline-block;width:100%;max-width:100%;">
-    <img src="${cleanUrl}" alt="${cleanAlt}" loading="lazy" style="width:100%;height:auto;border-radius:10px;display:block;box-shadow:0 4px 12px rgba(0,0,0,0.06);" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\\'padding:1.25rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:0.875rem;\\'>⚠️ Image failed to load: ${cleanUrl}</div>';" />${resizeHandlesHtml}
+    <img src="${cleanUrl}" alt="${cleanAlt}" loading="lazy" style="width:100%;height:auto;border-radius:10px;display:block;box-shadow:0 4px 12px rgba(0,0,0,0.06);" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\\'padding:1.25rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:0.875rem;\\'>⚠️ Không thể tải ảnh: ${cleanUrl}</div>';" />${resizeHandlesHtml}
   </div>${cleanCaption}
 </figure>\n`;
 }
@@ -272,16 +280,20 @@ export function sanitizeHtml(html) {
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     // Remove style tags and contents that might hijack theme
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    // Remove dangerous object, embed, form, isindex tags
+    .replace(/<(?:object|embed|form|isindex)\b[^<]*(?:(?!<\/(?:object|embed|form|isindex)>)<[^<]*)*<\/(?:object|embed|form|isindex)>/gi, '')
+    .replace(/<(?:object|embed|form|isindex)\b[^>]*>/gi, '')
     // Strip editor-only control headers and resize spans from public rendering
     .replace(/<header\b[^>]*\bclass="media-block-toolbar"[^>]*>[\s\S]*?<\/header>/gi, '')
     .replace(/<div\b[^>]*\bclass="media-block-toolbar"[^>]*>[\s\S]*?<\/div>/gi, '')
     .replace(/<(?:span|div)\b[^>]*\bclass="[^"]*media-resize-handle[^"]*"[^>]*><\/(?:span|div)>/gi, '')
     .replace(/<div\b[^>]*\bclass="[^"]*media-upload-overlay[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
     .replace(/<div\b[^>]*\bclass="[^"]*media-upload-error[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
-    // Strip dangerous on* attributes (onclick, onerror, onload, onmouseover, etc.)
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    // Neutralize javascript: links and image sources
-    .replace(/(href|src)\s*=\s*["']\s*javascript:[^"']*["']/gi, '$1="#"')
+    // Strip dangerous on* attributes (onclick, onerror, onload, etc.) supporting both space and slash <svg/onload=
+    .replace(/[\s/]+on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    // Neutralize javascript: links, actions, and sources
+    .replace(/(href|src|action|data)\s*=\s*["']\s*javascript:[^"']*["']/gi, '$1="#"')
+    .replace(/action\s*=\s*["']?\s*javascript:[^"'\s>]+/gi, 'action="#"')
     // Neutralize data: links except for safe image previews
     .replace(/href\s*=\s*["']\s*data:[^"']*["']/gi, 'href="#"');
 
@@ -295,6 +307,14 @@ export function sanitizeHtml(html) {
     }
     return `<!-- Blocked unauthorized iframe: only YouTube embeds are permitted -->`;
   });
+
+  // Ensure any naked iframe not wrapped in video-container gets wrapped to prevent 0-height collapse
+  sanitized = sanitized.replace(/(?:<p\b[^>]*>\s*)?(<iframe\b[^>]*src="https:\/\/www\.youtube-nocookie\.com\/embed\/[^"]*"[^>]*><\/iframe>)(?:\s*<\/p>)?/gi, (match, iframe) => {
+    return `<div class="media-block media-block-youtube" data-media-type="youtube" style="margin:2rem 0;position:relative;"><div class="video-container" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08);background:#000;">${iframe}</div></div>`;
+  });
+
+  // Clean any accidental duplicate wrapper nesting
+  sanitized = sanitized.replace(/<div\b[^>]*\bclass="[^"]*video-container[^"]*"[^>]*>\s*<div\b[^>]*\bclass="[^"]*media-block-youtube[^"]*"[^>]*>\s*<div\b[^>]*\bclass="[^"]*video-container[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/gi, '<div class="video-container" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08);background:#000;">$1</div>');
 
   return sanitized;
 }
@@ -326,7 +346,7 @@ export function hasMarkdownSyntax(text) {
 
 /**
  * Converts standalone YouTube URLs and standalone Image URLs into rich responsive embeds
- * Provides backward compatibility for older articles that stored URLs as plain text
+ * Provides backward compatibility for older articles that stored URLs as plain text or links
  */
 export function convertStandaloneMediaUrls(content) {
   if (!content || typeof content !== 'string') return '';
@@ -335,10 +355,10 @@ export function convertStandaloneMediaUrls(content) {
   const processedLines = lines.map(line => {
     const trimmed = line.trim();
 
-    // 1. Check if line is wrapped in <p>...</p> or <p><a href="...">...</a></p>
-    const pLinkMatch = trimmed.match(/^<p>\s*(?:<a\s+[^>]*href=["']([^"']*)["'][^>]*>)?\s*(https?:\/\/[^\s<"']+)\s*(?:<\/a>)?\s*<\/p>$/i);
+    // 1. Check if line is wrapped in <p>...</p> or <p>...<a href="...">...</a>...</p>
+    const pLinkMatch = trimmed.match(/^<p[^>]*>[\s\S]*?(?:<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>|(https?:\/\/[^\s<"']+))[\s\S]*?<\/p>$/i);
     if (pLinkMatch) {
-      const targetUrl = pLinkMatch[1] || pLinkMatch[2];
+      const targetUrl = pLinkMatch[1] || pLinkMatch[3];
       const ytId = extractYouTubeId(targetUrl);
       if (ytId) {
         return createYouTubeEmbed(targetUrl);
@@ -359,10 +379,31 @@ export function convertStandaloneMediaUrls(content) {
       }
     }
 
+    // 3. Standalone markdown link [Title](https://youtube.com/...)
+    const mdLinkMatch = trimmed.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+    if (mdLinkMatch) {
+      const targetUrl = mdLinkMatch[2];
+      const ytId = extractYouTubeId(targetUrl);
+      if (ytId) {
+        return createYouTubeEmbed(targetUrl);
+      }
+    }
+
     return line;
   });
 
-  return processedLines.join('\n');
+  let processed = processedLines.join('\n');
+
+  // 4. Transform any paragraph containing a YouTube link
+  processed = processed.replace(/<p\b[^>]*>[\s\S]*?<a\b[^>]*\bhref=["'](https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com|youtu\.be)[^"']+)["'][^>]*>[\s\S]*?<\/a>[\s\S]*?<\/p>/gi, (match, url) => {
+    const ytId = extractYouTubeId(url);
+    if (ytId) {
+      return createYouTubeEmbed(url);
+    }
+    return match;
+  });
+
+  return processed;
 }
 
 /**

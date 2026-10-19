@@ -12,11 +12,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "compression": "^1.8.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
+    "googleapis": "^186.0.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^1.16.0",
     "mongoose": "^8.9.5",

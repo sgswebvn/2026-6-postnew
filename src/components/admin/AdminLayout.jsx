@@ -120,8 +120,12 @@ export default function AdminLayout({
 
         <div className="sidebar-footer">
           <div className="user-mini-card">
-            <div className="user-avatar">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+            <div className="user-avatar" style={{ overflow: 'hidden' }}>
+              {user?.avatar ? (
+                <img src={user.avatar} alt={user.name || user.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                user?.name ? user.name.charAt(0).toUpperCase() : 'A'
+              )}
             </div>
             <div className="user-info">
               <div className="user-name">{user?.name || user?.username}</div>

@@ -182,7 +182,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       const res = await api.uploadImage(file);
       if (res && res.url) {
         setForm(prev => ({ ...prev, coverImage: res.url }));
-        showToast('Cover image uploaded to Supabase Storage!', 'success');
+        showToast('Cover image uploaded to Google Drive!', 'success');
       }
     } catch (err) {
       showToast(err.message || 'Failed to upload cover image.', 'error');
@@ -260,7 +260,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     }
   }
 
-  // Upload an image file (from clipboard, drag-drop, or toolbar) to Supabase Storage with INSTANT local preview
+  // Upload an image file (from clipboard, drag-drop, or toolbar) to Google Drive with INSTANT local preview
   async function uploadImageFile(file) {
     if (!file) return;
 
@@ -411,7 +411,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
     const target = e.target;
     if (!visualEditorRef.current) return;
 
-    // 1. Delete button ✕
+    // 1. Delete button 🗑️
     const deleteBtn = target.closest('.media-delete-btn');
     if (deleteBtn) {
       e.preventDefault();
@@ -420,7 +420,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       if (block) {
         block.remove();
         handleVisualEditorInput();
-        showToast('Media block removed.', 'info');
+        showToast('Đã xóa khối media.', 'info');
       }
       return;
     }
@@ -434,6 +434,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       if (block && block.previousElementSibling) {
         visualEditorRef.current.insertBefore(block, block.previousElementSibling);
         handleVisualEditorInput();
+        showToast('Đã di chuyển ảnh lên trên!', 'success');
       }
       return;
     }
@@ -447,11 +448,65 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       if (block && block.nextElementSibling) {
         visualEditorRef.current.insertBefore(block, block.nextElementSibling.nextElementSibling);
         handleVisualEditorInput();
+        showToast('Đã di chuyển ảnh xuống dưới!', 'success');
       }
       return;
     }
 
-    // 4. Alignment buttons (Left, Center, Right)
+    // 4. Quick Size buttons (25%, 50%, 75%, 100%)
+    const sizeBtn = target.closest('.media-size-btn');
+    if (sizeBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const block = sizeBtn.closest('.media-block-image');
+      if (block) {
+        const percent = parseInt(sizeBtn.dataset.size || '100', 10);
+        block.style.maxWidth = `${percent}%`;
+        block.style.width = `${percent}%`;
+        block.dataset.width = `${percent}%`;
+        handleVisualEditorInput();
+        showToast(`Đã đổi kích thước ảnh sang ${percent}%!`, 'success');
+      }
+      return;
+    }
+
+    // 5. Zoom out / Zoom in buttons
+    const zoomOutBtn = target.closest('.media-zoom-out');
+    if (zoomOutBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const block = zoomOutBtn.closest('.media-block-image');
+      if (block) {
+        const currentW = block.offsetWidth;
+        const newW = Math.max(120, Math.round(currentW * 0.85));
+        block.style.maxWidth = `${newW}px`;
+        block.style.width = '100%';
+        block.dataset.width = String(newW);
+        handleVisualEditorInput();
+        showToast(`Đã thu nhỏ ảnh (${newW}px)`, 'info');
+      }
+      return;
+    }
+
+    const zoomInBtn = target.closest('.media-zoom-in');
+    if (zoomInBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const block = zoomInBtn.closest('.media-block-image');
+      if (block) {
+        const currentW = block.offsetWidth;
+        const editorW = visualEditorRef.current.clientWidth || 800;
+        const newW = Math.min(editorW, Math.round(currentW * 1.15));
+        block.style.maxWidth = `${newW}px`;
+        block.style.width = '100%';
+        block.dataset.width = String(newW);
+        handleVisualEditorInput();
+        showToast(`Đã phóng to ảnh (${newW}px)`, 'info');
+      }
+      return;
+    }
+
+    // 6. Alignment buttons (Left, Center, Right)
     const alignBtn = target.closest('[data-align-btn]');
     if (alignBtn) {
       e.preventDefault();
@@ -477,7 +532,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
       return;
     }
 
-    // 5. Select block on click
+    // 7. Select block on click
     const mediaBlock = target.closest('.media-block');
     const allBlocks = visualEditorRef.current.querySelectorAll('.media-block');
     if (mediaBlock) {
@@ -1129,7 +1184,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  title="Upload image at cursor position (Supabase Storage)"
+                  title="Upload image at cursor position (Google Drive)"
                   onClick={() => inContentImageInputRef.current?.click()}
                   style={{ gap: '0.35rem', fontSize: '0.8rem', color: '#2563eb', borderColor: '#bfdbfe', backgroundColor: '#eff6ff' }}
                 >
@@ -1163,7 +1218,7 @@ export default function AdminPostForm({ postId, onBack, onSuccess, showToast }) 
 
                 {uploadingClipboard && (
                   <span style={{ fontSize: '0.75rem', color: '#2563eb', display: 'flex', alignItems: 'center', gap: '0.35rem', marginLeft: 'auto' }}>
-                    <Loader2 className="animate-spin" size={14} /> Uploading image to Supabase...
+                    <Loader2 className="animate-spin" size={14} /> Uploading image to Google Drive...
                   </span>
                 )}
               </div>

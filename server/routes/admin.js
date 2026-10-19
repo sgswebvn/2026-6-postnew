@@ -7,6 +7,7 @@ import { Setting } from '../models/Setting.js';
 import { CustomScript } from '../models/CustomScript.js';
 import { requireAuth, requireAdmin, sanitizeStaff, hashPassword } from '../auth.js';
 import { isDbConnected } from '../db.js';
+import { googleDriveService, validateImageBuffer } from '../services/googleDriveService.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -1102,7 +1103,7 @@ router.get('/staff', requireAdmin, async (req, res) => {
 
 router.post('/staff', requireAdmin, async (req, res) => {
   try {
-    const { username, password, name, email, role, phone } = req.body;
+    const { username, password, name, email, role, phone, avatar } = req.body;
 
     if (!username || typeof username !== 'string' || !username.trim()) {
       return res.status(400).json({ error: 'Username is required.' });
@@ -1128,6 +1129,7 @@ router.post('/staff', requireAdmin, async (req, res) => {
       email: typeof email === 'string' ? email.trim().toLowerCase() : '',
       phone: typeof phone === 'string' ? phone.trim() : '',
       role: ['admin', 'editor', 'author', 'accountant'].includes(role) ? role : 'editor',
+      avatar: typeof avatar === 'string' ? avatar.trim() : '',
       status: 'active'
     });
 
@@ -1149,10 +1151,11 @@ router.put('/staff/:id', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Staff member not found.' });
     }
 
-    const { name, email, role, status, phone, password } = req.body;
+    const { name, email, role, status, phone, password, avatar } = req.body;
     if (name) staff.name = String(name).trim();
     if (email !== undefined) staff.email = String(email).trim().toLowerCase();
     if (phone !== undefined) staff.phone = String(phone).trim();
+    if (avatar !== undefined) staff.avatar = String(avatar).trim();
     if (role && ['admin', 'editor', 'author', 'accountant'].includes(role)) {
       staff.role = role;
     }
@@ -1196,7 +1199,7 @@ router.delete('/staff/:id', requireAdmin, async (req, res) => {
 });
 
 // ==========================================
-// 7. IMAGE UPLOAD VIA SUPABASE STORAGE
+// 7. IMAGE UPLOAD VIA GOOGLE DRIVE STORAGE
 // ==========================================
 router.post('/upload', async (req, res) => {
   try {
@@ -1206,59 +1209,34 @@ router.post('/upload', async (req, res) => {
       return res.status(400).json({ error: 'Image base64 data is required.' });
     }
 
-    const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    const type = mimeType || 'image/webp';
-    if (!allowedMime.includes(type)) {
-      return res.status(400).json({ error: 'Invalid file format. Allowed: JPG, PNG, WEBP, GIF.' });
-    }
-
     const commaIdx = imageBase64.indexOf(',');
     const base64Data = commaIdx !== -1 ? imageBase64.substring(commaIdx + 1) : imageBase64;
     const buffer = Buffer.from(base64Data, 'base64');
 
-    if (buffer.length > 5 * 1024 * 1024) {
-      return res.status(400).json({ error: 'Image size exceeds maximum limit of 5MB.' });
+    const validation = validateImageBuffer(buffer, mimeType || 'image/webp');
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error });
     }
 
-    const extMap = {
-      'image/jpeg': 'jpg',
-      'image/png': 'png',
-      'image/webp': 'webp',
-      'image/gif': 'gif'
-    };
-    const ext = extMap[type] || 'webp';
-    const cleanName = `img_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
-    const filePath = `uploads/${cleanName}`;
-
-    const supabaseUrl = process.env.SUPABASE_URL || 'https://mmltqgekvpdnezqdavvc.supabase.co';
-    const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-
-    if (!serviceKey) {
-      return res.status(500).json({ error: 'Supabase storage key is not configured.' });
-    }
-
-    const uploadRes = await fetch(`${supabaseUrl}/storage/v1/object/postnew/${filePath}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${serviceKey}`,
-        apikey: serviceKey,
-        'Content-Type': type,
-        'x-upsert': 'true'
-      },
-      body: buffer
+    const uploadResult = await googleDriveService.uploadImage({
+      buffer,
+      fileName,
+      mimeType: validation.mimeType
     });
 
-    if (!uploadRes.ok) {
-      const errText = await uploadRes.text();
-      console.error('[Supabase Upload Error]', uploadRes.status, errText);
-      return res.status(500).json({ error: 'Failed to upload image to cloud storage.' });
-    }
-
-    const publicUrl = `${supabaseUrl}/storage/v1/object/public/postnew/${filePath}`;
-    return res.json({ url: publicUrl, path: filePath });
+    return res.json({
+      url: uploadResult.url,
+      path: uploadResult.url,
+      fileId: uploadResult.fileId,
+      fileName: uploadResult.name,
+      mimeType: uploadResult.mimeType,
+      size: uploadResult.size
+    });
   } catch (err) {
-    console.error('[Upload Exception]', err);
-    return res.status(500).json({ error: 'Image upload failed.' });
+    console.error('[Google Drive Upload Exception]', err);
+    return res.status(500).json({
+      error: err.message || 'Image upload to Google Drive failed.'
+    });
   }
 });
 

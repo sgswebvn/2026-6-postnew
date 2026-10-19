@@ -124,7 +124,7 @@ export const api = {
   updateStaff: (id, data) => apiRequest(`/admin/staff/${id}`, { method: 'PUT', body: data }),
   deleteStaff: (id) => apiRequest(`/admin/staff/${id}`, { method: 'DELETE' }),
 
-  // Image Upload via Supabase Storage
+  // Image Upload via Google Drive Storage
   uploadImage: async (file) => {
     return new Promise((resolve, reject) => {
       if (!file) {
@@ -133,7 +133,7 @@ export const api = {
       const reader = new FileReader();
       reader.onload = async () => {
         try {
-          const res = await apiRequest('/admin/upload', {
+          const res = await apiRequest('/uploads/image', {
             method: 'POST',
             body: {
               imageBase64: reader.result,
@@ -143,13 +143,57 @@ export const api = {
           });
           resolve(res);
         } catch (err) {
-          reject(err);
+          // Fallback to /admin/upload for maximum server route compatibility
+          try {
+            const fallbackRes = await apiRequest('/admin/upload', {
+              method: 'POST',
+              body: {
+                imageBase64: reader.result,
+                fileName: file.name || `image_${Date.now()}.png`,
+                mimeType: file.type || 'image/png'
+              }
+            });
+            resolve(fallbackRes);
+          } catch (fallbackErr) {
+            reject(err);
+          }
         }
       };
       reader.onerror = () => reject(new Error('Failed to read file buffer.'));
       reader.readAsDataURL(file);
     });
   },
+
+  // Avatar Upload via Google Drive (Staff & HRM)
+  uploadAvatar: async (file, staffId = null) => {
+    return new Promise((resolve, reject) => {
+      if (!file) {
+        return reject(new Error('Vui lòng chọn ảnh đại diện.'));
+      }
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const res = await apiRequest('/uploads/avatar', {
+            method: 'POST',
+            body: {
+              imageBase64: reader.result,
+              fileName: file.name || `avatar_${Date.now()}.jpg`,
+              mimeType: file.type || 'image/jpeg',
+              staffId
+            }
+          });
+          resolve(res);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error('Không thể đọc file ảnh.'));
+      reader.readAsDataURL(file);
+    });
+  },
+
+  // Google Drive Diagnostics & Health Check
+  getUploadHealth: () => apiRequest('/uploads/health'),
 
   // Public Reader Endpoints
   getPublicPosts: (params = {}) => {

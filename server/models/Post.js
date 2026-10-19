@@ -24,4 +24,9 @@ const postSchema = new mongoose.Schema({
   strict: false
 });
 
+// High performance compound indexes for fast query filtering and sorting
+postSchema.index({ status: 1, publishedAt: -1 });
+postSchema.index({ status: 1, categoryId: 1, publishedAt: -1 });
+postSchema.index({ status: 1, views: -1 });
+
 export const Post = mongoose.models.Post || mongoose.model('Post', postSchema);
