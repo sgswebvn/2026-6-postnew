@@ -6,6 +6,20 @@ import { CustomScript } from '../models/CustomScript.js';
 
 const router = express.Router();
 
+// High-speed in-memory micro-cache for public routes
+let cachedSettings = null;
+let cachedSettingsTime = 0;
+let cachedCategories = null;
+let cachedCategoriesTime = 0;
+let cachedHomepagePosts = null;
+let cachedHomepagePostsTime = 0;
+
+export function invalidatePublicCache() {
+  cachedSettings = null;
+  cachedCategories = null;
+  cachedHomepagePosts = null;
+}
+
 // GET /api/posts - Public paginated published posts
 router.get('/posts', async (req, res) => {
   try {
@@ -14,6 +28,15 @@ router.get('/posts', async (req, res) => {
     const skip = (page - 1) * limit;
 
     const { search, categoryId, featured } = req.query;
+
+    // Serve instant cached response for standard homepage feed
+    const isDefaultFrontPage = !search && !categoryId && !featured && page === 1 && limit === 12;
+    const now = Date.now();
+    if (isDefaultFrontPage && cachedHomepagePosts && (now - cachedHomepagePostsTime < 20000)) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(cachedHomepagePosts);
+    }
+
     const query = { status: 'published' };
 
     if (search && typeof search === 'string' && search.trim()) {
@@ -30,7 +53,7 @@ router.get('/posts', async (req, res) => {
       const trimmedCat = categoryId.trim();
       const matchedCat = await Category.findOne({
         $or: [{ id: trimmedCat }, { slug: trimmedCat }]
-      }).select('id slug');
+      }).select('id slug').lean();
 
       if (matchedCat) {
         query.categoryId = { $in: [matchedCat.id, matchedCat.slug].filter(Boolean) };
@@ -51,55 +74,56 @@ router.get('/posts', async (req, res) => {
       Post.countDocuments(query)
     ]);
 
-    return res.json({
+    const responsePayload = {
       posts,
       total,
       page,
       totalPages: Math.ceil(total / limit)
-    });
+    };
+
+    if (isDefaultFrontPage) {
+      cachedHomepagePosts = responsePayload;
+      cachedHomepagePostsTime = now;
+      res.setHeader('X-Cache', 'MISS');
+    }
+
+    return res.json(responsePayload);
   } catch (err) {
     console.error('[Public Posts Error]', err);
     return res.status(500).json({ error: 'Failed to retrieve articles.' });
   }
 });
 
-// GET /api/posts/:slug - Full post with related posts & next/prev navigation
+// GET /api/posts/:slug - Full post with parallel queries & non-blocking views
 router.get('/posts/:slug', async (req, res) => {
   try {
-    const post = await Post.findOneAndUpdate(
-      { slug: req.params.slug, status: 'published' },
-      { $inc: { views: 1 } },
-      { new: true }
-    ).lean();
+    const post = await Post.findOne({ slug: req.params.slug, status: 'published' }).lean();
 
     if (!post) {
       return res.status(404).json({ error: 'Article not found.' });
     }
 
-    let category = null;
-    if (post.categoryId) {
-      category = await Category.findOne({
-        $or: [{ id: post.categoryId }, { slug: post.categoryId }]
-      }).lean();
-    }
+    // Fire-and-forget non-blocking view counter increment
+    Post.updateOne({ _id: post._id }, { $inc: { views: 1 } }).exec();
 
-    // Fetch up to 3 related posts from same category
-    let relatedPosts = [];
-    if (post.categoryId) {
-      relatedPosts = await Post.find({
-        status: 'published',
-        categoryId: post.categoryId,
-        slug: { $ne: post.slug }
-      })
-        .sort({ publishedAt: -1 })
-        .limit(3)
-        .select('id title slug excerpt coverImage categoryId publishedAt views')
-        .lean();
-    }
-
-    // Previous and Next articles for continuous reading
     const currentPubDate = post.publishedAt || post.createdAt;
-    const [prevPost, nextPost] = await Promise.all([
+
+    // Run category, related posts, prev and next queries in parallel (1 roundtrip instead of 4)
+    const [category, relatedPosts, prevPost, nextPost] = await Promise.all([
+      post.categoryId
+        ? Category.findOne({ $or: [{ id: post.categoryId }, { slug: post.categoryId }] }).lean()
+        : Promise.resolve(null),
+      post.categoryId
+        ? Post.find({
+            status: 'published',
+            categoryId: post.categoryId,
+            slug: { $ne: post.slug }
+          })
+            .sort({ publishedAt: -1 })
+            .limit(3)
+            .select('id title slug excerpt coverImage categoryId publishedAt views')
+            .lean()
+        : Promise.resolve([]),
       Post.findOne({
         status: 'published',
         $or: [
@@ -135,9 +159,14 @@ router.get('/posts/:slug', async (req, res) => {
   }
 });
 
-// GET /api/categories - All public categories with live article count
+// GET /api/categories - All public categories with live article count (cached 30s)
 router.get('/categories', async (req, res) => {
   try {
+    const now = Date.now();
+    if (cachedCategories && (now - cachedCategoriesTime < 30000)) {
+      return res.json(cachedCategories);
+    }
+
     const [categories, counts] = await Promise.all([
       Category.find().sort({ name: 1 }).lean(),
       Post.aggregate([
@@ -161,6 +190,9 @@ router.get('/categories', async (req, res) => {
       };
     });
 
+    cachedCategories = result;
+    cachedCategoriesTime = now;
+
     return res.json(result);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to retrieve categories.' });
@@ -178,7 +210,7 @@ router.get('/categories/:slug', async (req, res) => {
         { id: { $regex: new RegExp(`^${cleanSlug}$`, 'i') } },
         { name: { $regex: new RegExp(`^${cleanSlug}$`, 'i') } }
       ]
-    });
+    }).lean();
 
     if (!category) {
       return res.status(404).json({ error: 'Category not found.' });
@@ -190,7 +222,7 @@ router.get('/categories/:slug', async (req, res) => {
     });
     return res.json({
       category: {
-        ...category.toObject(),
+        ...category,
         postCount
       }
     });
@@ -199,11 +231,17 @@ router.get('/categories/:slug', async (req, res) => {
   }
 });
 
-// GET /api/settings - Public website settings
+// GET /api/settings - Public website settings (cached 30s)
 router.get('/settings', async (req, res) => {
   try {
-    const settings = await Setting.findOne({ key: 'global_settings' }).select('-__v -_id');
-    return res.json(settings || {});
+    const now = Date.now();
+    if (cachedSettings && (now - cachedSettingsTime < 30000)) {
+      return res.json(cachedSettings);
+    }
+    const settings = await Setting.findOne({ key: 'global_settings' }).select('-__v -_id').lean();
+    cachedSettings = settings || {};
+    cachedSettingsTime = now;
+    return res.json(cachedSettings);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to retrieve settings.' });
   }

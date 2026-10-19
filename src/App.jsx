@@ -55,9 +55,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    checkSession();
-    loadSettings();
-    loadCategories();
+    // Fast path: Guests without stored token do not block on /api/auth/me
+    if (!getStoredToken()) {
+      setCurrentUser(null);
+      setAuthLoading(false);
+    } else {
+      checkSession();
+    }
+    // Concurrently fetch bootstrap website settings and categories
+    Promise.all([loadSettings(), loadCategories()]);
   }, []);
 
   function navigate(path) {
@@ -99,6 +105,11 @@ export default function App() {
   }
 
   async function checkSession() {
+    if (!getStoredToken()) {
+      setCurrentUser(null);
+      setAuthLoading(false);
+      return;
+    }
     setAuthLoading(true);
     try {
       const res = await api.getMe();

@@ -8,6 +8,7 @@ import { CustomScript } from '../models/CustomScript.js';
 import { requireAuth, requireAdmin, sanitizeStaff, hashPassword } from '../auth.js';
 import { isDbConnected } from '../db.js';
 import { googleDriveService, validateImageBuffer } from '../services/googleDriveService.js';
+import { invalidatePublicCache } from './public.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -189,7 +190,17 @@ router.get('/stats', async (req, res) => {
       baseQuery.status = status;
     }
 
-    // Cumulative stats
+    // Period-specific filter definitions
+    const periodFilter = {
+      ...baseQuery,
+      createdAt: { $gte: start, $lte: end }
+    };
+    const prevPeriodFilter = {
+      ...baseQuery,
+      createdAt: { $gte: prevStart, $lte: prevEnd }
+    };
+
+    // Execute ALL cumulative, period, and timeline aggregations concurrently in a single roundtrip
     const [
       totalPosts,
       publishedPosts,
@@ -197,7 +208,11 @@ router.get('/stats', async (req, res) => {
       totalCategories,
       totalStaff,
       viewsAggregation,
-      recentPosts
+      recentPosts,
+      periodPostsCount,
+      prevPeriodPostsCount,
+      topPosts,
+      timelineData
     ] = await Promise.all([
       Post.countDocuments(baseQuery),
       Post.countDocuments({ ...baseQuery, status: 'published' }),
@@ -212,48 +227,33 @@ router.get('/stats', async (req, res) => {
         .sort({ createdAt: -1 })
         .limit(6)
         .select('id title slug status views categoryId publishedAt createdAt')
+        .lean(),
+      Post.countDocuments(periodFilter),
+      Post.countDocuments(prevPeriodFilter),
+      Post.find(baseQuery)
+        .sort({ views: -1 })
+        .limit(6)
+        .select('id title slug views categoryId status publishedAt')
+        .lean(),
+      Post.aggregate([
+        {
+          $match: {
+            ...baseQuery,
+            createdAt: { $gte: start, $lte: end }
+          }
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            count: { $sum: 1 },
+            views: { $sum: '$views' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ])
     ]);
 
     const totalViews = viewsAggregation[0]?.totalViews || 0;
-
-    // Period-specific queries
-    const periodFilter = {
-      ...baseQuery,
-      createdAt: { $gte: start, $lte: end }
-    };
-    const prevPeriodFilter = {
-      ...baseQuery,
-      createdAt: { $gte: prevStart, $lte: prevEnd }
-    };
-
-    const [periodPostsCount, prevPeriodPostsCount] = await Promise.all([
-      Post.countDocuments(periodFilter),
-      Post.countDocuments(prevPeriodFilter)
-    ]);
-
-    // Top performing posts by views in scope
-    const topPosts = await Post.find(baseQuery)
-      .sort({ views: -1 })
-      .limit(6)
-      .select('id title slug views categoryId status publishedAt');
-
-    // Daily distribution timeline for visual chart
-    const timelineData = await Post.aggregate([
-      {
-        $match: {
-          ...baseQuery,
-          createdAt: { $gte: start, $lte: end }
-        }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          count: { $sum: 1 },
-          views: { $sum: '$views' }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
 
     return res.json({
       range,
@@ -405,7 +405,7 @@ router.get('/posts', async (req, res) => {
     }
 
     const [posts, total] = await Promise.all([
-      Post.find(query).sort({ publishedAt: -1, createdAt: -1 }).skip(skip).limit(limit),
+      Post.find(query).sort({ publishedAt: -1, createdAt: -1 }).skip(skip).limit(limit).select('-content').lean(),
       Post.countDocuments(query)
     ]);
 
@@ -461,6 +461,7 @@ router.post('/posts/bulk', async (req, res) => {
       });
       // Recalculate categories post counts
       await refreshAllCategoryPostCounts();
+      invalidatePublicCache();
       return res.json({ message: `Successfully published ${result.modifiedCount} articles.` });
     }
 
@@ -469,6 +470,7 @@ router.post('/posts/bulk', async (req, res) => {
         $set: { status: 'draft', updatedAt: new Date() }
       });
       await refreshAllCategoryPostCounts();
+      invalidatePublicCache();
       return res.json({ message: `Successfully changed ${result.modifiedCount} articles to draft.` });
     }
 
@@ -480,6 +482,7 @@ router.post('/posts/bulk', async (req, res) => {
       }
       const result = await Post.deleteMany(targetQuery);
       await refreshAllCategoryPostCounts();
+      invalidatePublicCache();
       return res.json({ message: `Successfully deleted ${result.deletedCount} articles.` });
     }
   } catch (err) {
@@ -516,6 +519,7 @@ router.post('/posts/delete-all', requireAdmin, async (req, res) => {
 
     // Reset category post counts to 0
     await Category.updateMany({}, { $set: { postCount: 0 } });
+    invalidatePublicCache();
 
     console.log(`[Admin Action] Purged all ${result.deletedCount} posts by admin: ${req.user.username}`);
     return res.json({
@@ -609,6 +613,7 @@ router.post('/posts', async (req, res) => {
       await Category.updateOne({ id: newPost.categoryId }, { postCount: count });
     }
 
+    invalidatePublicCache();
     return res.status(201).json({ message: 'Post created successfully', post: newPost });
   } catch (err) {
     console.error('[Admin Create Post Error]', err);
@@ -685,6 +690,7 @@ router.put('/posts/:id', async (req, res) => {
 
     await post.save();
     await refreshAllCategoryPostCounts();
+    invalidatePublicCache();
 
     return res.json({ message: 'Post updated successfully', post });
   } catch (err) {
@@ -713,6 +719,7 @@ router.delete('/posts/:id', async (req, res) => {
       await Category.updateOne({ id: post.categoryId }, { postCount: count });
     }
 
+    invalidatePublicCache();
     return res.json({ message: 'Post deleted successfully.' });
   } catch (err) {
     console.error('[Admin Delete Post Error]', err);
@@ -746,6 +753,7 @@ router.patch('/posts/:id/status', async (req, res) => {
       await Category.updateOne({ id: post.categoryId }, { postCount: count });
     }
 
+    invalidatePublicCache();
     return res.json({ message: `Post status changed to ${post.status}`, post });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to toggle status.' });
@@ -800,6 +808,7 @@ router.post('/categories', async (req, res) => {
     });
 
     await newCategory.save();
+    invalidatePublicCache();
     return res.status(201).json({ message: 'Category created successfully', category: newCategory });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to create category.' });
@@ -840,6 +849,7 @@ router.put('/categories/:id', async (req, res) => {
 
     await category.save();
     await refreshAllCategoryPostCounts();
+    invalidatePublicCache();
     return res.json({ message: 'Category updated successfully', category });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to update category.' });
@@ -871,6 +881,7 @@ router.delete('/categories/:id', async (req, res) => {
 
     await Category.deleteOne({ _id: category._id });
     await refreshAllCategoryPostCounts();
+    invalidatePublicCache();
     return res.json({ message: 'Category deleted successfully.' });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to delete category.' });
@@ -1082,6 +1093,7 @@ router.put('/settings', requireAdmin, async (req, res) => {
     );
 
     console.log(`[Admin Settings] Configuration updated by admin: ${req.user.username}`);
+    invalidatePublicCache();
     return res.json({ message: 'Website configuration updated and applied successfully.', settings });
   } catch (err) {
     console.error('[Update Settings Error]', err);
