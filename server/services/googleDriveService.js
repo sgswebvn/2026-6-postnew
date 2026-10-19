@@ -130,18 +130,25 @@ class GoogleDriveService {
     return (process.env.GOOGLE_CLIENT_SECRET || '').trim();
   }
 
-  getRedirectUri() {
-    return (process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/google/callback').trim();
+  getRedirectUri(customUri = null) {
+    if (customUri && typeof customUri === 'string') {
+      return customUri.trim();
+    }
+    if (process.env.GOOGLE_REDIRECT_URI && process.env.GOOGLE_REDIRECT_URI.trim()) {
+      return process.env.GOOGLE_REDIRECT_URI.trim();
+    }
+    return 'https://www.thehori.click/api/auth/google/callback';
   }
 
   /**
    * Retrieves active refresh token from:
-   * 1. Environment variable GOOGLE_REFRESH_TOKEN
+   * 1. Environment variable GOOGLE_REFRESH_TOKEN (validated to not be folder ID or placeholder)
    * 2. MongoDB Setting document (key: 'global_settings', field: 'googleDriveTokens.refreshTokenEncrypted')
    */
   async getRefreshToken() {
-    if (process.env.GOOGLE_REFRESH_TOKEN && process.env.GOOGLE_REFRESH_TOKEN.trim()) {
-      return process.env.GOOGLE_REFRESH_TOKEN.trim();
+    const envToken = process.env.GOOGLE_REFRESH_TOKEN?.trim();
+    if (envToken && envToken !== this.getFolderId() && !envToken.includes('your_') && envToken.length > 20) {
+      return envToken;
     }
 
     if (this.cachedRefreshToken) {
@@ -191,10 +198,10 @@ class GoogleDriveService {
   /**
    * Creates an OAuth2 Client instance
    */
-  createOAuth2Client() {
+  createOAuth2Client(customRedirectUri = null) {
     const clientId = this.getClientId();
     const clientSecret = this.getClientSecret();
-    const redirectUri = this.getRedirectUri();
+    const redirectUri = this.getRedirectUri(customRedirectUri);
 
     if (!clientId || !clientSecret) {
       throw new Error('Google OAuth credentials (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET) chưa được cấu hình.');
@@ -206,8 +213,8 @@ class GoogleDriveService {
   /**
    * Generates Google OAuth Consent URL
    */
-  getAuthUrl(state = '') {
-    const oauth2Client = this.createOAuth2Client();
+  getAuthUrl(state = '', customRedirectUri = null) {
+    const oauth2Client = this.createOAuth2Client(customRedirectUri);
     return oauth2Client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
@@ -220,15 +227,39 @@ class GoogleDriveService {
   }
 
   /**
-   * Exchanges authorization code for tokens
+   * Exchanges authorization code for tokens, trying candidate redirect URIs if needed
    */
-  async exchangeAuthCode(code) {
-    const oauth2Client = this.createOAuth2Client();
-    const { tokens } = await oauth2Client.getToken(code);
-    if (tokens.refresh_token) {
-      await this.saveRefreshToken(tokens.refresh_token);
+  async exchangeAuthCode(code, candidateUri = null) {
+    const candidates = [];
+    if (candidateUri) candidates.push(candidateUri);
+    if (process.env.GOOGLE_REDIRECT_URI) candidates.push(process.env.GOOGLE_REDIRECT_URI.trim());
+    candidates.push('https://www.thehori.click/api/auth/google/callback');
+    candidates.push('https://thehori.click/api/auth/google/callback');
+    candidates.push('https://www.thehori.click/auth/google/callback');
+    candidates.push('http://localhost:5000/api/auth/google/callback');
+    candidates.push('http://localhost:3000/api/auth/google/callback');
+
+    const uniqueCandidates = [...new Set(candidates.filter(Boolean))];
+
+    let lastError = null;
+    for (const uri of uniqueCandidates) {
+      try {
+        const oauth2Client = this.createOAuth2Client(uri);
+        const { tokens } = await oauth2Client.getToken(code);
+        if (tokens.refresh_token) {
+          await this.saveRefreshToken(tokens.refresh_token);
+        }
+        return tokens;
+      } catch (err) {
+        lastError = err;
+        // If error is not redirect_uri_mismatch, rethrow immediately
+        if (!err.message?.includes('redirect_uri_mismatch')) {
+          throw err;
+        }
+      }
     }
-    return tokens;
+
+    throw lastError || new Error('redirect_uri_mismatch');
   }
 
   /**

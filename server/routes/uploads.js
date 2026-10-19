@@ -29,7 +29,10 @@ router.get('/health', async (req, res) => {
 // ==========================================
 router.get('/auth/google/url', requireAuth, requireAdmin, (req, res) => {
   try {
-    const url = googleDriveService.getAuthUrl('hrm_admin_oauth');
+    const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+    const host = req.get('host') || 'www.thehori.click';
+    const dynamicRedirectUri = process.env.GOOGLE_REDIRECT_URI || `${proto}://${host}/api/auth/google/callback`;
+    const url = googleDriveService.getAuthUrl('hrm_admin_oauth', dynamicRedirectUri);
     return res.json({ url });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -45,10 +48,10 @@ export async function handleGoogleOAuthCallback(req, res) {
       <!DOCTYPE html>
       <html lang="vi">
       <head><meta charset="UTF-8"><title>Lỗi Xác Thực</title></head>
-      <body style="font-family: sans-serif; padding: 2rem; background: #fff1f2; color: #9f1239;">
+      <body style="font-family: sans-serif; padding: 2rem; background: #fff1f2; color: #9f1239; max-width: 640px; margin: 2rem auto; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
         <h2>❌ Xác thực Google Drive bị hủy hoặc từ chối</h2>
         <p>Chi tiết: <code>${error}</code></p>
-        <p><a href="/admin">Quay lại trang quản trị</a></p>
+        <p><a href="/admin" style="display:inline-block;padding:0.6rem 1.2rem;background:#e11d48;color:#fff;text-decoration:none;border-radius:6px;">Quay lại trang quản trị</a></p>
       </body>
       </html>
     `);
@@ -58,17 +61,21 @@ export async function handleGoogleOAuthCallback(req, res) {
     return res.status(400).send('Mã xác thực (code) không được cung cấp.');
   }
 
+  const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+  const host = req.get('host') || 'www.thehori.click';
+  const detectedUri = `${proto}://${host}${req.baseUrl || ''}${req.path}`.replace(/\/+$/, '');
+
   try {
-    const tokens = await googleDriveService.exchangeAuthCode(code);
+    const tokens = await googleDriveService.exchangeAuthCode(code, detectedUri);
     return res.send(`
       <!DOCTYPE html>
       <html lang="vi">
       <head><meta charset="UTF-8"><title>Xác Thực Thành Công</title></head>
-      <body style="font-family: sans-serif; padding: 2rem; background: #f0fdf4; color: #166534; text-align: center;">
+      <body style="font-family: sans-serif; padding: 2rem; background: #f0fdf4; color: #166534; text-align: center; max-width: 640px; margin: 2rem auto; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
         <h2>✅ Liên kết Google Drive thành công!</h2>
         <p>Đã cấp quyền lưu trữ ảnh vào thư mục <strong>${googleDriveService.getFolderId()}</strong>.</p>
         <p>Hệ thống HRM đã sẵn sàng tải lên ảnh đại diện và ảnh bài viết trực tiếp lên Google Drive.</p>
-        <p><a href="/admin" style="display: inline-block; padding: 0.6rem 1.2rem; background: #16a34a; color: #fff; text-decoration: none; border-radius: 6px; margin-top: 1rem;">Quay lại Quản trị HRM</a></p>
+        <p><a href="/admin" style="display: inline-block; padding: 0.6rem 1.2rem; background: #16a34a; color: #fff; text-decoration: none; border-radius: 6px; margin-top: 1rem; font-weight: 600;">Quay lại Quản trị HRM</a></p>
       </body>
       </html>
     `);
@@ -78,10 +85,22 @@ export async function handleGoogleOAuthCallback(req, res) {
       <!DOCTYPE html>
       <html lang="vi">
       <head><meta charset="UTF-8"><title>Lỗi Trao Đổi Token</title></head>
-      <body style="font-family: sans-serif; padding: 2rem; background: #fff1f2; color: #9f1239;">
-        <h2>❌ Trao đổi token với Google thất bại</h2>
-        <p>${err.message}</p>
-        <p><a href="/admin">Quay lại trang quản trị</a></p>
+      <body style="font-family: sans-serif; padding: 2rem; background: #fff1f2; color: #9f1239; max-width: 680px; margin: 2rem auto; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); line-height: 1.6;">
+        <h2 style="margin-top:0;">❌ Trao đổi token với Google thất bại: ${err.message}</h2>
+        <div style="background:#fff;padding:1.25rem;border-radius:8px;border:1px solid #fecdd3;margin:1rem 0;color:#334155;text-align:left;">
+          <h4 style="margin:0 0 0.5rem 0;color:#9f1239;">📋 Nguyên nhân & Cách khắc phục redirect_uri_mismatch:</h4>
+          <p style="margin:0.25rem 0;">Google Cloud Console yêu cầu mục <strong>Authorized redirect URIs</strong> phải chứa chính xác các URI sau:</p>
+          <ul style="margin:0.5rem 0;padding-left:1.5rem;font-family:monospace;font-size:0.9rem;">
+            <li>https://www.thehori.click/api/auth/google/callback</li>
+            <li>https://thehori.click/api/auth/google/callback</li>
+          </ul>
+          <p style="margin:0.5rem 0 0 0;font-size:0.9rem;color:#475569;">
+            👉 <strong>Bước 1:</strong> Truy cập <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:#2563eb;font-weight:600;">Google Cloud Console &rarr; Credentials</a><br/>
+            👉 <strong>Bước 2:</strong> Nhấp vào Client ID của bạn &rarr; Thêm cả 2 URI trên vào <strong>Authorized redirect URIs</strong> &rarr; Bấm <strong>Save</strong>.<br/>
+            👉 <strong>Bước 3:</strong> Vào lại trang quản trị và bấm <strong>"Liên kết lại Google Drive"</strong>.
+          </p>
+        </div>
+        <p><a href="/admin" style="display:inline-block;padding:0.6rem 1.2rem;background:#e11d48;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Quay lại trang quản trị</a></p>
       </body>
       </html>
     `);
