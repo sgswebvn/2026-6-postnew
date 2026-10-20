@@ -9,7 +9,12 @@
     "start": "node server/index.js",
     "build": "vite build",
     "test": "node test-admin-suite.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:backup": "node scripts/backup-mongodb.mjs",
+    "db:backup:all": "node scripts/backup-mongodb.mjs --dbs=blogweb,RsManagement,blog2,blog",
+    "db:restore": "node scripts/restore-mongodb.mjs",
+    "db:verify": "node scripts/restore-mongodb.mjs --test-restore",
+    "db:recover-images": "node scripts/recover-post-images.mjs"
   },
   "dependencies": {
     "compression": "^1.8.2",
